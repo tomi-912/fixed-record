@@ -287,6 +287,21 @@ mod tests {
 
         assert_eq!(rec1.to_bytes(), rec2.to_bytes());
     }
+
+    #[cfg(feature = "unchecked")]
+    #[test]
+    fn test_unchecked_feature_methods_are_available() {
+        let data = b"HelloWorldABCDE12345678";
+
+        let rec = unsafe { TestRecord::parse_unchecked(data).unwrap() };
+        assert_eq!(rec.to_bytes(), *data);
+
+        let rec_ref = unsafe { TestRecord::from_bytes_unchecked(data).unwrap() };
+        assert_eq!(rec_ref.name(), b"HelloWorld");
+
+        let raw = unsafe { rec.as_bytes_unchecked() };
+        assert_eq!(raw, data);
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -11,9 +11,14 @@ pub fn fixed_record_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
     let field_enum = core::gen_field_enum(&input);
     let impl_block = core::impl_fixed_record_core(&input);
+    let repr_attr = if cfg!(feature = "unchecked") {
+        quote!(#[repr(C)])
+    } else {
+        quote!()
+    };
 
     let output = quote! {
-        #[repr(C)]
+        #repr_attr
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         #input
 

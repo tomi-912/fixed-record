@@ -104,6 +104,60 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
             #field_enum_name::#variant => self.#name.as_bytes()
         }
     });
+    let unchecked_methods = if cfg!(feature = "unchecked") {
+        quote! {
+            #[doc = "構造体のメモリ配置を固定長バイト配列参照として直接読み替えます。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
+            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `to_bytes` を使ってください。"]
+            pub unsafe fn as_bytes_unchecked(&self) -> &[u8; Self::TOTAL_LEN] {
+                unsafe { &*(self as *const Self as *const [u8; Self::TOTAL_LEN]) }
+            }
+
+            #[doc = "バイト列を構造体のメモリへ直接コピーして、構造体の新しいインスタンスを作成します。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
+            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `parse` を使ってください。"]
+            pub unsafe fn parse_unchecked(src: &[u8]) -> Result<Self, ::fixed_record_main::error::Error> {
+                if src.len() < Self::TOTAL_LEN {
+                    return Err(::fixed_record_main::error::Error::TooShort);
+                }
+                let mut inst = Self::zeroed();
+                unsafe {
+                    std::ptr::copy_nonoverlapping(src.as_ptr(), &mut inst as *mut Self as *mut u8, Self::TOTAL_LEN);
+                }
+                Ok(inst)
+            }
+
+            #[doc = "入力されたバイト列をコピーせず、構造体の参照として直接読み取ります。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は入力バイト列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
+            #[doc = "通常は所有値を返す `parse` を使ってください。"]
+            pub unsafe fn from_bytes_unchecked(src: &[u8]) -> Result<&Self, ::fixed_record_main::error::Error> {
+                if src.len() < Self::TOTAL_LEN {
+                    return Err(::fixed_record_main::error::Error::TooShort);
+                }
+                if src.as_ptr() as usize % std::mem::align_of::<Self>() != 0 {
+                    return Err(::fixed_record_main::error::Error::AlignmentError);
+                }
+                unsafe { Ok(&*(src.as_ptr() as *const Self)) }
+            }
+
+            #[doc = "入力された文字列をコピーせず、構造体の参照として直接読み取ります。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は入力文字列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
+            #[doc = "通常は所有値を返す `parse_str` を使ってください。"]
+            pub unsafe fn from_str_unchecked(src: &str) -> Result<&Self, ::fixed_record_main::error::Error> {
+                unsafe { Self::from_bytes_unchecked(src.as_bytes()) }
+            }
+        }
+    } else {
+        quote!()
+    };
     let index_insert_blocks = metas.iter().map(|m| {
         let name = m.name;
         let variant = &m.variant;
@@ -307,15 +361,6 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
                 self
             }
 
-            #[doc = "構造体のメモリ配置を固定長バイト配列参照として直接読み替えます。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
-            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `to_bytes` を使ってください。"]
-            pub unsafe fn as_bytes_unchecked(&self) -> &[u8; Self::TOTAL_LEN] {
-                unsafe { &*(self as *const Self as *const [u8; Self::TOTAL_LEN]) }
-            }
-
             #[doc = "バイト列を読み取って、構造体の新しいインスタンス（所有権あり）を作成します。"]
             pub fn parse(src: &[u8]) -> Result<Self, ::fixed_record_main::error::Error> {
                 if src.len() < Self::TOTAL_LEN {
@@ -326,50 +371,12 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
                 })
             }
 
-            #[doc = "バイト列を構造体のメモリへ直接コピーして、構造体の新しいインスタンスを作成します。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
-            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `parse` を使ってください。"]
-            pub unsafe fn parse_unchecked(src: &[u8]) -> Result<Self, ::fixed_record_main::error::Error> {
-                if src.len() < Self::TOTAL_LEN {
-                    return Err(::fixed_record_main::error::Error::TooShort);
-                }
-                let mut inst = Self::zeroed();
-                unsafe {
-                    std::ptr::copy_nonoverlapping(src.as_ptr(), &mut inst as *mut Self as *mut u8, Self::TOTAL_LEN);
-                }
-                Ok(inst)
-            }
-
             #[doc = "文字列から構造体へ変換します。内部的にはバイト列として読み取るため、コピーが発生します。"]
             pub fn parse_str(src: &str) -> Result<Self, ::fixed_record_main::error::Error> {
                 Self::parse(src.as_bytes())
             }
 
-            #[doc = "入力されたバイト列をコピーせず、構造体の参照として直接読み取ります。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "この関数は入力バイト列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
-            #[doc = "通常は所有値を返す `parse` を使ってください。"]
-            pub unsafe fn from_bytes_unchecked(src: &[u8]) -> Result<&Self, ::fixed_record_main::error::Error> {
-                if src.len() < Self::TOTAL_LEN {
-                    return Err(::fixed_record_main::error::Error::TooShort);
-                }
-                if src.as_ptr() as usize % std::mem::align_of::<Self>() != 0 {
-                    return Err(::fixed_record_main::error::Error::AlignmentError); // エラー型に追加
-                }
-                unsafe { Ok(&*(src.as_ptr() as *const Self)) }
-            }
-
-            #[doc = "入力された文字列をコピーせず、構造体の参照として直接読み取ります。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "この関数は入力文字列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
-            #[doc = "通常は所有値を返す `parse_str` を使ってください。"]
-            pub unsafe fn from_str_unchecked(src: &str) -> Result<&Self, ::fixed_record_main::error::Error> {
-                unsafe { Self::from_bytes_unchecked(src.as_bytes()) }
-            }
+            #unchecked_methods
 
             // --- 3. フィールド操作（動的アクセス） ---
 

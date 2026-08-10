@@ -16,18 +16,22 @@
 
 `#[fixed_record_main]` を付けた構造体から、次のような機能を生成します。
 
-- `#[repr(C)]` と基本 derive を付けたレコード構造体
+- 基本 derive を付けたレコード構造体
 - `{StructName}Field` enum
 - `TOTAL_LEN`、フィールド長、オフセットなどのメタ情報
 - `builder`、`with_*`、`with_*_int`、`with_*_int_signed`
 - `parse` / `parse_str` / `to_bytes`
-- `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`
 - 動的フィールド取得・更新
 - `apply_*` 系の一括流し込み
 - `FixedRecord` トレイト
 - `Reader` / `Writer`
 - `{StructName}List` による挿入、検索、範囲検索、論理削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
+
+`unchecked` feature を有効にした場合だけ、追加で次のものを生成します。
+
+- `#[repr(C)]` を付けたレコード構造体
+- `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`
 
 
 ## 使い方
@@ -88,7 +92,7 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 #### 重要度高
 
-- 生成コードの `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` は、`unsafe` なメモリ変換に依存しています。
+- `unchecked` feature を有効にした場合だけ生成される `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` は、`unsafe` なメモリ変換に依存しています。
   - ここでいう `unsafe` なメモリ変換とは、「構造体をそのままバイト列として見る」「バイト列をそのまま構造体として見る」という処理のことです。
   - 例として、次のようなレコードがあるとします。
 
@@ -113,9 +117,10 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - 現在の `parse` は、入力バイト列を各フィールドの長さごとに切り出して `Fixed<N>` へコピーする実装になっています。
   - 現在の `to_bytes` も、各フィールドの `as_bytes()` を順番に出力配列へコピーする実装になっています。
   - そのため、通常利用では構造体全体のメモリレイアウトに依存しません。
-  - 元のレイアウト依存版は `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` として残しています。
+  - 元のレイアウト依存版は、`unchecked` feature 有効時のみ `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` として生成されます。
   - これらは `unsafe fn` なので、呼び出し側が「構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致している」ことを保証する必要があります。
-  - 今後さらに安全寄りにするなら、unchecked API が本当に必要か、feature flag や別 trait に分けるかを検討するとよさそうです。
+  - `#[repr(C)]` も `unchecked` feature 有効時だけ付与されます。通常時の `parse` / `to_bytes` はフィールド単位コピーなので、`#[repr(C)]` に依存しません。
+  - 今後さらに安全寄りにするなら、unchecked API が本当に必要か、別 trait に分けるかを検討するとよさそうです。
 - `Reader::next` が I/O エラーを握りつぶします。
   - `read_exact` が `UnexpectedEof` 以外のエラーを返しても `None` になります。
   - `fill_buf` のエラーも無視されます。
@@ -163,7 +168,7 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 ### 次に直すなら
 
 1. `Reader` が I/O エラーと不完全レコードを返せるように `Error` を拡張する。
-2. unchecked API を残すか、feature flag や別 trait に分けるかを決める。
+2. unchecked API を残すか、別 trait に分けるかを決める。
 3. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
 4. proc macro の `panic!` を `syn::Error` に置き換えて compile error を改善する。
 5. 桁あふれや `Fixed<0>` の扱いを決め、Result 版 setter または入力検証を追加する。

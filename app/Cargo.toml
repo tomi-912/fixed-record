@@ -3,6 +3,9 @@ name = "app"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+unchecked = ["fixed_record_main/unchecked", "fixed_record_macros/unchecked"]
+
 [dependencies]
 fixed_record_main = { path = "../fixed_record_main" }
 fixed_record_macros = { path = "../fixed_record_macros" }
