@@ -285,7 +285,7 @@ mod tests {
         let rec1 = TestRecord::spaced().apply_bytes(data);
         let rec2 = TestRecord::spaced().apply_bytes(data).apply_bytes(data);
 
-        assert_eq!(rec1.as_bytes(), rec2.as_bytes());
+        assert_eq!(rec1.to_bytes(), rec2.to_bytes());
     }
 }
 
@@ -293,7 +293,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- 1. 既存のパース機能 ---
     let raw_data = "00000001Tanaka Tarou    025";
     println!("--- 1. Basic Access ---");
-    let user_ref = User::from_str(raw_data)?;
+    let user_ref = User::parse_str(raw_data)?;
     println!(
         "ID: {}, Name: {}, Age: {}\n",
         user_ref.id_str()?,
@@ -317,7 +317,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     println!("Created by Builder:");
-    println!("  Raw bytes: \"{}\"", new_user.as_str()?);
+    let new_user_bytes = new_user.to_bytes();
+    println!("  Raw bytes: \"{}\"", std::str::from_utf8(&new_user_bytes)?);
     println!("  ID field   : \"{}\"", new_user.id_str()?);
     println!("  Age field  : \"{}\"\n", new_user.age_str()?);
 
@@ -325,8 +326,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let z = User::zeroed();
     let s = User::spaced();
     println!("Initialization Comparison:");
-    println!("  zeroed bytes: {:?}", &z.as_bytes()[..5]); // [0, 0, 0, 0, 0]
-    println!("  spaced bytes: {:?}", &s.as_bytes()[..5]); // [32, 32, 32, 32, 32] (0x20)
+    println!("  zeroed bytes: {:?}", &z.to_bytes()[..5]); // [0, 0, 0, 0, 0]
+    println!("  spaced bytes: {:?}", &s.to_bytes()[..5]); // [32, 32, 32, 32, 32] (0x20)
 
     // --- 4. シリアライズ (to_bytes) ---
     println!("\n--- 4. Serialization Test ---");

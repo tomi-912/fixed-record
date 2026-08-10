@@ -81,6 +81,29 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
     let total_len: usize = metas.iter().map(|m| m.size).sum();
     let field_names: Vec<_> = metas.iter().map(|m| m.name).collect();
     let metas_variants: Vec<_> = metas.iter().map(|m| &m.variant).collect();
+    let to_bytes_blocks = metas.iter().map(|m| {
+        let name = m.name;
+        let offset = m.offset;
+        let size = m.size;
+        quote! {
+            out[#offset..#offset + #size].copy_from_slice(self.#name.as_bytes());
+        }
+    });
+    let parse_field_inits = metas.iter().map(|m| {
+        let name = m.name;
+        let offset = m.offset;
+        let size = m.size;
+        quote! {
+            #name: ::fixed_record_main::Fixed::<#size>::from_slice(&src[#offset..#offset + #size])?
+        }
+    });
+    let get_field_bytes_arms = metas.iter().map(|m| {
+        let name = m.name;
+        let variant = &m.variant;
+        quote! {
+            #field_enum_name::#variant => self.#name.as_bytes()
+        }
+    });
     let index_insert_blocks = metas.iter().map(|m| {
         let name = m.name;
         let variant = &m.variant;
@@ -259,7 +282,9 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
 
             #[doc = "インスタンスを固定長バイト配列としてコピーして返します。"]
             pub fn to_bytes(&self) -> [u8; Self::TOTAL_LEN] {
-                *self.as_bytes()
+                let mut out = [0u8; Self::TOTAL_LEN];
+                #( #to_bytes_blocks )*
+                out
             }
 
             #[doc = "インスタンスの合計バイト長を返します。"]
@@ -282,19 +307,31 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
                 self
             }
 
-            #[doc = "構造体を固定長のバイト配列参照として返します。この操作はメモリコピーを発生させません。"]
-            pub fn as_bytes(&self) -> &[u8; Self::TOTAL_LEN] {
+            #[doc = "構造体のメモリ配置を固定長バイト配列参照として直接読み替えます。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
+            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `to_bytes` を使ってください。"]
+            pub unsafe fn as_bytes_unchecked(&self) -> &[u8; Self::TOTAL_LEN] {
                 unsafe { &*(self as *const Self as *const [u8; Self::TOTAL_LEN]) }
-            }
-
-            #[doc = "構造体全体を UTF-8 文字列として参照します。不正な文字が含まれる場合は Utf8Error を返します。"]
-            pub fn as_str(&self) -> Result<&str, ::fixed_record_main::error::Error> {
-                std::str::from_utf8(self.as_bytes())
-                    .map_err(|_| ::fixed_record_main::error::Error::Utf8Error)
             }
 
             #[doc = "バイト列を読み取って、構造体の新しいインスタンス（所有権あり）を作成します。"]
             pub fn parse(src: &[u8]) -> Result<Self, ::fixed_record_main::error::Error> {
+                if src.len() < Self::TOTAL_LEN {
+                    return Err(::fixed_record_main::error::Error::TooShort);
+                }
+                Ok(Self {
+                    #( #parse_field_inits ),*
+                })
+            }
+
+            #[doc = "バイト列を構造体のメモリへ直接コピーして、構造体の新しいインスタンスを作成します。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
+            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `parse` を使ってください。"]
+            pub unsafe fn parse_unchecked(src: &[u8]) -> Result<Self, ::fixed_record_main::error::Error> {
                 if src.len() < Self::TOTAL_LEN {
                     return Err(::fixed_record_main::error::Error::TooShort);
                 }
@@ -310,8 +347,12 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
                 Self::parse(src.as_bytes())
             }
 
-             #[doc = "入力されたバイト列をコピーせず、構造体の参照として直接読み取ります。"]
-            pub fn from_bytes(src: &[u8]) -> Result<&Self, ::fixed_record_main::error::Error> {
+            #[doc = "入力されたバイト列をコピーせず、構造体の参照として直接読み取ります。"]
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は入力バイト列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
+            #[doc = "通常は所有値を返す `parse` を使ってください。"]
+            pub unsafe fn from_bytes_unchecked(src: &[u8]) -> Result<&Self, ::fixed_record_main::error::Error> {
                 if src.len() < Self::TOTAL_LEN {
                     return Err(::fixed_record_main::error::Error::TooShort);
                 }
@@ -322,17 +363,21 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
             }
 
             #[doc = "入力された文字列をコピーせず、構造体の参照として直接読み取ります。"]
-            pub fn from_str(src: &str) -> Result<&Self, ::fixed_record_main::error::Error> {
-                Self::from_bytes(src.as_bytes())
+            #[doc = ""]
+            #[doc = "# Safety"]
+            #[doc = "この関数は入力文字列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
+            #[doc = "通常は所有値を返す `parse_str` を使ってください。"]
+            pub unsafe fn from_str_unchecked(src: &str) -> Result<&Self, ::fixed_record_main::error::Error> {
+                unsafe { Self::from_bytes_unchecked(src.as_bytes()) }
             }
 
             // --- 3. フィールド操作（動的アクセス） ---
 
             #[doc = "指定フィールドの生バイト列を返します。"]
             pub fn get_field_bytes(&self, field: #field_enum_name) -> &[u8] {
-                let start = Self::offset_of(field);
-                let len = Self::size_of(field);
-                &self.as_bytes()[start..start + len]
+                match field {
+                    #( #get_field_bytes_arms ),*
+                }
             }
 
             #[doc = "指定フィールドを文字列として取得します（UTF-8チェック）。"]

@@ -20,8 +20,8 @@
 - `{StructName}Field` enum
 - `TOTAL_LEN`、フィールド長、オフセットなどのメタ情報
 - `builder`、`with_*`、`with_*_int`、`with_*_int_signed`
-- `parse` / `parse_str`
-- `as_bytes` / `from_bytes` / `from_str`
+- `parse` / `parse_str` / `to_bytes`
+- `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`
 - 動的フィールド取得・更新
 - `apply_*` 系の一括流し込み
 - `FixedRecord` トレイト
@@ -88,14 +88,34 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 #### 重要度高
 
-- 生成コードの `as_bytes` / `parse` / `from_bytes` / `from_str` が `unsafe` なメモリ変換に依存しています。
-  - `#[repr(C)]` は付いていますが、構造体に padding が入らないことまでは保証しません。
-  - 今は `Fixed<N>` の alignment が 1 なので多くのケースで動きますが、将来フィールド型や実装を変えた時に壊れやすいです。
-  - 公開 API として安全にするなら、各フィールドごとにスライスをコピー/連結する実装へ寄せるか、unsafe 前提条件を明文化してテストで守る必要があります。
-- `from_bytes` / `from_str` は入力バイト列への参照をそのまま生成型 `&Self` として返します。
-  - ゼロコピーとしては速い一方、型レイアウトへの依存が強いです。
-  - 文字列や任意 slice から構造体参照を作る API は、利用者から見ると安全そうに見えるため危険度が高いです。
-  - `parse` のように所有値へコピーする API を基本にし、ゼロコピー API は別名にして制約を強く書く方がよさそうです。
+- 生成コードの `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` は、`unsafe` なメモリ変換に依存しています。
+  - ここでいう `unsafe` なメモリ変換とは、「構造体をそのままバイト列として見る」「バイト列をそのまま構造体として見る」という処理のことです。
+  - 例として、次のようなレコードがあるとします。
+
+    ```rust
+    #[fixed_record_main]
+    pub struct User {
+        pub id: Fixed<8>,
+        pub name: Fixed<16>,
+        pub age: Fixed<3>,
+    }
+    ```
+
+    人間の感覚では、この構造体は `8 + 16 + 3 = 27` バイトぴったりに見えます。固定長レコードとしても、そう扱いたいです。
+  - しかし Rust の構造体は、内部メモリ上で必ずしも「フィールドを単純に前から詰めた形」になるとは限りません。CPU が読みやすい位置にフィールドを置くため、フィールドとフィールドの間や末尾に、見えない余白バイトが入ることがあります。この余白を padding と呼びます。
+  - padding が入った構造体をそのままバイト列として扱うと、固定長レコードとして期待するバイト列と、実際のメモリ上のバイト列がずれる可能性があります。
+  - `#[repr(C)]` は、Rust に「この構造体のフィールド順や配置ルールを C 言語互換寄りにしてほしい」と伝える属性です。外部の C 言語コードと構造体をやり取りしたい時などに使います。
+  - ただし `#[repr(C)]` は「padding が絶対に入らない」ことを保証するものではありません。フィールド順は安定しやすくなりますが、C のルールでも alignment の都合で padding は入り得ます。
+  - alignment は「この型の値はメモリ上の何バイト境界に置かれる必要があるか」という制約です。例えば alignment が 4 の型は、4 の倍数のアドレスに置かれる必要があります。
+  - 今の `Fixed<N>` は中身が `[u8; N]` なので alignment が 1 です。そのため、現在のようにフィールドが全部 `Fixed<N>` だけなら padding が入りにくく、多くのケースでは期待通り動きます。
+  - ただし、これは「今たまたま成立している前提」に近いです。将来 `Fixed<N>` の中身を変えたり、macro が `Fixed<N>` 以外のフィールドを許可したり、生成コードに別のフィールドを足したりすると、padding や alignment の問題が表面化する可能性があります。
+  - 特に危ないのは、公開 API の見た目が安全そうなことです。以前の `User::from_str("...")` は普通のパース処理に見えましたが、内部では文字列のバイト列を `&User` として直接読み替えていました。
+  - 現在の `parse` は、入力バイト列を各フィールドの長さごとに切り出して `Fixed<N>` へコピーする実装になっています。
+  - 現在の `to_bytes` も、各フィールドの `as_bytes()` を順番に出力配列へコピーする実装になっています。
+  - そのため、通常利用では構造体全体のメモリレイアウトに依存しません。
+  - 元のレイアウト依存版は `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` として残しています。
+  - これらは `unsafe fn` なので、呼び出し側が「構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致している」ことを保証する必要があります。
+  - 今後さらに安全寄りにするなら、unchecked API が本当に必要か、feature flag や別 trait に分けるかを検討するとよさそうです。
 - `Reader::next` が I/O エラーを握りつぶします。
   - `read_exact` が `UnexpectedEof` 以外のエラーを返しても `None` になります。
   - `fill_buf` のエラーも無視されます。
@@ -138,13 +158,13 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - workspace の検証としては便利ですが、ライブラリの保証としては `fixed_record_main` / `fixed_record_macros` 側にテストが少なく見えます。
   - 主要な挙動は library crate の unit/integration test へ移すと保守しやすいです。
 - `Error::AlignmentError` と `Error::ParseError` の doc comment が薄く、利用者がどの API で発生するか追いづらいです。
-- README の機能一覧は現在の生成内容とおおむね合っていますが、unsafe ゼロコピーやエラー握りつぶしなどの制約はまだ書かれていませんでした。
+- README の機能一覧は現在の生成内容とおおむね合っていますが、Reader のエラー握りつぶしなどの制約はまだ残っています。
 
 ### 次に直すなら
 
 1. `Reader` が I/O エラーと不完全レコードを返せるように `Error` を拡張する。
-2. 生成コードの `unsafe` を減らし、`parse` / `to_bytes` をフィールド単位の安全なコピー実装にする。
-3. `from_bytes` / `from_str` の扱いを見直し、残すなら unsafe 前提条件と API 名を明確にする。
+2. unchecked API を残すか、feature flag や別 trait に分けるかを決める。
+3. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
 4. proc macro の `panic!` を `syn::Error` に置き換えて compile error を改善する。
 5. 桁あふれや `Fixed<0>` の扱いを決め、Result 版 setter または入力検証を追加する。
 6. app 側のテストを library crate の integration test へ移す。
