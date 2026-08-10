@@ -9,3 +9,6 @@ unchecked = ["fixed_record_main/unchecked", "fixed_record_macros/unchecked"]
 [dependencies]
 fixed_record_main = { path = "../fixed_record_main" }
 fixed_record_macros = { path = "../fixed_record_macros" }
+
+[dev-dependencies]
+trybuild = "1.0"

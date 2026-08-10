@@ -14,21 +14,36 @@ struct FieldMeta<'a> {
 }
 
 /// フィールド情報を一括解析する補助関数
-fn collect_field_meta(input: &DeriveInput) -> Vec<FieldMeta<'_>> {
+fn collect_field_meta(input: &DeriveInput) -> syn::Result<Vec<FieldMeta<'_>>> {
     let fields_raw = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(f) => &f.named,
-            _ => panic!("Named fields only"),
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    &data.fields,
+                    "fixed_record_main supports only structs with named fields",
+                ));
+            }
         },
-        _ => panic!("Structs only"),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "fixed_record_main can only be used on structs",
+            ));
+        }
     };
 
     let mut current_offset = 0usize;
     fields_raw
         .iter()
         .map(|f| {
-            let name = f.ident.as_ref().unwrap();
-            let size = extract_fixed_len(&f.ty);
+            let Some(name) = f.ident.as_ref() else {
+                return Err(syn::Error::new_spanned(
+                    f,
+                    "fixed_record_main supports only named fields",
+                ));
+            };
+            let size = extract_fixed_len(&f.ty)?;
             let offset = current_offset;
             current_offset += size;
             let doc_attrs = f
@@ -38,22 +53,22 @@ fn collect_field_meta(input: &DeriveInput) -> Vec<FieldMeta<'_>> {
                 .cloned()
                 .collect();
 
-            FieldMeta {
+            Ok(FieldMeta {
                 name,
                 size,
                 offset,
                 variant: format_ident!("{}", AsPascalCase(name.to_string()).to_string()),
                 doc_attrs,
-            }
+            })
         })
         .collect()
 }
 
 /// フィールド識別用列挙型 (#struct_nameField) を生成する
-pub fn gen_field_enum(input: &DeriveInput) -> TokenStream {
+pub fn gen_field_enum(input: &DeriveInput) -> syn::Result<TokenStream> {
     let struct_name = &input.ident;
     let field_enum_name = format_ident!("{}Field", struct_name);
-    let metas = collect_field_meta(input);
+    let metas = collect_field_meta(input)?;
 
     let variants = metas.iter().map(|m| {
         let v = &m.variant;
@@ -63,21 +78,41 @@ pub fn gen_field_enum(input: &DeriveInput) -> TokenStream {
             #v
         }
     });
-    quote! {
+    Ok(quote! {
         #[doc = "フィールド識別用の列挙型です。"]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum #field_enum_name {
             #( #variants ),*
         }
-    }
+    })
 }
 
-pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
+pub fn expand_fixed_record_main(input: &DeriveInput) -> syn::Result<TokenStream> {
+    let field_enum = gen_field_enum(input)?;
+    let impl_block = impl_fixed_record_core(input)?;
+    let repr_attr = if cfg!(feature = "unchecked") {
+        quote!(#[repr(C)])
+    } else {
+        quote!()
+    };
+
+    Ok(quote! {
+        #repr_attr
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #input
+
+        #field_enum
+
+        #impl_block
+    })
+}
+
+pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let struct_name = &input.ident;
     let field_enum_name = format_ident!("{}Field", struct_name);
     let entry_name = format_ident!("{}Entry", struct_name);
     let list_name = format_ident!("{}List", struct_name);
-    let metas = collect_field_meta(input);
+    let metas = collect_field_meta(input)?;
     let total_len: usize = metas.iter().map(|m| m.size).sum();
     let field_names: Vec<_> = metas.iter().map(|m| m.name).collect();
     let metas_variants: Vec<_> = metas.iter().map(|m| &m.variant).collect();
@@ -289,7 +324,7 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
     });
     let all_variants = metas.iter().map(|m| &m.variant);
 
-    quote! {
+    Ok(quote! {
         impl #struct_name {
             #[doc = "レコード全体の合計バイト長を返します。"]
             pub const TOTAL_LEN: usize = #total_len;
@@ -815,5 +850,5 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> proc_macro2::TokenStr
                 Self::new()
             }
         }
-    }
+    })
 }

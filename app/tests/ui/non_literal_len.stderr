@@ -1,0 +1,5 @@
+error: Fixed<N> length must be an integer literal
+ --> tests/ui/non_literal_len.rs:5:13
+  |
+5 |     pub id: Fixed<{ 8 }>,
+  |             ^^^^^^^^^^^^

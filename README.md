@@ -185,6 +185,162 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 - proc macro の入力エラーが `panic!` / `expect` 中心です。
   - named struct 以外、`Fixed<N>` 以外、`N` がリテラルでない場合などで、利用者に優しい compile error になりにくいです。
   - `syn::Error::new_spanned(...).to_compile_error()` を返す形にした方が使いやすいです。
+  - 対応方針としては、macro の解析処理を `panic!` で止めるのではなく、`syn::Result<T>` を返す小さな検証関数へ分けます。
+  - 具体的には、`collect_field_meta` や `extract_fixed_len` が失敗時に `syn::Error` を返すようにします。
+  - attribute macro の入口では、生成処理が `Ok(tokens)` なら通常どおり展開し、`Err(error)` なら `error.to_compile_error().into()` を返します。
+  - これにより、利用者は proc macro 内部の panic ではなく、自分が書いた struct や field の位置を指した compile error を受け取れます。
+  - 対象にしたい入力エラーは、少なくとも次の3つです。
+    - `#[fixed_record_main]` が struct 以外に付いている場合
+    - tuple struct / unit struct のように named fields ではない場合
+    - field の型が `Fixed<N>` ではない、または `N` が整数リテラルではない場合
+  - 修正前イメージ:
+
+    ```rust
+    pub fn extract_fixed_len(ty: &Type) -> usize {
+        if let Type::Path(tp) = ty {
+            let segment = tp.path.segments.last().expect("Type path is empty");
+
+            if segment.ident == "Fixed" {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Const(Expr::Lit(expr_lit))) = args.args.first() {
+                        if let Lit::Int(lit_int) = &expr_lit.lit {
+                            return lit_int
+                                .base10_parse::<usize>()
+                                .expect("Failed to parse N in Fixed<N>");
+                        }
+                    }
+                }
+            }
+        }
+
+        panic!("FixedRecord fields must be of type 'Fixed<N>'");
+    }
+    ```
+
+    この形だと、macro 利用者が例えば `String` フィールドを書いた時に、proc macro 実装内部の panic として見えやすくなります。
+
+  - 修正後イメージ:
+
+    ```rust
+    pub fn extract_fixed_len(ty: &Type) -> syn::Result<usize> {
+        let Type::Path(tp) = ty else {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "fixed_record_main fields must be Fixed<N>",
+            ));
+        };
+
+        let Some(segment) = tp.path.segments.last() else {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "fixed_record_main fields must be Fixed<N>",
+            ));
+        };
+
+        if segment.ident != "Fixed" {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "fixed_record_main fields must be Fixed<N>",
+            ));
+        }
+
+        let PathArguments::AngleBracketed(args) = &segment.arguments else {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "Fixed field must specify a byte length, for example Fixed<8>",
+            ));
+        };
+
+        let Some(GenericArgument::Const(Expr::Lit(expr_lit))) = args.args.first() else {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "Fixed<N> length must be an integer literal",
+            ));
+        };
+
+        let Lit::Int(lit_int) = &expr_lit.lit else {
+            return Err(syn::Error::new_spanned(
+                ty,
+                "Fixed<N> length must be an integer literal",
+            ));
+        };
+
+        lit_int.base10_parse::<usize>().map_err(|err| {
+            syn::Error::new_spanned(lit_int, format!("invalid Fixed<N> length: {err}"))
+        })
+    }
+    ```
+
+  - macro 入口側の修正前イメージ:
+
+    ```rust
+    #[proc_macro_attribute]
+    pub fn fixed_record_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
+        let input = parse_macro_input!(item as DeriveInput);
+        let field_enum = core::gen_field_enum(&input);
+        let impl_block = core::impl_fixed_record_core(&input);
+
+        quote! {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            #input
+            #field_enum
+            #impl_block
+        }
+        .into()
+    }
+    ```
+
+  - macro 入口側の修正後イメージ:
+
+    ```rust
+    #[proc_macro_attribute]
+    pub fn fixed_record_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
+        let input = parse_macro_input!(item as DeriveInput);
+
+        match core::expand_fixed_record_main(&input) {
+            Ok(tokens) => tokens.into(),
+            Err(error) => error.to_compile_error().into(),
+        }
+    }
+    ```
+
+  - `core` 側では、生成全体を `syn::Result<TokenStream>` で包む形にします。
+
+    ```rust
+    pub fn expand_fixed_record_main(input: &DeriveInput) -> syn::Result<TokenStream> {
+        let field_enum = gen_field_enum(input)?;
+        let impl_block = impl_fixed_record_core(input)?;
+        let repr_attr = if cfg!(feature = "unchecked") {
+            quote!(#[repr(C)])
+        } else {
+            quote!()
+        };
+
+        Ok(quote! {
+            #repr_attr
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            #input
+            #field_enum
+            #impl_block
+        })
+    }
+    ```
+
+  - 期待するエラー表示のイメージ:
+
+    ```rust
+    #[fixed_record_main]
+    pub struct User {
+        pub id: String,
+    }
+    ```
+
+    修正前は `FixedRecord fields must be of type 'Fixed<N>'` という panic 由来のエラーになりやすいです。
+
+    修正後は、`pub id: String` の型位置を指して、`fixed_record_main fields must be Fixed<N>` のような compile error にできます。
+
+  - この対応を入れる場合は、`trybuild` などで compile-fail test を追加すると安心です。
+  - 例として、`tests/ui/non_struct.rs`、`tests/ui/tuple_struct.rs`、`tests/ui/non_fixed_field.rs`、`tests/ui/non_literal_len.rs` を用意し、期待するエラーメッセージを固定すると、macro の利用者体験を壊しにくくなります。
 
 #### 重要度中
 

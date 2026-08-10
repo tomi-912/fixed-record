@@ -1,0 +1,5 @@
+error: fixed_record_main supports only structs with named fields
+ --> tests/ui/tuple_struct.rs:4:23
+  |
+4 | pub struct TupleRecord(Fixed<8>);
+  |                       ^^^^^^^^^^
