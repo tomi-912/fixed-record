@@ -23,6 +23,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
 impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
     type Item = Result<T, Error>;
 
+    /// 次の固定長レコードを読み込み、終端またはエラーを返します。
     fn next(&mut self) -> Option<Self::Item> {
         let mut buf = vec![0u8; T::TOTAL_LEN];
         let mut read_len = 0;
@@ -73,6 +74,7 @@ mod tests {
     impl FixedRecord for TestRecord {
         const TOTAL_LEN: usize = 4;
 
+        /// 4バイトの入力からテスト用レコードを作成します。
         fn parse(src: &[u8]) -> Result<Self, Error> {
             if src.len() < Self::TOTAL_LEN {
                 return Err(Error::TooShort);
@@ -82,6 +84,7 @@ mod tests {
             Ok(Self(bytes))
         }
 
+        /// テスト用レコードの内部バイト列を返します。
         fn to_bytes(&self) -> Vec<u8> {
             self.0.to_vec()
         }
@@ -92,19 +95,23 @@ mod tests {
     }
 
     impl Read for FillBufErrorAfterRead {
+        /// 内部カーソルから通常どおりバイト列を読み込みます。
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             self.cursor.read(buf)
         }
     }
 
     impl BufRead for FillBufErrorAfterRead {
+        /// レコード読込後の改行読み飛ばしで I/O エラーを発生させます。
         fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Err(io::Error::new(ErrorKind::Other, "fill_buf failed"))
         }
 
+        /// テスト用なのでバッファ消費は何もしません。
         fn consume(&mut self, _amt: usize) {}
     }
 
+    /// 入力が空のときに正常な終端として `None` を返すことを確認します。
     #[test]
     fn reader_returns_none_on_clean_eof() {
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(Vec::new())));
@@ -112,6 +119,7 @@ mod tests {
         assert!(reader.next().is_none());
     }
 
+    /// レコード途中で EOF になったときに `IncompleteRecord` を返すことを確認します。
     #[test]
     fn reader_returns_incomplete_record_on_short_tail() {
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abc".to_vec())));
@@ -126,6 +134,7 @@ mod tests {
         ));
     }
 
+    /// 改行読み飛ばし中の I/O エラーが `Error::Io` として返ることを確認します。
     #[test]
     fn reader_returns_io_error_from_fill_buf() {
         let mut reader = Reader::<_, TestRecord>::new(FillBufErrorAfterRead {

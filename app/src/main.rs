@@ -27,8 +27,15 @@ mod tests {
         amount: Fixed<8>,
     }
 
+    #[fixed_record_main]
+    pub struct SplitUtf8Record {
+        name: Fixed<8>,
+        rest: Fixed<2>,
+    }
+
     // ---- apply<F> のテスト ----
 
+    /// `apply` のクロージャで複数フィールドをまとめて更新できることを確認します。
     #[test]
     fn test_apply_closure() {
         let aa = TestRecord::builder().apply_str("test      ttte");
@@ -51,6 +58,7 @@ mod tests {
 
     // ---- apply_bytes のテスト ----
 
+    /// 全フィールド分ぴったりのバイト列を先頭から流し込めることを確認します。
     #[test]
     fn test_apply_bytes_exact() {
         // ちょうど TOTAL_LEN (23) バイト
@@ -62,6 +70,7 @@ mod tests {
         assert_eq!(rec.amount(), b"12345678");
     }
 
+    /// 入力バイト列が途中で終わる場合に、未到達部分が元のスペース埋めのまま残ることを確認します。
     #[test]
     fn test_apply_bytes_shorter_than_total() {
         // データが途中で終わる場合 → 残りのフィールドはspaced のまま
@@ -76,6 +85,7 @@ mod tests {
 
     // ---- apply_str のテスト ----
 
+    /// 文字列入力をバイト列として各フィールドへ順番に流し込めることを確認します。
     #[test]
     fn test_apply_str() {
         let s = b"HelloWorldABCDE12345678";
@@ -97,6 +107,7 @@ mod tests {
 
     // ---- apply_bytes_from のテスト ----
 
+    /// 開始フィールドが先頭の場合に `apply_bytes` と同じ結果になることを確認します。
     #[test]
     fn test_apply_bytes_from_first_field() {
         // 先頭から開始 → apply_bytes と同じ動作
@@ -108,6 +119,7 @@ mod tests {
         assert_eq!(rec.amount(), b"12345678");
     }
 
+    /// 中間フィールドから流し込むと、それより前のフィールドが変更されないことを確認します。
     #[test]
     fn test_apply_bytes_from_middle_field() {
         // code フィールドから開始 → name はspaced のまま
@@ -119,6 +131,7 @@ mod tests {
         assert_eq!(rec.amount(), b"12345678");
     }
 
+    /// 最後のフィールドだけを指定してバイト列を流し込めることを確認します。
     #[test]
     fn test_apply_bytes_from_last_field() {
         // amount フィールドのみ書き込み
@@ -132,6 +145,7 @@ mod tests {
 
     // ---- apply_str_from のテスト ----
 
+    /// 中間フィールドから文字列を流し込めることを確認します。
     #[test]
     fn test_apply_str_from_middle() {
         let s = "ABCDE12345678";
@@ -150,6 +164,7 @@ mod tests {
 
     // ---- メソッドチェーンの組み合わせテスト ----
 
+    /// builder と `with_*` 系メソッドを連鎖してレコードを作成できることを確認します。
     #[test]
     fn test_method_chain() {
         let rec = TestRecord::builder()
@@ -172,11 +187,13 @@ mod tests {
         );
     }
 
+    /// `FixedRecord` trait 経由のバイト化と `Reader` / `Writer` の往復を確認します。
     #[test]
     fn test_reader_writer_and_fixed_record_trait() {
         use fixed_record_main::{FixedRecord, Reader, Writer};
         use std::io::{BufReader, Cursor};
 
+        /// `FixedRecord` trait だけに依存してレコードをバイト列へ変換します。
         fn bytes_via_trait<T: FixedRecord>(record: &T) -> Vec<u8> {
             record.to_bytes()
         }
@@ -222,6 +239,7 @@ mod tests {
         assert!(reader.next().is_none());
     }
 
+    /// 生成された List 型の追加、検索、ソート、論理削除、vacuum を確認します。
     #[test]
     fn test_generated_list_management() {
         let mut list = TestRecordList::new();
@@ -278,6 +296,7 @@ mod tests {
 
     // ---- apply の冪等性テスト ----
 
+    /// 同じデータを繰り返し適用しても結果が変わらないことを確認します。
     #[test]
     fn test_apply_idempotent() {
         // 同じデータを2回 apply しても結果は同じ
@@ -288,6 +307,131 @@ mod tests {
         assert_eq!(rec1.to_bytes(), rec2.to_bytes());
     }
 
+    /// UTF-8 文字列が固定バイト幅どおり保持され、余白だけ trim されることを確認します。
+    #[test]
+    fn test_utf8_field_keeps_exact_bytes_and_trims_padding_spaces() {
+        let mut record = TestRecord::builder().build();
+        record.fill_space();
+        record.set_field_str(TestRecordField::Name, "あいう ");
+
+        let expected = "あいう ".as_bytes();
+
+        assert_eq!(expected.len(), TestRecord::FIELD_SIZE_NAME);
+        assert_eq!(record.name().len(), TestRecord::FIELD_SIZE_NAME);
+        assert_eq!(record.name(), expected);
+        assert_eq!(
+            record.name(),
+            &[0xe3, 0x81, 0x82, 0xe3, 0x81, 0x84, 0xe3, 0x81, 0x86, b' ']
+        );
+        let name_text = record.name_str().unwrap();
+        assert_eq!(name_text, "あいう ");
+        assert_eq!(name_text.len(), TestRecord::FIELD_SIZE_NAME);
+        assert_eq!(name_text.chars().count(), 4);
+        assert_eq!(
+            record.get_field_trimmed(TestRecordField::Name).unwrap(),
+            "あいう"
+        );
+        assert_eq!(
+            record
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "あいう".to_string()
+        );
+    }
+
+    /// UTF-8 を含む固定長レコードを `Reader` がバイト境界で正確に読み取ることを確認します。
+    #[test]
+    fn test_utf8_reader_reads_fixed_byte_records_exactly() {
+        use fixed_record_main::Reader;
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("あいう ")
+            .with_code("JP001")
+            .with_amount_int(1)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Rust")
+            .with_code("EN001")
+            .with_amount_int(2)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.extend_from_slice(b"\n");
+        bytes.extend_from_slice(&second.to_bytes());
+
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
+
+        let read_first = reader.next().unwrap().unwrap();
+        assert_eq!(read_first.name(), "あいう ".as_bytes());
+        assert_eq!(read_first.name().len(), TestRecord::FIELD_SIZE_NAME);
+        assert_eq!(
+            read_first.get_field_trimmed(TestRecordField::Name).unwrap(),
+            "あいう"
+        );
+        assert_eq!(read_first.code(), b"JP001");
+        assert_eq!(read_first.amount(), b"00000001");
+
+        let read_second = reader.next().unwrap().unwrap();
+        assert_eq!(
+            read_second
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Rust"
+        );
+        assert_eq!(read_second.code(), b"EN001");
+        assert_eq!(read_second.amount(), b"00000002");
+
+        assert!(reader.next().is_none());
+    }
+
+    /// フィールド境界が UTF-8 文字の途中に来た場合に文字列変換が失敗することを確認します。
+    #[test]
+    fn test_utf8_field_split_at_byte_boundary_reports_utf8_error() {
+        let record = SplitUtf8Record::parse("あいう ".as_bytes()).unwrap();
+
+        assert_eq!(SplitUtf8Record::TOTAL_LEN, 10);
+        assert_eq!(record.name(), &"あいう ".as_bytes()[..8]);
+        assert_eq!(record.rest(), &"あいう ".as_bytes()[8..10]);
+        assert!(matches!(record.name_str(), Err(Error::Utf8Error)));
+        assert!(matches!(
+            record.get_field_str(SplitUtf8RecordField::Name),
+            Err(Error::Utf8Error)
+        ));
+    }
+
+    /// UTF-8 がフィールド幅に収まる場合に `Writer` と `Reader` で往復できることを確認します。
+    #[test]
+    fn test_utf8_writer_reader_round_trip_when_field_width_is_large_enough() {
+        use fixed_record_main::{Reader, Writer};
+        use std::io::{BufReader, Cursor};
+
+        let record = TestRecord::builder()
+            .with_name("あいう ")
+            .with_code("JP002")
+            .with_amount_int(300)
+            .build();
+
+        let mut bytes = Vec::new();
+        let mut writer = Writer::new(&mut bytes);
+        writer.write_record(&record).unwrap();
+        writer.flush().unwrap();
+
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
+        let read_back = reader.next().unwrap().unwrap();
+
+        assert_eq!(read_back.name(), "あいう ".as_bytes());
+        assert_eq!(read_back.name_str().unwrap(), "あいう ");
+        assert_eq!(
+            read_back.get_field_trimmed(TestRecordField::Name).unwrap(),
+            "あいう"
+        );
+        assert_eq!(read_back.code(), b"JP002");
+        assert_eq!(read_back.amount(), b"00000300");
+    }
+
+    /// `unchecked` feature 有効時に unsafe なゼロコピー系 API が利用できることを確認します。
     #[cfg(feature = "unchecked")]
     #[test]
     fn test_unchecked_feature_methods_are_available() {
@@ -304,6 +448,7 @@ mod tests {
     }
 }
 
+/// サンプルアプリとして固定長レコードの主要 API を順番に実行します。
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- 1. 既存のパース機能 ---
     let raw_data = "00000001Tanaka Tarou    025";

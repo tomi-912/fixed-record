@@ -1,3 +1,4 @@
+/// proc macro の不正入力が panic ではなく読みやすい compile error になることを確認します。
 #[test]
 fn fixed_record_main_reports_friendly_input_errors() {
     let t = trybuild::TestCases::new();

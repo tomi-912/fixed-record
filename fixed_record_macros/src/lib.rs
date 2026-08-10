@@ -5,6 +5,7 @@ use syn::{DeriveInput, parse_macro_input};
 mod core;
 mod helpers;
 
+/// 固定長レコード用の補助型と実装を生成する attribute macro です。
 #[proc_macro_attribute]
 pub fn fixed_record_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);

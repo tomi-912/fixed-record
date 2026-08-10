@@ -87,6 +87,7 @@ pub fn gen_field_enum(input: &DeriveInput) -> syn::Result<TokenStream> {
     })
 }
 
+/// attribute macro の入力を検証し、構造体・フィールド enum・実装一式の token を生成します。
 pub fn expand_fixed_record_main(input: &DeriveInput) -> syn::Result<TokenStream> {
     let field_enum = gen_field_enum(input)?;
     let impl_block = impl_fixed_record_core(input)?;
@@ -107,6 +108,7 @@ pub fn expand_fixed_record_main(input: &DeriveInput) -> syn::Result<TokenStream>
     })
 }
 
+/// 固定長レコードとして使うためのメソッド、trait 実装、リスト型を生成します。
 pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let struct_name = &input.ident;
     let field_enum_name = format_ident!("{}Field", struct_name);
@@ -603,10 +605,12 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
         impl ::fixed_record_main::FixedRecord for #struct_name {
             const TOTAL_LEN: usize = #struct_name::TOTAL_LEN;
 
+            #[doc = "固定長バイト列からレコードを作成します。"]
             fn parse(src: &[u8]) -> Result<Self, ::fixed_record_main::Error> {
                 #struct_name::parse(src)
             }
 
+            #[doc = "レコードを固定長バイト列としてコピーして返します。"]
             fn to_bytes(&self) -> Vec<u8> {
                 #struct_name::to_bytes(self).to_vec()
             }
@@ -846,6 +850,7 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
         }
 
         impl Default for #list_name {
+            #[doc = "空のリストを作成します。"]
             fn default() -> Self {
                 Self::new()
             }

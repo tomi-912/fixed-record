@@ -25,6 +25,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
+    /// エラー内容を利用者向けの短いメッセージとして整形します。
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::TooShort => write!(f, "input data is too short for the fixed length"),
@@ -41,6 +42,7 @@ impl fmt::Display for Error {
 }
 
 impl PartialEq for Error {
+    /// I/O エラーは `ErrorKind` で比較し、それ以外は variant と値で比較します。
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Error::TooShort, Error::TooShort) => true,
@@ -66,6 +68,7 @@ impl PartialEq for Error {
 impl Eq for Error {}
 
 impl std::error::Error for Error {
+    /// ラップしている I/O エラーがあれば原因として返します。
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Io(err) => Some(err),
@@ -75,6 +78,7 @@ impl std::error::Error for Error {
 }
 
 impl From<io::Error> for Error {
+    /// 標準 I/O エラーを固定長レコード用エラーへ変換します。
     fn from(err: io::Error) -> Self {
         Self::Io(err)
     }

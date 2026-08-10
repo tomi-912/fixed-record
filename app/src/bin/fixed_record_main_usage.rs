@@ -8,6 +8,7 @@ pub struct Payment {
     pub amount: Fixed<8>,
 }
 
+/// `fixed_record_main::prelude` を使った利用者目線のサンプルを実行します。
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let payment = Payment::builder()
         .with_bank_code("0001")

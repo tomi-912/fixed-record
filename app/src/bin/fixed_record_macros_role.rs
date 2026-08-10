@@ -7,10 +7,12 @@ pub struct Customer {
     pub name: Fixed<12>,
 }
 
+/// 生成された `FixedRecord` 実装を trait 境界越しに呼び出します。
 fn bytes_from_generated_trait<T: FixedRecord>(record: &T) -> Vec<u8> {
     record.to_bytes()
 }
 
+/// proc macro クレートを直接 import するサンプルを実行します。
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let customer = Customer::builder()
         .with_id("C00001")
