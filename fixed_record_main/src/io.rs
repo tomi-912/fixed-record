@@ -1,5 +1,5 @@
 use crate::{Error, FixedRecord};
-use std::io::{self, BufRead, ErrorKind, Write};
+use std::io::{self, BufRead, Write};
 use std::marker::PhantomData;
 
 /// 固定長レコードをストリームから順に読み込むイテレータです。
@@ -25,12 +25,20 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut buf = vec![0u8; T::TOTAL_LEN];
+        let mut read_len = 0;
 
-        if let Err(e) = self.reader.read_exact(&mut buf) {
-            if e.kind() == ErrorKind::UnexpectedEof {
-                return None;
+        while read_len < T::TOTAL_LEN {
+            match self.reader.read(&mut buf[read_len..]) {
+                Ok(0) if read_len == 0 => return None,
+                Ok(0) => {
+                    return Some(Err(Error::IncompleteRecord {
+                        expected: T::TOTAL_LEN,
+                        actual: read_len,
+                    }));
+                }
+                Ok(n) => read_len += n,
+                Err(err) => return Some(Err(Error::Io(err))),
             }
-            return None;
         }
 
         let record = T::parse(&buf);
@@ -38,7 +46,7 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
         loop {
             let available = match self.reader.fill_buf() {
                 Ok(bytes) => bytes,
-                Err(_) => break,
+                Err(err) => return Some(Err(Error::Io(err))),
             };
             if available.is_empty() {
                 break;
@@ -51,6 +59,81 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
         }
 
         Some(record)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{BufReader, Cursor, ErrorKind, Read};
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct TestRecord([u8; 4]);
+
+    impl FixedRecord for TestRecord {
+        const TOTAL_LEN: usize = 4;
+
+        fn parse(src: &[u8]) -> Result<Self, Error> {
+            if src.len() < Self::TOTAL_LEN {
+                return Err(Error::TooShort);
+            }
+            let mut bytes = [0; 4];
+            bytes.copy_from_slice(&src[..4]);
+            Ok(Self(bytes))
+        }
+
+        fn to_bytes(&self) -> Vec<u8> {
+            self.0.to_vec()
+        }
+    }
+
+    struct FillBufErrorAfterRead {
+        cursor: Cursor<Vec<u8>>,
+    }
+
+    impl Read for FillBufErrorAfterRead {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.cursor.read(buf)
+        }
+    }
+
+    impl BufRead for FillBufErrorAfterRead {
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
+            Err(io::Error::new(ErrorKind::Other, "fill_buf failed"))
+        }
+
+        fn consume(&mut self, _amt: usize) {}
+    }
+
+    #[test]
+    fn reader_returns_none_on_clean_eof() {
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(Vec::new())));
+
+        assert!(reader.next().is_none());
+    }
+
+    #[test]
+    fn reader_returns_incomplete_record_on_short_tail() {
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abc".to_vec())));
+
+        let err = reader.next().unwrap().unwrap_err();
+        assert!(matches!(
+            err,
+            Error::IncompleteRecord {
+                expected: 4,
+                actual: 3
+            }
+        ));
+    }
+
+    #[test]
+    fn reader_returns_io_error_from_fill_buf() {
+        let mut reader = Reader::<_, TestRecord>::new(FillBufErrorAfterRead {
+            cursor: Cursor::new(b"abcd".to_vec()),
+        });
+
+        let err = reader.next().unwrap().unwrap_err();
+        assert!(matches!(err, Error::Io(_)));
     }
 }
 

@@ -121,13 +121,67 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - これらは `unsafe fn` なので、呼び出し側が「構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致している」ことを保証する必要があります。
   - `#[repr(C)]` も `unchecked` feature 有効時だけ付与されます。通常時の `parse` / `to_bytes` はフィールド単位コピーなので、`#[repr(C)]` に依存しません。
   - 今後さらに安全寄りにするなら、unchecked API が本当に必要か、別 trait に分けるかを検討するとよさそうです。
-- `Reader::next` が I/O エラーを握りつぶします。
-  - `read_exact` が `UnexpectedEof` 以外のエラーを返しても `None` になります。
-  - `fill_buf` のエラーも無視されます。
-  - `Iterator<Item = Result<T, Error>>` なのに I/O エラーを呼び出し側へ返せないため、途中の読み取り失敗が正常終了に見えます。
-- `Reader::next` は短い末尾レコードを `None` として扱います。
-  - ファイル末尾に不完全な固定長レコードがあっても検知できません。
-  - 固定長ファイル用途では、これはデータ欠損を見逃す可能性があります。
+- `Reader::next` の I/O エラー処理は改善済みです。
+  - 改善前は、`read_exact` が `UnexpectedEof` 以外のエラーを返しても `None` になっていました。
+  - 改善前は、`fill_buf` のエラーも無視されていました。
+  - `Iterator<Item = Result<T, Error>>` なのに I/O エラーを呼び出し側へ返せないため、途中の読み取り失敗が正常終了に見える状態でした。
+  - 改善前の挙動は、おおよそ次の形でした。
+
+    ```rust
+    if let Err(e) = self.reader.read_exact(&mut buf) {
+        if e.kind() == ErrorKind::UnexpectedEof {
+            return None;
+        }
+        return None;
+    }
+
+    loop {
+        let available = match self.reader.fill_buf() {
+            Ok(bytes) => bytes,
+            Err(_) => break,
+        };
+        // 改行読み飛ばし
+    }
+    ```
+
+  - `Iterator::next` の `None` は、本来「これ以上レコードがない」という正常終了を表します。
+  - そのため、ディスク、ネットワーク、権限、途中で壊れたストリームなどの I/O エラーを `None` にしてしまうと、呼び出し側が `for rec in reader { ... }` のように処理している場合、途中で読み取りに失敗しても単に最後まで読み終わったように見えます。
+  - 現在は `fixed_record_main::error::Error` に I/O エラー用の variant を追加しています。
+
+    ```rust
+    pub enum Error {
+        TooShort,
+        IncompleteRecord { expected: usize, actual: usize },
+        Io(std::io::Error),
+        AlignmentError,
+        ParseError,
+    }
+    ```
+
+  - 現在の `Reader::next` は `read` を使って `T::TOTAL_LEN` まで自前で読み進め、読み取ったバイト数を見て判定します。
+
+    ```rust
+    let mut read_len = 0;
+
+    while read_len < T::TOTAL_LEN {
+        match self.reader.read(&mut buf[read_len..]) {
+            Ok(0) if read_len == 0 => return None,
+            Ok(0) => {
+                return Some(Err(Error::IncompleteRecord {
+                    expected: T::TOTAL_LEN,
+                    actual: read_len,
+                }));
+            }
+            Ok(n) => read_len += n,
+            Err(e) => return Some(Err(Error::Io(e))),
+        }
+    }
+    ```
+
+  - レコード先頭でまだ 1 バイトも読んでいない EOF は、通常の終端として `None` を返します。
+  - レコード途中で EOF になった場合は、`Some(Err(Error::IncompleteRecord { expected, actual }))` を返します。
+  - I/O エラーは `Some(Err(Error::Io(e)))` を返します。
+  - 改行読み飛ばし中の `fill_buf` エラーも、現在は `Some(Err(Error::Io(e)))` として返します。
 - proc macro の入力エラーが `panic!` / `expect` 中心です。
   - named struct 以外、`Fixed<N>` 以外、`N` がリテラルでない場合などで、利用者に優しい compile error になりにくいです。
   - `syn::Error::new_spanned(...).to_compile_error()` を返す形にした方が使いやすいです。
@@ -163,14 +217,13 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - workspace の検証としては便利ですが、ライブラリの保証としては `fixed_record_main` / `fixed_record_macros` 側にテストが少なく見えます。
   - 主要な挙動は library crate の unit/integration test へ移すと保守しやすいです。
 - `Error::AlignmentError` と `Error::ParseError` の doc comment が薄く、利用者がどの API で発生するか追いづらいです。
-- README の機能一覧は現在の生成内容とおおむね合っていますが、Reader のエラー握りつぶしなどの制約はまだ残っています。
+- README の機能一覧は現在の生成内容とおおむね合っています。
 
 ### 次に直すなら
 
-1. `Reader` が I/O エラーと不完全レコードを返せるように `Error` を拡張する。
-2. unchecked API を残すか、別 trait に分けるかを決める。
-3. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
-4. proc macro の `panic!` を `syn::Error` に置き換えて compile error を改善する。
-5. 桁あふれや `Fixed<0>` の扱いを決め、Result 版 setter または入力検証を追加する。
-6. app 側のテストを library crate の integration test へ移す。
-7. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。
+1. unchecked API を残すか、別 trait に分けるかを決める。
+2. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
+3. proc macro の `panic!` を `syn::Error` に置き換えて compile error を改善する。
+4. 桁あふれや `Fixed<0>` の扱いを決め、Result 版 setter または入力検証を追加する。
+5. app 側のテストを library crate の integration test へ移す。
+6. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。
