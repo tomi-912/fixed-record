@@ -33,6 +33,11 @@ mod tests {
         rest: Fixed<2>,
     }
 
+    #[fixed_record_main(clear_byte = b' ')]
+    pub struct SpaceClearRecord {
+        name: Fixed<6>,
+    }
+
     // ---- apply<F> のテスト ----
 
     /// `apply` のクロージャで複数フィールドをまとめて更新できることを確認します。
@@ -79,7 +84,7 @@ mod tests {
 
         assert_eq!(rec.name(), b"HelloWorld");
         assert_eq!(&rec.code()[..3], b"ABC");
-        assert_eq!(&rec.code()[3..], b"  "); // 残りはspaced
+        assert_eq!(&rec.code()[3..], &[0, 0]); // 到達したフィールドの残りはCLEAR_BYTE
         assert_eq!(rec.amount(), b"        "); // 未到達はspaced のまま
     }
 
@@ -185,6 +190,43 @@ mod tests {
             rec.get_field_trimmed(TestRecordField::Amount).unwrap(),
             "00012345"
         );
+    }
+
+    /// `set_field_str` がデフォルトの `CLEAR_BYTE` でクリアしてから書き込むことを確認します。
+    #[test]
+    fn test_set_field_str_clears_with_default_zero_before_write() {
+        let mut rec = TestRecord::spaced();
+        rec.set_field_str(TestRecordField::Name, "Bob");
+
+        assert_eq!(rec.name(), b"Bob\0\0\0\0\0\0\0");
+        assert_eq!(TestRecord::CLEAR_BYTE, 0x00);
+    }
+
+    /// `set_field_str_no_clear` が既存フィールドの後続バイトを残すことを確認します。
+    #[test]
+    fn test_set_field_str_no_clear_keeps_existing_tail_bytes() {
+        let mut rec = TestRecord::spaced().with_name("Alice");
+        rec.set_field_str_no_clear(TestRecordField::Name, "Bo");
+
+        assert_eq!(rec.name(), b"Boice     ");
+    }
+
+    /// `with_*` がクリアせずに先頭から上書きし、後続バイトを残すことを確認します。
+    #[test]
+    fn test_with_str_keeps_existing_tail_bytes() {
+        let rec = TestRecord::spaced().with_name("Alice").with_name("Bo");
+
+        assert_eq!(rec.name(), b"Boice     ");
+    }
+
+    /// `clear_byte` option で `set_field_*` のクリア値をスペースに変更できることを確認します。
+    #[test]
+    fn test_set_field_str_uses_configured_clear_byte() {
+        let mut rec = SpaceClearRecord::zeroed();
+        rec.set_field_str(SpaceClearRecordField::Name, "Bo");
+
+        assert_eq!(SpaceClearRecord::CLEAR_BYTE, b' ');
+        assert_eq!(rec.name(), b"Bo    ");
     }
 
     /// 数値 setter の Result 版がフィールド幅を超える値をエラーにすることを確認します。

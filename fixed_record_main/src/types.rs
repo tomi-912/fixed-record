@@ -175,6 +175,11 @@ impl<const N: usize> Fixed<N> {
         self.buf[..len].copy_from_slice(&src[..len]);
     }
 
+    /// 内部バッファを指定バイトで上書きします。
+    pub fn fill(&mut self, byte: u8) {
+        self.buf = [byte; N];
+    }
+
     /// 内部バッファをすべて `0x00` で上書きします。
     pub fn fill_zero(&mut self) {
         self.buf = [0u8; N];

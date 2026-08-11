@@ -28,6 +28,15 @@
 - `{StructName}List` による挿入、検索、範囲検索、論理削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
+`set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
+
+```rust
+#[fixed_record_main(clear_byte = b' ')]
+pub struct User {
+    pub id: Fixed<8>,
+}
+```
+
 `unchecked` feature を有効にした場合だけ、追加で次のものを生成します。
 
 - `#[repr(C)]` を付けたレコード構造体
@@ -65,6 +74,10 @@ let user = User::builder()
 ```
 
 桁あふれを許容して先頭側だけ残したい場合は、`with_*_int_truncated` / `with_*_int_signed_truncated` を使います。切り捨てが発生した場合は stderr に警告を出します。
+
+`set_field_bytes` / `set_field_str` は、書き込み前に `CLEAR_BYTE` でフィールドをクリアします。既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
+
+`with_*` はメソッドチェーン用の部分上書き API です。書き込み前にクリアしないため、短い文字列を書いた場合は後続バイトが残ります。
 
 ## 開発メモ
 

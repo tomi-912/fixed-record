@@ -1,15 +1,76 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 use proc_macro::TokenStream;
-use syn::{DeriveInput, parse_macro_input};
+use syn::{
+    DeriveInput, Expr, Lit, Token,
+    parse::{Parse, ParseStream},
+    parse_macro_input,
+};
 
 mod core;
 mod helpers;
 
+#[derive(Default)]
+struct MacroArgs {
+    clear_byte: u8,
+}
+
+impl Parse for MacroArgs {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let mut args = Self::default();
+
+        while !input.is_empty() {
+            let ident: syn::Ident = input.parse()?;
+            input.parse::<Token![=]>()?;
+            let expr: Expr = input.parse()?;
+
+            if ident == "clear_byte" {
+                args.clear_byte = parse_clear_byte(&expr)?;
+            } else {
+                return Err(syn::Error::new_spanned(
+                    ident,
+                    "unsupported fixed_record_main option",
+                ));
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(args)
+    }
+}
+
+fn parse_clear_byte(expr: &Expr) -> syn::Result<u8> {
+    let Expr::Lit(expr_lit) = expr else {
+        return Err(syn::Error::new_spanned(
+            expr,
+            "clear_byte must be a byte literal or an integer from 0 to 255",
+        ));
+    };
+
+    match &expr_lit.lit {
+        Lit::Byte(lit_byte) => Ok(lit_byte.value()),
+        Lit::Int(lit_int) => lit_int.base10_parse::<u8>().map_err(|err| {
+            syn::Error::new_spanned(lit_int, format!("invalid clear_byte value: {err}"))
+        }),
+        _ => Err(syn::Error::new_spanned(
+            expr,
+            "clear_byte must be a byte literal or an integer from 0 to 255",
+        )),
+    }
+}
+
 /// 固定長レコード用の補助型と実装を生成する attribute macro です。
 #[proc_macro_attribute]
-pub fn fixed_record_main(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn fixed_record_main(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(attr as MacroArgs);
     let input = parse_macro_input!(item as DeriveInput);
-    match core::expand_fixed_record_main(&input) {
+    let options = core::MacroOptions {
+        clear_byte: args.clear_byte,
+    };
+
+    match core::expand_fixed_record_main(&input, options) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }

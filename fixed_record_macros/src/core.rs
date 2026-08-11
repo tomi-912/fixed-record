@@ -4,6 +4,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields};
 
+#[derive(Clone, Copy)]
+pub struct MacroOptions {
+    pub clear_byte: u8,
+}
+
 /// フィールド名、サイズ、オフセット、バリアント名をまとめた内部用構造体
 struct FieldMeta<'a> {
     name: &'a syn::Ident,
@@ -88,9 +93,12 @@ pub fn gen_field_enum(input: &DeriveInput) -> syn::Result<TokenStream> {
 }
 
 /// attribute macro の入力を検証し、構造体・フィールド enum・実装一式の token を生成します。
-pub fn expand_fixed_record_main(input: &DeriveInput) -> syn::Result<TokenStream> {
+pub fn expand_fixed_record_main(
+    input: &DeriveInput,
+    options: MacroOptions,
+) -> syn::Result<TokenStream> {
     let field_enum = gen_field_enum(input)?;
-    let impl_block = impl_fixed_record_core(input)?;
+    let impl_block = impl_fixed_record_core(input, options)?;
     let repr_attr = if cfg!(feature = "unchecked") {
         quote!(#[repr(C)])
     } else {
@@ -109,12 +117,16 @@ pub fn expand_fixed_record_main(input: &DeriveInput) -> syn::Result<TokenStream>
 }
 
 /// 固定長レコードとして使うためのメソッド、trait 実装、リスト型を生成します。
-pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+pub fn impl_fixed_record_core(
+    input: &syn::DeriveInput,
+    options: MacroOptions,
+) -> syn::Result<proc_macro2::TokenStream> {
     let struct_name = &input.ident;
     let field_enum_name = format_ident!("{}Field", struct_name);
     let entry_name = format_ident!("{}Entry", struct_name);
     let list_name = format_ident!("{}List", struct_name);
     let metas = collect_field_meta(input)?;
+    let clear_byte = options.clear_byte;
     let total_len: usize = metas.iter().map(|m| m.size).sum();
     let field_names: Vec<_> = metas.iter().map(|m| m.name).collect();
     let metas_variants: Vec<_> = metas.iter().map(|m| &m.variant).collect();
@@ -279,9 +291,9 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
             }
 
             #( #docs )*
-            #[doc = "フィールドに文字列をセットします。"]
+            #[doc = "フィールドに文字列を先頭から上書きします。"]
+            #[doc = "書き込み前のクリアは行わないため、短い文字列では後続バイトが残ります。"]
             pub fn #with_name(mut self, s: &str) -> Self {
-                self.#name.fill_space();
                 self.#name.write_bytes(s.as_bytes());
                 self
             }
@@ -406,6 +418,9 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
         impl #struct_name {
             #[doc = "レコード全体の合計バイト長を返します。"]
             pub const TOTAL_LEN: usize = #total_len;
+
+            #[doc = "set_field_* が書き込み前にフィールドをクリアするときのバイト値です。"]
+            pub const CLEAR_BYTE: u8 = #clear_byte;
 
             #(
                 #[doc = "フィールドのバイト長定数です。"]
@@ -545,8 +560,32 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
                 }
             }
 
-            #[doc = "特定フィールドにバイト列を書き込みます。"]
+            #[doc = "指定したフィールドを `CLEAR_BYTE` で埋めます。"]
+            pub fn fill_field_clear(&mut self, field: #field_enum_name) {
+                match field {
+                    #(
+                        #field_enum_name::#metas_variants => {
+                            self.#field_names.fill(Self::CLEAR_BYTE);
+                        }
+                    ),*
+                }
+            }
+
+            #[doc = "特定フィールドを `CLEAR_BYTE` でクリアしてからバイト列を書き込みます。"]
             pub fn set_field_bytes(&mut self, field: #field_enum_name, data: &[u8]) {
+                match field {
+                    #(
+                        #field_enum_name::#metas_variants => {
+                            self.#field_names.fill(Self::CLEAR_BYTE);
+                            self.#field_names.write_bytes(data);
+                        }
+                    ),*
+                }
+            }
+
+            #[doc = "特定フィールドにバイト列を先頭から上書きします。"]
+            #[doc = "書き込み前のクリアは行わないため、短い入力では後続バイトが残ります。"]
+            pub fn set_field_bytes_no_clear(&mut self, field: #field_enum_name, data: &[u8]) {
                 match field {
                     #(
                         #field_enum_name::#metas_variants => {
@@ -556,16 +595,22 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
                 }
             }
 
-            #[doc = "特定フィールドに文字列を書き込み、残りをスペースで埋めます。"]
+            #[doc = "特定フィールドを `CLEAR_BYTE` でクリアしてから文字列を書き込みます。"]
             pub fn set_field_str(&mut self, field: #field_enum_name, s: &str) {
                 match field {
                     #(
                         #field_enum_name::#metas_variants => {
-                            self.#field_names.fill_space();
+                            self.#field_names.fill(Self::CLEAR_BYTE);
                             self.#field_names.write_bytes(s.as_bytes());
                         }
                     ),*
                 }
+            }
+
+            #[doc = "特定フィールドに文字列を先頭から上書きします。"]
+            #[doc = "書き込み前のクリアは行わないため、短い文字列では後続バイトが残ります。"]
+            pub fn set_field_str_no_clear(&mut self, field: #field_enum_name, s: &str) {
+                self.set_field_bytes_no_clear(field, s.as_bytes());
             }
 
            #[doc = "すべてのフィールドを 0x00 で一括上書きします。"]

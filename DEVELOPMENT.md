@@ -70,14 +70,15 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - `try_with_*_int` / `try_with_*_int_signed` は、値がフィールド幅を超える場合に `Error::FieldOverflow` を返します。
   - 明示的に切り捨てたい場合は `with_*_int_truncated` / `with_*_int_signed_truncated` を使います。
   - 既存の `with_*_int` / `with_*_int_signed` は互換性のため残し、切り捨て時は stderr に警告を出します。
+- `set_field_bytes` / `set_field_str` のクリア挙動は整理済みです。
+  - `set_field_*` は書き込み前に `CLEAR_BYTE` でフィールドをクリアします。
+  - `CLEAR_BYTE` は `#[fixed_record_main(clear_byte = b' ')]` のように指定できます。
+  - 未指定時の `CLEAR_BYTE` は `0x00` です。
+  - クリアせず先頭から上書きしたい場合は `set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
+  - `with_*` はメソッドチェーン用の部分上書き API として、書き込み前のクリアを行いません。
 
 ### 重要度中
 
-- `set_field_bytes` は書き込み前にフィールドをクリアしません。
-  - 短いデータを書いた場合、残りのバイトは以前の値が残ります。
-  - `set_field_str` や `with_*` はスペース埋めしてから書くため、同じ「set」でも挙動が違います。
-- `apply_bytes_from` も内部で `set_field_bytes` を使うため、短い入力を既存レコードに流した時に古い値が残ります。
-  - `spaced()` から使うテストでは問題が見えにくいです。
 - `List` の `find_by<const N: usize>` / `first_by<const N: usize>` は、呼び出し側がフィールド幅と同じ `N` を指定する必要があります。
   - 間違った `N` でもコンパイルは通り、結果が空になるだけです。
   - フィールド enum からサイズを型レベルに持てないためですが、API としては誤用しやすいです。
@@ -102,6 +103,5 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 1. unchecked API を残すか、別 trait に分けるかを決める。
 2. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
-3. `set_field_bytes` / `apply_bytes_from` の短い入力時の残存バイト挙動を整理する。
-4. app 側のテストを library crate の integration test へ移す。
-5. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。
+3. app 側のテストを library crate の integration test へ移す。
+4. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。
