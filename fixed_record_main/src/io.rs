@@ -140,10 +140,53 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
     }
 }
 
+/// 固定長レコードをストリームへ書き出すライターです。
+///
+/// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に改行を付けます。
+pub struct Writer<W> {
+    writer: W,
+    newline: &'static [u8],
+}
+
+impl<W: Write> Writer<W> {
+    /// デフォルト改行コード `\n` でライターを作成します。
+    pub fn new(writer: W) -> Self {
+        Self {
+            writer,
+            newline: b"\n",
+        }
+    }
+
+    /// 改行コードを変更します。
+    pub fn with_newline(mut self, newline: &'static [u8]) -> Self {
+        self.newline = newline;
+        self
+    }
+
+    /// レコードを1件書き込みます。
+    pub fn write_record<T: FixedRecord>(&mut self, record: &T) -> io::Result<()> {
+        let mut bytes = record.to_bytes();
+        for byte in &mut bytes {
+            if *byte == 0x00 {
+                *byte = b' ';
+            }
+        }
+
+        self.writer.write_all(&bytes)?;
+        self.writer.write_all(self.newline)?;
+        Ok(())
+    }
+
+    /// 内部ライターを flush します。
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.writer.flush()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{BufReader, Cursor, ErrorKind, Read};
+    use std::io::{BufReader, Cursor, Read};
 
     #[derive(Debug, PartialEq, Eq)]
     struct TestRecord([u8; 4]);
@@ -193,7 +236,7 @@ mod tests {
     impl BufRead for FillBufErrorAfterRead {
         /// レコード読込後の改行読み飛ばしで I/O エラーを発生させます。
         fn fill_buf(&mut self) -> io::Result<&[u8]> {
-            Err(io::Error::new(ErrorKind::Other, "fill_buf failed"))
+            Err(io::Error::other("fill_buf failed"))
         }
 
         /// テスト用なのでバッファ消費は何もしません。
@@ -232,48 +275,5 @@ mod tests {
 
         let err = reader.next().unwrap().unwrap_err();
         assert!(matches!(err, Error::Io(_)));
-    }
-}
-
-/// 固定長レコードをストリームへ書き出すライターです。
-///
-/// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に改行を付けます。
-pub struct Writer<W> {
-    writer: W,
-    newline: &'static [u8],
-}
-
-impl<W: Write> Writer<W> {
-    /// デフォルト改行コード `\n` でライターを作成します。
-    pub fn new(writer: W) -> Self {
-        Self {
-            writer,
-            newline: b"\n",
-        }
-    }
-
-    /// 改行コードを変更します。
-    pub fn with_newline(mut self, newline: &'static [u8]) -> Self {
-        self.newline = newline;
-        self
-    }
-
-    /// レコードを1件書き込みます。
-    pub fn write_record<T: FixedRecord>(&mut self, record: &T) -> io::Result<()> {
-        let mut bytes = record.to_bytes();
-        for byte in &mut bytes {
-            if *byte == 0x00 {
-                *byte = b' ';
-            }
-        }
-
-        self.writer.write_all(&bytes)?;
-        self.writer.write_all(self.newline)?;
-        Ok(())
-    }
-
-    /// 内部ライターを flush します。
-    pub fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
     }
 }
