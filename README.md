@@ -140,8 +140,6 @@ examples/
 
 The public entry point is `fixed-record`. `fixed-record-macros` is the proc macro implementation crate.
 
-Development notes, release preparation tasks, and future work are tracked in [DEVELOPMENT.md](DEVELOPMENT.md).
-
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE).

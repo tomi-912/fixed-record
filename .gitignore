@@ -1,2 +1,4 @@
 /target/
 **/*.rs.bk
+DEVELOPMENT.md
+DEVELOPMENT.ja.md
