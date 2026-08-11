@@ -155,4 +155,4 @@ The public entry point is `fixed-record`. `fixed-record-macros` is the proc macr
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+This project is licensed under the MIT No Attribution License (MIT-0). See [LICENSE](LICENSE).

@@ -155,4 +155,4 @@ examples/
 
 ## ライセンス
 
-このプロジェクトは MIT License で公開します。詳細は [LICENSE](LICENSE) を参照してください。
+このプロジェクトは MIT No Attribution License (MIT-0) で公開します。詳細は [LICENSE](LICENSE) を参照してください。

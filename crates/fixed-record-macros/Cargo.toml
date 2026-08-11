@@ -2,7 +2,7 @@
 name = "fixed-record-macros"
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
+license = "MIT-0"
 
 [lib]
 proc-macro = true
