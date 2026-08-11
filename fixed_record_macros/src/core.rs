@@ -97,8 +97,28 @@ pub fn expand_fixed_record_main(
     input: &DeriveInput,
     options: MacroOptions,
 ) -> syn::Result<TokenStream> {
+    let struct_name = &input.ident;
+    let field_enum_name = format_ident!("{}Field", struct_name);
+    let field_count = collect_field_meta(input)?.len();
     let field_enum = gen_field_enum(input)?;
     let impl_block = impl_fixed_record_core(input, options)?;
+    let sequence_field_impls = (0..=field_count).map(|len| {
+        quote! {
+            impl ::fixed_record_main::traits::SequenceFields<#struct_name> for [#field_enum_name; #len] {
+                #[doc = "Reader のシーケンスチェック対象フィールドを Vec にして返します。"]
+                fn to_sequence_fields(self) -> Vec<#field_enum_name> {
+                    self.to_vec()
+                }
+            }
+
+            impl<'a> ::fixed_record_main::traits::SequenceFields<#struct_name> for &'a [#field_enum_name; #len] {
+                #[doc = "Reader のシーケンスチェック対象フィールドを Vec にして返します。"]
+                fn to_sequence_fields(self) -> Vec<#field_enum_name> {
+                    self.to_vec()
+                }
+            }
+        }
+    });
     let repr_attr = if cfg!(feature = "unchecked") {
         quote!(#[repr(C)])
     } else {
@@ -111,6 +131,8 @@ pub fn expand_fixed_record_main(
         #input
 
         #field_enum
+
+        #( #sequence_field_impls )*
 
         #impl_block
     })

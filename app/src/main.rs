@@ -929,7 +929,7 @@ mod tests {
         bytes.push(b'\n');
 
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
-            .with_sequence_check(&[TestRecordField::Code, TestRecordField::Amount]);
+            .with_sequence_check([TestRecordField::Code, TestRecordField::Amount]);
 
         assert_eq!(
             reader
@@ -976,7 +976,7 @@ mod tests {
         bytes.push(b'\n');
 
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
-            .with_sequence_check(&[TestRecordField::Code, TestRecordField::Amount]);
+            .with_sequence_check([TestRecordField::Code, TestRecordField::Amount]);
 
         assert!(reader.next().unwrap().is_ok());
         assert_eq!(
@@ -1014,7 +1014,7 @@ mod tests {
 
         let mut allow_equal_reader =
             Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes.clone())))
-                .with_sequence_check(&[TestRecordField::Code, TestRecordField::Amount]);
+                .with_sequence_check([TestRecordField::Code, TestRecordField::Amount]);
 
         assert!(allow_equal_reader.next().unwrap().is_ok());
         assert!(allow_equal_reader.next().unwrap().is_ok());
@@ -1022,7 +1022,7 @@ mod tests {
         let mut reject_equal_reader =
             Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
                 .with_sequence_check_options(
-                    &[TestRecordField::Code, TestRecordField::Amount],
+                    [TestRecordField::Code, TestRecordField::Amount],
                     false,
                 );
 
@@ -1035,6 +1035,18 @@ mod tests {
                 current: vec![b"A0001".to_vec(), b"00000010".to_vec()],
             }
         );
+    }
+
+    /// Reader のシーケンスチェックが同じフィールドの重複指定を拒否することを確認します。
+    #[test]
+    #[should_panic(expected = "duplicate sequence check field `code`")]
+    fn test_reader_sequence_check_rejects_duplicate_fields() {
+        use fixed_record_main::Reader;
+        use std::io::{BufReader, Cursor};
+
+        let bytes = Vec::new();
+        let _reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_sequence_check([TestRecordField::Code, TestRecordField::Code]);
     }
 
     /// フィールド境界が UTF-8 文字の途中に来た場合に文字列変換が失敗することを確認します。

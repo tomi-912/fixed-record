@@ -5,7 +5,7 @@ use crate::Error;
 /// 通常は `#[fixed_record_main]` attribute macro によって自動実装されます。
 pub trait FixedRecord {
     /// シーケンスチェックで指定できるフィールド enum の型です。
-    type Field: Copy;
+    type Field: Copy + Eq;
 
     /// レコード全体のバイト長です。
     const TOTAL_LEN: usize;
@@ -23,4 +23,10 @@ pub trait FixedRecord {
 
     /// 指定フィールドのバイト列を返します。
     fn field_bytes(&self, field: Self::Field) -> &[u8];
+}
+
+/// Reader のシーケンスチェックに指定できるフィールド配列です。
+pub trait SequenceFields<T: FixedRecord> {
+    /// シーケンスチェック対象フィールドを Vec にして返します。
+    fn to_sequence_fields(self) -> Vec<T::Field>;
 }

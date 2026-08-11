@@ -94,6 +94,8 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 - `Reader` のシーケンスチェック API は `with_sequence_check` / `with_sequence_check_options` を追加済みです。
   - 指定フィールド配列をキーにして、前回レコードより今回レコードが小さい場合は `Error::SequenceError` を返します。
   - 同一キーはデフォルト許可で、`with_sequence_check_options(fields, false)` の場合は禁止します。
+  - 対象レコードと異なる field enum やフィールド数より長い配列はコンパイルエラーにします。
+  - 同じフィールドの重複指定は、通常配列の値なので設定時に検出して panic します。
 
 ### 重要度中
 

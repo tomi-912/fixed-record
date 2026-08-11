@@ -1,4 +1,4 @@
-use crate::{Error, FixedRecord};
+use crate::{Error, FixedRecord, traits::SequenceFields};
 use std::cmp::Ordering;
 use std::io::{self, BufRead, Write};
 use std::marker::PhantomData;
@@ -27,16 +27,33 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
     }
 
     /// 指定フィールドをキーにした昇順シーケンスチェックを有効にします。
-    pub fn with_sequence_check(mut self, fields: &[T::Field]) -> Self {
-        self.sequence_fields = fields.to_vec();
+    pub fn with_sequence_check<F>(mut self, fields: F) -> Self
+    where
+        F: SequenceFields<T>,
+    {
+        self.set_sequence_check_fields(fields.to_sequence_fields());
         self
     }
 
     /// 指定フィールドをキーにした昇順シーケンスチェックを設定します。
-    pub fn with_sequence_check_options(mut self, fields: &[T::Field], allow_equal: bool) -> Self {
-        self.sequence_fields = fields.to_vec();
+    pub fn with_sequence_check_options<F>(mut self, fields: F, allow_equal: bool) -> Self
+    where
+        F: SequenceFields<T>,
+    {
+        self.set_sequence_check_fields(fields.to_sequence_fields());
         self.allow_equal_sequence = allow_equal;
         self
+    }
+
+    /// シーケンスチェック対象フィールドを設定します。
+    fn set_sequence_check_fields(&mut self, fields: Vec<T::Field>) {
+        for (index, field) in fields.iter().enumerate() {
+            if fields[index + 1..].contains(field) {
+                panic!("duplicate sequence check field `{}`", T::field_name(*field));
+            }
+        }
+
+        self.sequence_fields = fields;
     }
 
     /// 読み込んだレコードが前回レコード以降の順序になっているか確認します。
