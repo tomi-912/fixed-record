@@ -72,7 +72,7 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - 既存の `with_*_int` / `with_*_int_signed` は互換性のため残し、切り捨て時は stderr に警告を出します。
 - `set_field_bytes` / `set_field_str` のクリア挙動は整理済みです。
   - `set_field_*` は書き込み前に `CLEAR_BYTE` でフィールドをクリアします。
-  - `CLEAR_BYTE` は `#[fixed_record_main(clear_byte = b' ')]` のように指定できます。
+  - `CLEAR_BYTE` は `#[fixed_record_main(clear_byte = SPACE)]` のように指定できます。
   - 未指定時の `CLEAR_BYTE` は `0x00` です。
   - クリアせず先頭から上書きしたい場合は `set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
   - `with_*` はメソッドチェーン用の部分上書き API として、書き込み前のクリアを行いません。

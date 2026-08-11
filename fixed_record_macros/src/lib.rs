@@ -42,10 +42,23 @@ impl Parse for MacroArgs {
 }
 
 fn parse_clear_byte(expr: &Expr) -> syn::Result<u8> {
+    if let Expr::Path(expr_path) = expr {
+        if expr_path.path.is_ident("ZERO") {
+            return Ok(0x00);
+        }
+        if expr_path.path.is_ident("SPACE") {
+            return Ok(b' ');
+        }
+        return Err(syn::Error::new_spanned(
+            expr,
+            "clear_byte must be ZERO, SPACE, a byte literal, or an integer from 0 to 255",
+        ));
+    }
+
     let Expr::Lit(expr_lit) = expr else {
         return Err(syn::Error::new_spanned(
             expr,
-            "clear_byte must be a byte literal or an integer from 0 to 255",
+            "clear_byte must be ZERO, SPACE, a byte literal, or an integer from 0 to 255",
         ));
     };
 
@@ -56,7 +69,7 @@ fn parse_clear_byte(expr: &Expr) -> syn::Result<u8> {
         }),
         _ => Err(syn::Error::new_spanned(
             expr,
-            "clear_byte must be a byte literal or an integer from 0 to 255",
+            "clear_byte must be ZERO, SPACE, a byte literal, or an integer from 0 to 255",
         )),
     }
 }

@@ -33,7 +33,7 @@ mod tests {
         rest: Fixed<2>,
     }
 
-    #[fixed_record_main(clear_byte = b' ')]
+    #[fixed_record_main(clear_byte = SPACE)]
     pub struct SpaceClearRecord {
         name: Fixed<6>,
     }

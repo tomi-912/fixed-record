@@ -31,7 +31,7 @@
 `set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
 
 ```rust
-#[fixed_record_main(clear_byte = b' ')]
+#[fixed_record_main(clear_byte = SPACE)]
 pub struct User {
     pub id: Fixed<8>,
 }

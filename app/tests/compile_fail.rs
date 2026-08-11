@@ -8,4 +8,5 @@ fn fixed_record_main_reports_friendly_input_errors() {
     t.compile_fail("tests/ui/non_literal_len.rs");
     t.compile_fail("tests/ui/zero_len_field.rs");
     t.compile_fail("tests/ui/negative_len_field.rs");
+    t.compile_fail("tests/ui/invalid_clear_byte_name.rs");
 }
