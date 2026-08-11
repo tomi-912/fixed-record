@@ -1,0 +1,5 @@
+error: fixed_record fields must be Fixed<N>
+ --> tests/ui/non_fixed_field.rs:5:13
+  |
+5 |     pub id: String,
+  |             ^^^^^^

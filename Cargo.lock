@@ -3,21 +3,28 @@
 version = 4
 
 [[package]]
-name = "app"
-version = "0.1.0"
-dependencies = [
- "fixed_record_main",
- "trybuild",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "fixed_record_macros"
+name = "fixed-record"
+version = "0.1.0"
+dependencies = [
+ "fixed-record-macros",
+]
+
+[[package]]
+name = "fixed-record-basic-example"
+version = "0.1.0"
+dependencies = [
+ "fixed-record",
+ "trybuild",
+]
+
+[[package]]
+name = "fixed-record-macros"
 version = "0.1.0"
 dependencies = [
  "heck",
@@ -27,10 +34,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "fixed_record_main"
+name = "fixed-record-no-list-example"
 version = "0.1.0"
 dependencies = [
- "fixed_record_macros",
+ "fixed-record",
+ "trybuild",
 ]
 
 [[package]]
@@ -72,14 +80,6 @@ name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
-
-[[package]]
-name = "no_list_app"
-version = "0.1.0"
-dependencies = [
- "fixed_record_main",
- "trybuild",
-]
 
 [[package]]
 name = "proc-macro2"

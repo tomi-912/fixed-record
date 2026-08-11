@@ -1,23 +1,23 @@
-# fixed_record_project
+# fixed-record
 
 固定長レコードライブラリを、通常ライブラリ・proc macro・サンプルアプリに分けたワークスペース版です。
 
-`fixed_record_main`、`fixed_record_macros`、`app`、`no_list_app` の4メンバーで構成されています。
+`fixed-record`、`fixed-record-macros`、`fixed-record-basic-example`、`fixed-record-no-list-example` の4メンバーで構成されています。
 
-利用者は通常、`fixed_record_main` だけを `[dependencies]` に追加します。`fixed_record_macros` は `fixed_record_main` から再エクスポートされる内部実装用の proc macro クレートです。
+利用者は通常、`fixed-record` だけを `[dependencies]` に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用の proc macro クレートです。
 
 ## 構成
 
-- `fixed_record_main/`: 利用者が依存する通常ライブラリです。`Fixed<N>`、`Error`、`prelude`、マクロの再エクスポートを持ちます。
-- `fixed_record_macros/`: `#[fixed_record_main]` attribute macro を定義する proc macro クレートです。
-- `app/`: ライブラリの使い方と挙動確認用のサンプルアプリです。
-- `no_list_app/`: `default-features = false` で List 生成を外した場合の検証用サンプルです。
+- `crates/fixed-record/`: 利用者が依存する通常ライブラリです。`Fixed<N>`、`Error`、`prelude`、マクロの再エクスポートを持ちます。
+- `crates/fixed-record-macros/`: `#[fixed_record]` attribute macro を定義する内部向け proc macro クレートです。
+- `examples/basic/`: ライブラリの使い方と挙動確認用のサンプルです。
+- `examples/no-list/`: `default-features = false` で List 生成を外した場合の検証用サンプルです。
 
 ## 役割
 
 このワークスペースは、proc macro を別クレートに切り出した設計を試すための版です。
 
-`#[fixed_record_main]` を付けた構造体から、次のような機能を生成します。
+`#[fixed_record]` を付けた構造体から、次のような機能を生成します。
 
 - 基本 derive を付けたレコード構造体
 - `{StructName}Field` enum
@@ -34,14 +34,14 @@
 `{StructName}List` は default feature の `list` で生成されます。通常は有効です。レコード定義だけを生成したい場合は、依存側で default feature を外します。
 
 ```toml
-fixed_record_main = { path = "../fixed_record_main", default-features = false }
+fixed-record = { version = "0.1", default-features = false }
 ```
 
 `set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
 `builder()`、`Default`、`cleared()` もこの値で初期化します。
 
 ```rust
-#[fixed_record_main(clear_byte = SPACE)]
+#[fixed_record(clear_byte = SPACE)]
 pub struct User {
     pub id: Fixed<8>,
 }
@@ -57,13 +57,13 @@ pub struct User {
 
 ```toml
 [dependencies]
-fixed_record_main = "0.1"
+fixed-record = "0.1"
 ```
 
 ```rust
-use fixed_record_main::prelude::*;
+use fixed_record::prelude::*;
 
-#[fixed_record_main]
+#[fixed_record]
 pub struct User {
     pub id: Fixed<8>,
     pub name: Fixed<16>,

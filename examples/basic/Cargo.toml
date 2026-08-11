@@ -1,0 +1,13 @@
+[package]
+name = "fixed-record-basic-example"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+unchecked = ["fixed-record/unchecked"]
+
+[dependencies]
+fixed-record = { path = "../../crates/fixed-record" }
+
+[dev-dependencies]
+trybuild = "1.0"

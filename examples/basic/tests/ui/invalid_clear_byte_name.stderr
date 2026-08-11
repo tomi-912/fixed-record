@@ -1,0 +1,5 @@
+error: clear_byte must be ZERO, SPACE, a byte literal, or an integer from 0 to 255
+ --> tests/ui/invalid_clear_byte_name.rs:3:29
+  |
+3 | #[fixed_record(clear_byte = TAB)]
+  |                             ^^^

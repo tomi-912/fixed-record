@@ -1,3 +1,8 @@
 [workspace]
-members = ["fixed_record_main", "fixed_record_macros", "app", "no_list_app"]
+members = [
+    "crates/fixed-record",
+    "crates/fixed-record-macros",
+    "examples/basic",
+    "examples/no-list",
+]
 resolver = "2"

@@ -16,7 +16,7 @@ README は利用者向けの概要と使い方を中心に保ちます。API や
 
 proc macro 版を本命として整理したい場合は、このワークスペースを基準にするとよさそうです。
 
-今後は、単体版 `fixed_record` にだけ追加されている機能が出てきたら、こちらの `fixed_record_main/` と `fixed_record_macros/` へ移植していく流れが自然です。
+今後は、単体版 `fixed_record` にだけ追加されている機能が出てきたら、こちらの `crates/fixed-record/` と `crates/fixed-record-macros/` へ移植していく流れが自然です。
 
 ## 現状確認メモ
 
@@ -25,24 +25,21 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 ### 確認結果
 
 - `cargo test` は成功しています。
-  - app 側の単体テスト: 41 件成功
-  - `fixed_record_main` の doctest: 8 件成功
-  - `no_list_app` の compile-fail test で、`default-features = false` 時に `{StructName}List` が生成されないことを確認しています。
-  - `fixed_record_main` / `fixed_record_macros` の lib test は少なめです。
+  - `fixed-record-basic-example` 側の単体テスト: 41 件成功
+  - `fixed-record` の doctest: 8 件成功
+  - `fixed-record-no-list-example` の compile-fail test で、`default-features = false` 時に `{StructName}List` が生成されないことを確認しています。
+  - `fixed-record` / `fixed-record-macros` の lib test は少なめです。
 - `cargo test --all-features` は成功しています。
-  - `unchecked` feature 有効時に unsafe 系メソッドが生成されることも app 側で確認しています。
-- `cargo clippy --all-targets --all-features` は成功扱いですが、警告があります。
-  - `fixed_record_main/src/io.rs`: test module の後ろに `Writer` があるという警告
-  - `fixed_record_main/src/io.rs`: `std::io::Error::other` を使えるという警告
-  - `app/src/main.rs`: test module の後ろに `main` があるという警告
-- 実装は大きく、`#[fixed_record_main]` からレコード本体、フィールド enum、メタ情報、builder、parse、動的フィールド操作、Reader/Writer、List/Index 系まで生成されています。
+  - `unchecked` feature 有効時に unsafe 系メソッドが生成されることも example 側で確認しています。
+- `cargo clippy --all-targets --all-features -- -D warnings` は成功しています。
+- 実装は大きく、`#[fixed_record]` からレコード本体、フィールド enum、メタ情報、builder、parse、動的フィールド操作、Reader/Writer、List/Index 系まで生成されています。
 
 ### 良いところ
 
-- workspace が `fixed_record_main`、`fixed_record_macros`、`app`、`no_list_app` に分かれていて、proc macro クレート分離と feature 検証の形は分かりやすいです。
-- 利用者向け入口は `fixed_record_main` に寄せてあり、`fixed_record_macros` は内部実装用 crate として扱えます。
+- workspace が `crates/fixed-record`、`crates/fixed-record-macros`、`examples/basic`、`examples/no-list` に分かれていて、proc macro クレート分離と feature 検証の形は分かりやすいです。
+- 利用者向け入口は `fixed-record` に寄せてあり、`fixed-record-macros` は内部実装用 crate として扱えます。
 - `Fixed<N>` は小さくまとまっており、固定長バイト列としての基本操作、UTF-8 参照、ゼロ埋め、スペース埋めが揃っています。
-- サンプルアプリ内に、builder、apply、Reader/Writer、List の基本挙動を確認するテストがあります。
+- `examples/basic` 内に、builder、apply、Reader/Writer、List の基本挙動を確認するテストがあります。
 - `FixedRecord` trait があり、Reader/Writer 側は生成型に依存しすぎない形になっています。
 - フィールドの doc comment を生成 enum や accessor に引き継ぐ作りになっていて、生成 API のドキュメント体験を意識しています。
 
@@ -65,7 +62,7 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - 改行読み飛ばし中の `fill_buf` エラーも、現在は `Some(Err(Error::Io(e)))` として返します。
 - proc macro の入力エラーは `syn::Error::new_spanned(...).to_compile_error()` を返す形へ改善済みです。
   - named struct 以外、`Fixed<N>` 以外、`N` がリテラルでない場合などで、利用者が書いた struct や field の位置を指した compile error を返します。
-  - `trybuild` を使った compile-fail test を `app/tests/ui/` に置いています。
+  - `trybuild` を使った compile-fail test を `examples/basic/tests/ui/` に置いています。
 - `Fixed<N>` の `N` は正の整数リテラルだけ許可しています。
   - `with_*_int_signed` の生成コードでは `#size - 1` を使うため、フィールドサイズ 0 を許すと underflow します。
   - `Fixed<0>` は `Fixed<N> length must be greater than 0` という compile error にしています。
@@ -76,7 +73,7 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - 既存の `with_*_int` / `with_*_int_signed` は互換性のため残し、切り捨て時は stderr に警告を出します。
 - `set_field_bytes` / `set_field_str` のクリア挙動は整理済みです。
   - `set_field_*` は書き込み前に `CLEAR_BYTE` でフィールドをクリアします。
-  - `CLEAR_BYTE` は `#[fixed_record_main(clear_byte = SPACE)]` のように指定できます。
+  - `CLEAR_BYTE` は `#[fixed_record(clear_byte = SPACE)]` のように指定できます。
   - 未指定時の `CLEAR_BYTE` は `0x00` です。
   - `builder()`、`Default`、`cleared()` は `CLEAR_BYTE` で初期化します。
   - `zeroed()` は常に `0x00`、`spaced()` は常に半角スペースで初期化します。
@@ -102,18 +99,18 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - 同じフィールドの重複指定は、通常配列の値なので設定時に検出して panic します。
 - `{StructName}List` / Index 系の生成は default feature の `list` で制御します。
   - デフォルトでは従来どおり生成します。
-  - `fixed_record_main` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成できます。
+  - `fixed_record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成できます。
 
 ### 重要度中
 
 ### 重要度低
 
-- `fixed_record_main` が `fixed_record_macros` に依存して再エクスポートしています。
-  - 利用者は `fixed_record_main::prelude::*` だけで使えるので便利です。
-  - 公開時の利用者向け依存は `fixed_record_main` だけに寄せ、`fixed_record_macros` は内部実装用 crate として扱います。
+- `fixed-record` が `fixed-record-macros` に依存して再エクスポートしています。
+  - 利用者は `fixed_record::prelude::*` だけで使えるので便利です。
+  - 公開時の利用者向け依存は `fixed-record` だけに寄せ、`fixed-record-macros` は内部実装用 crate として扱います。
   - 一方で通常ライブラリと proc macro の依存関係が常にセットになるため、最小依存にしたい場合は feature 化を検討できます。
-- `app` にサンプルとテストがかなり入っています。
-  - workspace の検証としては便利ですが、ライブラリの保証としては `fixed_record_main` / `fixed_record_macros` 側にテストが少なく見えます。
+- `examples/basic` にサンプルとテストがかなり入っています。
+  - workspace の検証としては便利ですが、ライブラリの保証としては `fixed-record` / `fixed-record-macros` 側にテストが少なく見えます。
   - 主要な挙動は library crate の unit/integration test へ移すと保守しやすいです。
 - `Error::AlignmentError` と `Error::ParseError` の doc comment が薄く、利用者がどの API で発生するか追いづらいです。
 
@@ -121,8 +118,8 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 1. unchecked API を残すか、別 trait に分けるかを決める。
 2. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
-3. app 側のテストを library crate の integration test へ移す。
-4. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。
+3. example 側のテストを library crate の integration test へ移す。
+4. package metadata を埋めて `cargo package --dry-run` を通す。
 
 ## 公開前のおすすめ方針
 
@@ -130,9 +127,9 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 利用者体験としては、公開して使わせる名前は 1 つに寄せるのがよいです。
 
-- 第一候補は、利用者向け crate を `fixed_record` のような短い名前にして、現在の `fixed_record_main` 相当をその名前で公開する形です。
-- `fixed_record_macros` は proc macro 実装用 crate として公開が必要になる可能性がありますが、利用者には直接依存させない方針を維持します。
-- 公開名を変える場合、生成コード内の `::fixed_record_main::...` 参照も新しい公開crate名へ合わせる必要があります。
+- 公開名は `fixed-record` に寄せます。コード上は `fixed_record` として import されます。
+- `fixed-record-macros` は proc macro 実装用 crate として公開が必要になる可能性がありますが、利用者には直接依存させない方針を維持します。
+- 生成コード内の参照は `::fixed_record::...` に統一済みです。
 
 ### 2. package metadata を整える
 
@@ -159,7 +156,7 @@ crates.io 公開前に、各 `Cargo.toml` の metadata を埋めます。
 
 ### 4. テスト配置を library crate 寄りにする
 
-現在は `app` が強い検証役を持っています。公開ライブラリとしては、主要な挙動を `fixed_record_main/tests/` へ移すと保守しやすくなります。
+現在は `examples/basic` が強い検証役を持っています。公開ライブラリとしては、主要な挙動を `crates/fixed-record/tests/` へ移すと保守しやすくなります。
 
 - builder / parse / to_bytes
 - Reader / Writer
@@ -167,7 +164,7 @@ crates.io 公開前に、各 `Cargo.toml` の metadata を埋めます。
 - compile-fail
 - feature combinations: default, `default-features = false`, `unchecked`
 
-`app` はサンプル実行用に薄く残し、保証は library crate 側に寄せるのがよさそうです。
+`examples/basic` はサンプル実行用に薄く残し、保証は library crate 側に寄せるのがよさそうです。
 
 ### 5. CI の合格ラインを決める
 
@@ -180,7 +177,7 @@ cargo test --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-現状は clippy 警告が残っているので、`-D warnings` を採用する前に `items_after_test_module` と `io_other_error` を潰します。
+現状は `-D warnings` まで通るので、CI ではこのラインを採用できます。
 
 ### 6. README を公開向けに磨く
 

@@ -1,0 +1,25 @@
+error[E0277]: the trait bound `[UserField; 1]: SequenceFields<Payment>` is not satisfied
+  --> tests/ui/sequence_check_wrong_field.rs:18:30
+   |
+18 |         .with_sequence_check([UserField::Id]);
+   |          ------------------- ^^^^^^^^^^^^^^^ the trait `SequenceFields<Payment>` is not implemented for `[UserField; 1]`
+   |          |
+   |          required by a bound introduced by this call
+   |
+help: the following other types implement trait `SequenceFields<T>`
+  --> tests/ui/sequence_check_wrong_field.rs:4:1
+   |
+ 4 | #[fixed_record]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | `&[UserField; 1]`
+   | `[UserField; 1]`
+note: required by a bound in `fixed_record::Reader::<R, T>::with_sequence_check`
+  --> $WORKSPACE/crates/fixed-record/src/io.rs
+   |
+   |     pub fn with_sequence_check<F>(mut self, fields: F) -> Self
+   |            ------------------- required by a bound in this associated function
+   |     where
+   |         F: SequenceFields<T>,
+   |            ^^^^^^^^^^^^^^^^^ required by this bound in `Reader::<R, T>::with_sequence_check`
+   = note: this error originates in the attribute macro `fixed_record` (in Nightly builds, run with -Z macro-backtrace for more info)

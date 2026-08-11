@@ -1,7 +1,0 @@
-error: fixed_record_main can only be used on structs
- --> tests/ui/non_struct.rs:4:1
-  |
-4 | / enum NotARecord {
-5 | |     Value,
-6 | | }
-  | |_^
