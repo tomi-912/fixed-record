@@ -39,6 +39,46 @@ impl RecordSeparator {
 ///
 /// A trailing `\n`, `\r`, `\r\n`, or `,` immediately after each record is skipped automatically.
 /// 各レコードの直後にある `\n`、`\r`、`\r\n`、`,` は自動的に読み飛ばします。
+///
+/// # Examples
+///
+/// ```
+/// use fixed_record::prelude::*;
+/// use std::io::{BufReader, Cursor};
+///
+/// #[fixed_record]
+/// pub struct Payment {
+///     id: Fixed<4>,
+///     amount: Fixed<6>,
+/// }
+///
+/// let first = Payment::builder()
+///     .with_id("A001")
+///     .with_amount_int(1200)
+///     .build();
+/// let second = Payment::builder()
+///     .with_id("A002")
+///     .with_amount_int(3400)
+///     .build();
+///
+/// let mut input = Vec::new();
+/// input.extend_from_slice(&first.to_bytes());
+/// input.extend_from_slice(b"\r\n");
+/// input.extend_from_slice(&second.to_bytes());
+/// input.push(b',');
+///
+/// let mut reader = Reader::<_, Payment>::new(BufReader::new(Cursor::new(input)));
+///
+/// assert_eq!(
+///     reader.next().unwrap().unwrap().get_field_trimmed(PaymentField::Id).unwrap(),
+///     "A001"
+/// );
+/// assert_eq!(
+///     reader.next().unwrap().unwrap().get_field_trimmed(PaymentField::Amount).unwrap(),
+///     "003400"
+/// );
+/// assert!(reader.next().is_none());
+/// ```
 pub struct Reader<R, T: FixedRecord> {
     reader: R,
     sequence_fields: Vec<T::Field>,
@@ -189,6 +229,43 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
 ///
 /// During writing, NUL bytes (`0x00`) are replaced with spaces (`0x20`) and a separator is appended.
 /// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に区切りを付けます。
+///
+/// # Examples
+///
+/// ```
+/// use fixed_record::prelude::*;
+///
+/// #[fixed_record]
+/// pub struct Payment {
+///     id: Fixed<4>,
+///     amount: Fixed<6>,
+/// }
+///
+/// let first = Payment::builder()
+///     .with_id("A001")
+///     .with_amount_int(1200)
+///     .build();
+/// let second = Payment::builder()
+///     .with_id("A002")
+///     .with_amount_int(3400)
+///     .build();
+///
+/// let mut output = Vec::new();
+/// let mut writer = Writer::new(&mut output)
+///     .with_separator(RecordSeparator::Comma);
+///
+/// writer.write_record(&first).unwrap();
+/// writer.write_record(&second).unwrap();
+/// writer.flush().unwrap();
+///
+/// let mut expected = Vec::new();
+/// expected.extend_from_slice(&first.to_bytes());
+/// expected.push(b',');
+/// expected.extend_from_slice(&second.to_bytes());
+/// expected.push(b',');
+///
+/// assert_eq!(output, expected);
+/// ```
 pub struct Writer<W> {
     writer: W,
     separator: &'static [u8],
