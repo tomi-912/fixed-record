@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Initialization Comparison:");
     println!("  zeroed bytes: {:?}", &z.to_bytes()[..5]); // [0, 0, 0, 0, 0]
     println!("  spaced bytes: {:?}", &s.to_bytes()[..5]); // [32, 32, 32, 32, 32] (0x20)
-    println!("  cleared bytes: {:?}", &c.to_bytes()[..5]); // default CLEAR_BYTE is 0x00
+    println!("  cleared bytes: {:?}", &c.to_bytes()[..5]); // default CLEAR_BYTE is space
 
     // Serialization with `to_bytes`.
     // `to_bytes` によるシリアライズです。
@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- 5. Default Trait Test ---");
     println!(
         "Default user (cleared) valid: {}",
-        default_user.id().iter().all(|&b| b == 0)
+        default_user.id().iter().all(|&b| b == b' ')
     );
 
     // Dynamic field access.

@@ -9,9 +9,14 @@ use syn::{
 mod core;
 mod helpers;
 
-#[derive(Default)]
 struct MacroArgs {
     clear_byte: u8,
+}
+
+impl Default for MacroArgs {
+    fn default() -> Self {
+        Self { clear_byte: b' ' }
+    }
 }
 
 impl Parse for MacroArgs {

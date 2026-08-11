@@ -26,6 +26,16 @@ mod tests {
     pub struct SpaceClearRecord {
         name: Fixed<6>,
     }
+
+    #[fixed_record(clear_byte = ZERO)]
+    pub struct ZeroClearRecord {
+        name: Fixed<6>,
+    }
+
+    #[fixed_record(clear_byte = 0)]
+    pub struct NumericZeroClearRecord {
+        name: Fixed<6>,
+    }
     #[test]
     fn test_apply_closure() {
         let aa = TestRecord::builder().apply_str("test      ttte");
@@ -61,7 +71,7 @@ mod tests {
 
         assert_eq!(rec.name(), b"HelloWorld");
         assert_eq!(&rec.code()[..3], b"ABC");
-        assert_eq!(&rec.code()[3..], &[0, 0]);
+        assert_eq!(&rec.code()[3..], b"  ");
         assert_eq!(rec.amount(), b"        ");
     }
     #[test]
@@ -146,12 +156,12 @@ mod tests {
         );
     }
     #[test]
-    fn test_set_field_str_clears_with_default_zero_before_write() {
+    fn test_set_field_str_clears_with_default_space_before_write() {
         let mut rec = TestRecord::spaced();
         rec.set_field_str(TestRecordField::Name, "Bob");
 
-        assert_eq!(rec.name(), b"Bob\0\0\0\0\0\0\0");
-        assert_eq!(TestRecord::CLEAR_BYTE, 0x00);
+        assert_eq!(rec.name(), b"Bob       ");
+        assert_eq!(TestRecord::CLEAR_BYTE, b' ');
     }
     #[test]
     fn test_set_field_str_no_clear_keeps_existing_tail_bytes() {
@@ -175,19 +185,26 @@ mod tests {
         assert_eq!(rec.name(), b"Bo    ");
     }
     #[test]
+    fn test_set_field_str_uses_zero_clear_byte() {
+        let mut rec = ZeroClearRecord::spaced();
+        rec.set_field_str(ZeroClearRecordField::Name, "Bo");
+
+        assert_eq!(ZeroClearRecord::CLEAR_BYTE, 0x00);
+        assert_eq!(rec.name(), b"Bo\0\0\0\0");
+    }
+    #[test]
+    fn test_set_field_str_uses_numeric_zero_clear_byte() {
+        let mut rec = NumericZeroClearRecord::spaced();
+        rec.set_field_str(NumericZeroClearRecordField::Name, "Bo");
+
+        assert_eq!(NumericZeroClearRecord::CLEAR_BYTE, 0x00);
+        assert_eq!(rec.name(), b"Bo\0\0\0\0");
+    }
+    #[test]
     fn test_builder_and_default_use_default_clear_byte() {
-        assert_eq!(
-            TestRecord::builder().name(),
-            &[0; TestRecord::FIELD_SIZE_NAME]
-        );
-        assert_eq!(
-            TestRecord::default().name(),
-            &[0; TestRecord::FIELD_SIZE_NAME]
-        );
-        assert_eq!(
-            TestRecord::cleared().name(),
-            &[0; TestRecord::FIELD_SIZE_NAME]
-        );
+        assert_eq!(TestRecord::builder().name(), b"          ");
+        assert_eq!(TestRecord::default().name(), b"          ");
+        assert_eq!(TestRecord::cleared().name(), b"          ");
     }
     #[test]
     fn test_builder_and_default_use_configured_clear_byte() {
@@ -470,11 +487,10 @@ mod tests {
             .with_amount_int(1)
             .build();
 
-        let zero_padded = TestRecord::builder()
+        let zero_padded = TestRecord::zeroed()
             .with_name("Zero")
             .with_code("A00")
-            .with_amount_int(2)
-            .build();
+            .with_amount_int(2);
 
         let mut mixed_padded = TestRecord::spaced()
             .with_name("Mixed")
@@ -560,7 +576,7 @@ mod tests {
             found
                 .get_field_string_trimmed(TestRecordField::Name)
                 .unwrap(),
-            "Zero"
+            "Space"
         );
         assert!(
             list.try_first_by(TestRecordField::Code, b"A00X")

@@ -57,14 +57,16 @@ Applying `#[fixed_record]` to a struct mainly generates:
 
 ## Field Initialization
 
-`set_field_*` clears the target field with `CLEAR_BYTE` before writing. When unspecified, `CLEAR_BYTE` is `0x00`.
+`set_field_*` clears the target field with `CLEAR_BYTE` before writing. When unspecified, `CLEAR_BYTE` is a space byte (`0x20`).
 
 ```rust
-#[fixed_record(clear_byte = SPACE)]
+#[fixed_record(clear_byte = ZERO)]
 pub struct User {
     pub id: Fixed<8>,
 }
 ```
+
+Use `clear_byte = ZERO` or `clear_byte = 0` when `set_field_*`, `builder()`, `default()`, and `cleared()` should initialize fields with `0x00`.
 
 For explicit initialization, use `zeroed()`, `spaced()`, or `cleared()`. `zeroed()` always uses `0x00`, `spaced()` always uses spaces, and `cleared()` uses `CLEAR_BYTE`.
 

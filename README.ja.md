@@ -57,14 +57,16 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 ## フィールド初期化
 
-`set_field_*` は、書き込み前に `CLEAR_BYTE` で対象フィールドをクリアします。未指定時の `CLEAR_BYTE` は `0x00` です。
+`set_field_*` は、書き込み前に `CLEAR_BYTE` で対象フィールドをクリアします。未指定時の `CLEAR_BYTE` は半角スペース (`0x20`) です。
 
 ```rust
-#[fixed_record(clear_byte = SPACE)]
+#[fixed_record(clear_byte = ZERO)]
 pub struct User {
     pub id: Fixed<8>,
 }
 ```
+
+`set_field_*`、`builder()`、`default()`、`cleared()` で `0x00` 初期化したい場合は、`clear_byte = ZERO` または `clear_byte = 0` を指定します。
 
 明示的な初期化には、`zeroed()`、`spaced()`、`cleared()` を使えます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
 
