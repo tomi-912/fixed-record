@@ -39,7 +39,8 @@ examples/
 ## Working Rules
 
 - Commit source or documentation changes by default.
-- Push only when explicitly requested.
+- Stop after committing during normal task completion.
+- Push only when the user explicitly asks for a push.
 - Keep README files focused on public users.
 - Put release decisions, design notes, investigation notes, and future tasks in DEVELOPMENT.
 - Add or update doc comments in bilingual order: English first, then Japanese.
