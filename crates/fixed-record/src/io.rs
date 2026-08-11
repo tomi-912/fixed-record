@@ -3,11 +3,38 @@ use std::cmp::Ordering;
 use std::io::{self, BufRead, Write};
 use std::marker::PhantomData;
 
+/// Separator written after each record by [`Writer`].
+/// [`Writer`] が各レコードの後ろに書き出す区切りです。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordSeparator {
+    /// Line feed (`\n`).
+    /// LF (`\n`) です。
+    Lf,
+    /// Carriage return and line feed (`\r\n`).
+    /// CRLF (`\r\n`) です。
+    Crlf,
+    /// Comma (`,`).
+    /// カンマ (`,`) です。
+    Comma,
+}
+
+impl RecordSeparator {
+    /// Returns the byte sequence for this separator.
+    /// この区切りを表すバイト列を返します。
+    pub const fn as_bytes(self) -> &'static [u8] {
+        match self {
+            Self::Lf => b"\n",
+            Self::Crlf => b"\r\n",
+            Self::Comma => b",",
+        }
+    }
+}
+
 /// Iterator that reads fixed-width records from a stream.
 /// 固定長レコードをストリームから順に読み込むイテレータです。
 ///
-/// A trailing `\n` or `\r\n` immediately after each record is skipped automatically.
-/// 各レコードの直後にある `\n` または `\r\n` は自動的に読み飛ばします。
+/// A trailing `\n`, `\r\n`, or `,` immediately after each record is skipped automatically.
+/// 各レコードの直後にある `\n`、`\r\n`、`,` は自動的に読み飛ばします。
 pub struct Reader<R, T: FixedRecord> {
     reader: R,
     sequence_fields: Vec<T::Field>,
@@ -135,7 +162,7 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
             }
 
             match available[0] {
-                b'\n' | b'\r' => self.reader.consume(1),
+                b'\n' | b'\r' | b',' => self.reader.consume(1),
                 _ => break,
             }
         }
@@ -151,27 +178,34 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
 /// Writer for fixed-width records.
 /// 固定長レコードをストリームへ書き出すライターです。
 ///
-/// During writing, NUL bytes (`0x00`) are replaced with spaces (`0x20`) and a newline is appended.
-/// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に改行を付けます。
+/// During writing, NUL bytes (`0x00`) are replaced with spaces (`0x20`) and a separator is appended.
+/// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に区切りを付けます。
 pub struct Writer<W> {
     writer: W,
-    newline: &'static [u8],
+    separator: &'static [u8],
 }
 
 impl<W: Write> Writer<W> {
-    /// Creates a writer that uses `\n` as the default newline.
-    /// デフォルト改行コード `\n` でライターを作成します。
+    /// Creates a writer that uses `\n` as the default separator.
+    /// デフォルト区切り `\n` でライターを作成します。
     pub fn new(writer: W) -> Self {
         Self {
             writer,
-            newline: b"\n",
+            separator: RecordSeparator::Lf.as_bytes(),
         }
+    }
+
+    /// Changes the separator used after each record.
+    /// レコードごとの区切りを変更します。
+    pub fn with_separator(mut self, separator: RecordSeparator) -> Self {
+        self.separator = separator.as_bytes();
+        self
     }
 
     /// Changes the newline sequence used after each record.
     /// 改行コードを変更します。
     pub fn with_newline(mut self, newline: &'static [u8]) -> Self {
-        self.newline = newline;
+        self.separator = newline;
         self
     }
 
@@ -186,7 +220,7 @@ impl<W: Write> Writer<W> {
         }
 
         self.writer.write_all(&bytes)?;
-        self.writer.write_all(self.newline)?;
+        self.writer.write_all(self.separator)?;
         Ok(())
     }
 
@@ -253,8 +287,8 @@ mod tests {
     }
 
     impl BufRead for FillBufErrorAfterRead {
-        /// Produces an I/O error while the reader skips trailing newlines after a record.
-        /// レコード読込後の改行読み飛ばしで I/O エラーを発生させます。
+        /// Produces an I/O error while the reader skips trailing separators after a record.
+        /// レコード読込後の区切り読み飛ばしで I/O エラーを発生させます。
         fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Err(io::Error::other("fill_buf failed"))
         }
@@ -289,8 +323,8 @@ mod tests {
         ));
     }
 
-    /// Verifies that an I/O error while skipping newlines is returned as `Error::Io`.
-    /// 改行読み飛ばし中の I/O エラーが `Error::Io` として返ることを確認します。
+    /// Verifies that an I/O error while skipping separators is returned as `Error::Io`.
+    /// 区切り読み飛ばし中の I/O エラーが `Error::Io` として返ることを確認します。
     #[test]
     fn reader_returns_io_error_from_fill_buf() {
         let mut reader = Reader::<_, TestRecord>::new(FillBufErrorAfterRead {

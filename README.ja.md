@@ -91,7 +91,7 @@ let by_id = list.get(id);
 
 ## Reader / Writer
 
-`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n` または `\r\n` は読み飛ばします。
+`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n`、`\r\n`、`,` は読み飛ばします。
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
@@ -103,7 +103,17 @@ let mut reader = Reader::<_, User>::new(source)
 
 シーケンスチェックでは、前回レコードより今回レコードが小さい場合に `Error::SequenceError` を返します。同一キーはデフォルトで許可されます。
 
-`Writer` は `to_bytes` したレコードを書き出し、レコード末尾に改行を付けます。
+`Writer` は `to_bytes` したレコードを書き出し、レコード末尾に区切りを付けます。
+
+`RecordSeparator` で、レコードごとに書き出す区切りを選べます。
+
+```rust
+let mut writer = Writer::new(output)
+    .with_separator(RecordSeparator::Crlf);
+
+let mut csv_like_writer = Writer::new(output)
+    .with_separator(RecordSeparator::Comma);
+```
 
 ## Feature Flags
 

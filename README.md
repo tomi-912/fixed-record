@@ -91,7 +91,7 @@ Use `try_find_by_prefix` / `try_first_by_prefix` for prefix searches.
 
 ## Reader / Writer
 
-`Reader` reads fixed-width records sequentially. A trailing `\n` or `\r\n` immediately after each record is skipped automatically.
+`Reader` reads fixed-width records sequentially. A trailing `\n`, `\r\n`, or `,` immediately after each record is skipped automatically.
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
@@ -103,7 +103,17 @@ let mut reader = Reader::<_, User>::new(source)
 
 Sequence checks return `Error::SequenceError` when the current record is smaller than the previous record. Equal keys are allowed by default.
 
-`Writer` writes `to_bytes()` output and appends a newline after each record.
+`Writer` writes `to_bytes()` output and appends a separator after each record.
+
+Use `RecordSeparator` to choose the separator written after each record.
+
+```rust
+let mut writer = Writer::new(output)
+    .with_separator(RecordSeparator::Crlf);
+
+let mut csv_like_writer = Writer::new(output)
+    .with_separator(RecordSeparator::Comma);
+```
 
 ## Feature Flags
 

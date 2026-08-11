@@ -260,7 +260,7 @@ mod tests {
     }
     #[test]
     fn test_reader_writer_and_fixed_record_trait() {
-        use fixed_record::{FixedRecord, Reader, Writer};
+        use fixed_record::{FixedRecord, Reader, RecordSeparator, Writer};
         use std::io::{BufReader, Cursor};
         fn bytes_via_trait<T: FixedRecord>(record: &T) -> Vec<u8> {
             record.to_bytes()
@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(bytes_via_trait(&first).len(), TestRecord::TOTAL_LEN);
 
         let mut buf = Vec::new();
-        let mut writer = Writer::new(&mut buf).with_newline(b"\r\n");
+        let mut writer = Writer::new(&mut buf).with_separator(RecordSeparator::Crlf);
         writer.write_record(&first).unwrap();
         writer.write_record(&second).unwrap();
         writer.flush().unwrap();
@@ -303,6 +303,233 @@ mod tests {
                 .get_field_trimmed(TestRecordField::Name)
                 .unwrap(),
             "Bob"
+        );
+        assert!(reader.next().is_none());
+    }
+    #[test]
+    fn test_reader_writer_round_trip_file_with_lf_separator() {
+        use fixed_record::{Reader, RecordSeparator, Writer};
+        use std::fs::File;
+        use std::io::BufReader;
+
+        let path = std::env::temp_dir().join(format!(
+            "fixed-record-lf-{}-{}.dat",
+            std::process::id(),
+            "generated-api"
+        ));
+
+        let first = TestRecord::builder()
+            .with_name("Alice")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Bob")
+            .with_code("B0001")
+            .with_amount_int(20)
+            .build();
+
+        {
+            let file = File::create(&path).unwrap();
+            let mut writer = Writer::new(file).with_separator(RecordSeparator::Lf);
+            writer.write_record(&first).unwrap();
+            writer.write_record(&second).unwrap();
+            writer.flush().unwrap();
+        }
+
+        let raw = std::fs::read(&path).unwrap();
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&first.to_bytes());
+        expected.push(b'\n');
+        expected.extend_from_slice(&second.to_bytes());
+        expected.push(b'\n');
+        assert_eq!(raw, expected);
+
+        let file = File::open(&path).unwrap();
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Bob"
+        );
+        assert!(reader.next().is_none());
+
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
+    fn test_reader_writer_round_trip_file_with_crlf_separator() {
+        use fixed_record::{Reader, RecordSeparator, Writer};
+        use std::fs::File;
+        use std::io::BufReader;
+
+        let path = std::env::temp_dir().join(format!(
+            "fixed-record-crlf-{}-{}.dat",
+            std::process::id(),
+            "generated-api"
+        ));
+
+        let first = TestRecord::builder()
+            .with_name("Carol")
+            .with_code("C0001")
+            .with_amount_int(30)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Dave")
+            .with_code("D0001")
+            .with_amount_int(40)
+            .build();
+
+        {
+            let file = File::create(&path).unwrap();
+            let mut writer = Writer::new(file).with_separator(RecordSeparator::Crlf);
+            writer.write_record(&first).unwrap();
+            writer.write_record(&second).unwrap();
+            writer.flush().unwrap();
+        }
+
+        let raw = std::fs::read(&path).unwrap();
+        assert!(raw.windows(2).any(|bytes| bytes == b"\r\n"));
+
+        let file = File::open(&path).unwrap();
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Carol"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Dave"
+        );
+        assert!(reader.next().is_none());
+
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
+    fn test_reader_writer_round_trip_file_with_comma_separator() {
+        use fixed_record::{Reader, RecordSeparator, Writer};
+        use std::fs::File;
+        use std::io::BufReader;
+
+        let path = std::env::temp_dir().join(format!(
+            "fixed-record-comma-{}-{}.dat",
+            std::process::id(),
+            "generated-api"
+        ));
+
+        let first = TestRecord::builder()
+            .with_name("Eve")
+            .with_code("E0001")
+            .with_amount_int(50)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Frank")
+            .with_code("F0001")
+            .with_amount_int(60)
+            .build();
+
+        {
+            let file = File::create(&path).unwrap();
+            let mut writer = Writer::new(file).with_separator(RecordSeparator::Comma);
+            writer.write_record(&first).unwrap();
+            writer.write_record(&second).unwrap();
+            writer.flush().unwrap();
+        }
+
+        let raw = std::fs::read(&path).unwrap();
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&first.to_bytes());
+        expected.push(b',');
+        expected.extend_from_slice(&second.to_bytes());
+        expected.push(b',');
+        assert_eq!(raw, expected);
+
+        let file = File::open(&path).unwrap();
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Eve"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Frank"
+        );
+        assert!(reader.next().is_none());
+
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
+    fn test_reader_skips_comma_between_records() {
+        use fixed_record::Reader;
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Grace")
+            .with_code("G0001")
+            .with_amount_int(70)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Heidi")
+            .with_code("H0001")
+            .with_amount_int(80)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.push(b',');
+        bytes.extend_from_slice(&second.to_bytes());
+        bytes.push(b',');
+
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Grace"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Heidi"
         );
         assert!(reader.next().is_none());
     }
