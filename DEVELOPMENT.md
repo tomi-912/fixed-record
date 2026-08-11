@@ -62,9 +62,10 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 - proc macro の入力エラーは `syn::Error::new_spanned(...).to_compile_error()` を返す形へ改善済みです。
   - named struct 以外、`Fixed<N>` 以外、`N` がリテラルでない場合などで、利用者が書いた struct や field の位置を指した compile error を返します。
   - `trybuild` を使った compile-fail test を `app/tests/ui/` に置いています。
-- `Fixed<0>` は proc macro 側で禁止済みです。
+- `Fixed<N>` の `N` は正の整数リテラルだけ許可しています。
   - `with_*_int_signed` の生成コードでは `#size - 1` を使うため、フィールドサイズ 0 を許すと underflow します。
-  - 現在は `Fixed<N> length must be greater than 0` という compile error にしています。
+  - `Fixed<0>` は `Fixed<N> length must be greater than 0` という compile error にしています。
+  - `Fixed<-1>` のような負数は `Fixed<N> length must not be negative` という compile error にしています。
 
 ### 重要度中
 

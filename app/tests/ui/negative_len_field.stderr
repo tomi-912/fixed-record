@@ -1,0 +1,5 @@
+error: Fixed<N> length must not be negative
+ --> tests/ui/negative_len_field.rs:5:19
+  |
+5 |     pub id: Fixed<-1>,
+  |                   ^
