@@ -46,7 +46,16 @@ pub fn extract_fixed_len(ty: &Type) -> syn::Result<usize> {
         ));
     };
 
-    lit_int
-        .base10_parse::<usize>()
-        .map_err(|err| syn::Error::new_spanned(lit_int, format!("invalid Fixed<N> length: {err}")))
+    let len = lit_int.base10_parse::<usize>().map_err(|err| {
+        syn::Error::new_spanned(lit_int, format!("invalid Fixed<N> length: {err}"))
+    })?;
+
+    if len == 0 {
+        return Err(syn::Error::new_spanned(
+            lit_int,
+            "Fixed<N> length must be greater than 0",
+        ));
+    }
+
+    Ok(len)
 }

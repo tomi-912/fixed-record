@@ -62,11 +62,12 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 - proc macro の入力エラーは `syn::Error::new_spanned(...).to_compile_error()` を返す形へ改善済みです。
   - named struct 以外、`Fixed<N>` 以外、`N` がリテラルでない場合などで、利用者が書いた struct や field の位置を指した compile error を返します。
   - `trybuild` を使った compile-fail test を `app/tests/ui/` に置いています。
+- `Fixed<0>` は proc macro 側で禁止済みです。
+  - `with_*_int_signed` の生成コードでは `#size - 1` を使うため、フィールドサイズ 0 を許すと underflow します。
+  - 現在は `Fixed<N> length must be greater than 0` という compile error にしています。
 
 ### 重要度中
 
-- `with_*_int_signed` はフィールドサイズが 0 の場合に `#size - 1` で underflow します。
-  - `Fixed<0>` を許可するか禁止するか決め、proc macro 側で検査した方がよさそうです。
 - `with_*_int` / `with_*_int_signed` は値がフィールド幅を超えてもエラーにならず、最終的に `write_bytes` で先頭側から切り捨てられます。
   - 例: 幅 3 に `12345` を入れると `"123"` になります。
   - 固定長レコードでは桁あふれを検知したい場面が多いので、Result を返す setter も欲しいです。
@@ -99,6 +100,6 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 1. unchecked API を残すか、別 trait に分けるかを決める。
 2. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
-3. 桁あふれや `Fixed<0>` の扱いを決め、Result 版 setter または入力検証を追加する。
+3. 桁あふれの扱いを決め、Result 版 setter または入力検証を追加する。
 4. app 側のテストを library crate の integration test へ移す。
 5. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。
