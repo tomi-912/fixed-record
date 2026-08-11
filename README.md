@@ -1,64 +1,17 @@
 # fixed-record
 
-固定長レコードライブラリを、通常ライブラリ・proc macro・サンプルアプリに分けたワークスペース版です。
+`fixed-record` は、Rust の struct 定義から固定長レコード用のパース、生成、フィールド操作、Reader/Writer、検索用 List API を生成するライブラリです。
 
-`fixed-record`、`fixed-record-macros`、`fixed-record-basic-example`、`fixed-record-no-list-example` の4メンバーで構成されています。
+利用者は通常、`fixed-record` だけを依存に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用の proc macro crate です。
 
-利用者は通常、`fixed-record` だけを `[dependencies]` に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用の proc macro クレートです。
-
-## 構成
-
-- `crates/fixed-record/`: 利用者が依存する通常ライブラリです。`Fixed<N>`、`Error`、`prelude`、マクロの再エクスポートを持ちます。
-- `crates/fixed-record-macros/`: `#[fixed_record]` attribute macro を定義する内部向け proc macro クレートです。
-- `examples/basic/`: ライブラリの使い方と挙動確認用のサンプルです。
-- `examples/no-list/`: `default-features = false` で List 生成を外した場合の検証用サンプルです。
-
-## 役割
-
-このワークスペースは、proc macro を別クレートに切り出した設計を試すための版です。
-
-`#[fixed_record]` を付けた構造体から、次のような機能を生成します。
-
-- 基本 derive を付けたレコード構造体
-- `{StructName}Field` enum
-- `TOTAL_LEN`、フィールド長、オフセットなどのメタ情報
-- `builder`、`with_*`、`with_*_int`、`with_*_int_signed`
-- `parse` / `parse_str` / `to_bytes`
-- 動的フィールド取得・更新
-- `apply_*` 系の一括流し込み
-- `FixedRecord` トレイト
-- `Reader` / `Writer`
-- `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
-- `compare_all_fields` / `compare_by_fields` / `to_dump_string`
-
-`{StructName}List` は default feature の `list` で生成されます。通常は有効です。レコード定義だけを生成したい場合は、依存側で default feature を外します。
-
-```toml
-fixed-record = { version = "0.1", default-features = false }
-```
-
-`set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
-`builder()`、`Default`、`cleared()` もこの値で初期化します。
-
-```rust
-#[fixed_record(clear_byte = SPACE)]
-pub struct User {
-    pub id: Fixed<8>,
-}
-```
-
-`unchecked` feature を有効にした場合だけ、追加で次のものを生成します。
-
-- `#[repr(C)]` を付けたレコード構造体
-- `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`
-
-
-## 使い方
+## Installation
 
 ```toml
 [dependencies]
 fixed-record = "0.1"
 ```
+
+## Quick Start
 
 ```rust
 use fixed_record::prelude::*;
@@ -77,41 +30,62 @@ let user = User::builder()
     .build();
 
 assert_eq!(User::TOTAL_LEN, 27);
+assert_eq!(user.id(), b"00000001");
+assert_eq!(user.age(), b"025");
 assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 ```
 
-数値フィールドで桁あふれを検知したい場合は、`try_with_*_int` / `try_with_*_int_signed` を使います。
+## Generated API
+
+`#[fixed_record]` を付けた struct から、主に次の API を生成します。
+
+- 基本 derive を付けたレコード struct
+- `{StructName}Field` enum
+- `TOTAL_LEN`、フィールド長、オフセットなどのメタ情報
+- `builder`、`with_*`、`try_with_*_int`、`with_*_int_truncated`
+- `parse` / `parse_str` / `to_bytes`
+- `get_field_*` / `set_field_*` などの動的フィールド操作
+- `apply_*` 系の一括流し込み
+- `FixedRecord` trait 実装
+- `Reader` / `Writer`
+- `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
+- `compare_all_fields` / `compare_by_fields` / `to_dump_string`
+
+## Field Initialization
+
+`set_field_*` は、書き込み前に `CLEAR_BYTE` で対象フィールドをクリアします。未指定時の `CLEAR_BYTE` は `0x00` です。
 
 ```rust
-let user = User::builder()
-    .try_with_age_int(25)?
-    .build();
+#[fixed_record(clear_byte = SPACE)]
+pub struct User {
+    pub id: Fixed<8>,
+}
 ```
 
-桁あふれを許容して先頭側だけ残したい場合は、`with_*_int_truncated` / `with_*_int_signed_truncated` を使います。切り捨てが発生した場合は stderr に警告を出します。
+明示的な初期化には、`zeroed()`、`spaced()`、`cleared()` を使えます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
 
-`set_field_bytes` / `set_field_str` は、書き込み前に `CLEAR_BYTE` でフィールドをクリアします。既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
+既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。`with_*` はメソッドチェーン用の部分上書き API で、書き込み前のクリアを行いません。
 
-`with_*` はメソッドチェーン用の部分上書き API です。書き込み前にクリアしないため、短い文字列を書いた場合は後続バイトが残ります。
+## List Search
 
-明示的に初期化したい場合は、`zeroed()`、`spaced()`、`cleared()` を使い分けます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
-
-List 検索でフィールド幅を手で指定したくない場合は、`try_find_by` や `try_first_by` を使います。検索値がフィールド幅より短い場合、後続バイトが `0x00` または半角スペースのレコードも一致します。
-
-```rust
-let found = list.try_find_by(UserField::Id, b"0001")?;
-let first = list.try_first_by(UserField::Id, b"0001")?;
-```
-
-ID から有効なレコードを取得する場合は `get`、ID のレコードを置き換える場合は `update` を使います。`update` は検索インデックスも更新します。
+default feature の `list` が有効な場合、`{StructName}List` が生成されます。
 
 ```rust
 let mut list = UserList::new();
-let user = list.get(id);
-list.update(id, replacement);
+let id = list.insert(user);
+
+let found = list.try_find_by(UserField::Id, b"00000001")?;
+let first = list.try_first_by(UserField::Id, b"00000001")?;
+let by_id = list.get(id);
 ```
 
-`Reader` は指定フィールドのシーケンスチェックを設定できます。前回レコードより今回レコードが小さい場合は `Error::SequenceError` になります。同一キーはデフォルトで許可されます。対象レコードと異なる field enum やフィールド数より長い配列はコンパイルエラーになります。
+フィールド幅を呼び出し側で指定したい場合は、互換APIとして `find_by<const N: usize>` / `first_by<const N: usize>` も使えます。通常は、フィールド enum から幅を判断する `try_find_by` / `try_first_by` を優先します。
+
+先頭一致で検索したい場合は `try_find_by_prefix` / `try_first_by_prefix` を使います。
+
+## Reader / Writer
+
+`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n` または `\r\n` は読み飛ばします。
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
@@ -121,17 +95,43 @@ let mut reader = Reader::<_, User>::new(source)
     .with_sequence_check_options([UserField::Id], false);
 ```
 
-後続バイトの内容に関係なく先頭一致で検索したい場合は、`try_find_by_prefix` を使います。先頭一致したうち、指定フィールドの昇順で最初の1件だけ欲しい場合は `try_first_by_prefix` を使います。
+シーケンスチェックでは、前回レコードより今回レコードが小さい場合に `Error::SequenceError` を返します。同一キーはデフォルトで許可されます。
 
-```rust
-let found = list.try_find_by_prefix(UserField::Id, b"000")?;
-let first = list.try_first_by_prefix(UserField::Id, b"000")?;
+`Writer` は `to_bytes` したレコードを書き出し、レコード末尾に改行を付けます。
+
+## Feature Flags
+
+- `list`: default feature。`{StructName}List` と検索インデックス API を生成します。
+- `unchecked`: unsafe なゼロコピー系 API を追加生成します。
+
+レコード本体とフィールド操作だけを生成したい場合は、default feature を外します。
+
+```toml
+[dependencies]
+fixed-record = { version = "0.1", default-features = false }
 ```
 
-## 開発メモ
+`unchecked` feature では、`as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` が生成されます。これらは構造体のメモリレイアウトが固定長レコードのバイト配置と一致していることを呼び出し側が保証する必要があります。
 
-修正方針、作業ルール、現状確認メモは [`DEVELOPMENT.md`](DEVELOPMENT.md) に分けています。
+## Examples
 
-公開前に優先して整理する項目も [`DEVELOPMENT.md`](DEVELOPMENT.md) の「公開前のおすすめ方針」にまとめています。
+```bash
+cargo run -p fixed-record-basic-example --bin fixed_record_usage
+cargo run -p fixed-record-basic-example --bin macro_reexport
+cargo run -p fixed-record-no-list-example
+```
 
-README は利用者向けの使い方を中心に置きます。API や実行方法など、使い方が変わる変更を入れた場合は README も更新します。
+## Workspace Layout
+
+```text
+crates/
+  fixed-record/
+  fixed-record-macros/
+examples/
+  basic/
+  no-list/
+```
+
+公開時の利用者向け入口は `fixed-record` です。`fixed-record-macros` は proc macro 実装用 crate として扱います。
+
+開発方針、公開前チェックリスト、今後の修正候補は [DEVELOPMENT.md](DEVELOPMENT.md) にまとめています。
