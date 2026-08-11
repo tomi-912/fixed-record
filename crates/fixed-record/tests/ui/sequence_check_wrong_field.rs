@@ -11,6 +11,7 @@ pub struct Payment {
     pub code: Fixed<4>,
 }
 
+/// Verifies that a field enum from another record cannot be used for sequence checks.
 /// 対象レコードと異なる field enum はシーケンスチェックに指定できないことを確認します。
 fn main() {
     let bytes = Vec::new();

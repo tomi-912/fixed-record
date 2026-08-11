@@ -1,8 +1,10 @@
 # fixed-record
 
-`fixed-record` は、Rust の struct 定義から固定長レコード用のパース、生成、フィールド操作、Reader/Writer、検索用 List API を生成するライブラリです。
+`fixed-record` generates parsers, builders, field accessors, Reader/Writer support, and searchable List APIs from Rust struct definitions for fixed-width records.
 
-利用者は通常、`fixed-record` だけを依存に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用の proc macro crate です。
+Most users only need to depend on `fixed-record`. The `fixed-record-macros` crate is an implementation detail and is re-exported by `fixed-record`.
+
+Japanese documentation is available in [README.ja.md](README.ja.md).
 
 ## Installation
 
@@ -37,23 +39,23 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 ## Generated API
 
-`#[fixed_record]` を付けた struct から、主に次の API を生成します。
+Applying `#[fixed_record]` to a struct mainly generates:
 
-- 基本 derive を付けたレコード struct
-- `{StructName}Field` enum
-- `TOTAL_LEN`、フィールド長、オフセットなどのメタ情報
-- `builder`、`with_*`、`try_with_*_int`、`with_*_int_truncated`
+- the record struct with basic derives
+- a `{StructName}Field` enum
+- metadata such as `TOTAL_LEN`, field lengths, and offsets
+- `builder`, `with_*`, `try_with_*_int`, and `with_*_int_truncated`
 - `parse` / `parse_str` / `to_bytes`
-- `get_field_*` / `set_field_*` などの動的フィールド操作
-- `apply_*` 系の一括流し込み
-- `FixedRecord` trait 実装
-- `Reader` / `Writer`
-- `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
+- dynamic field operations such as `get_field_*` and `set_field_*`
+- bulk application helpers such as `apply_*`
+- a `FixedRecord` trait implementation
+- `Reader` / `Writer` interoperability
+- `{StructName}List` insertion, lookup, range search, removal, `vacuum`, and sorting
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 ## Field Initialization
 
-`set_field_*` は、書き込み前に `CLEAR_BYTE` で対象フィールドをクリアします。未指定時の `CLEAR_BYTE` は `0x00` です。
+`set_field_*` clears the target field with `CLEAR_BYTE` before writing. When unspecified, `CLEAR_BYTE` is `0x00`.
 
 ```rust
 #[fixed_record(clear_byte = SPACE)]
@@ -62,13 +64,13 @@ pub struct User {
 }
 ```
 
-明示的な初期化には、`zeroed()`、`spaced()`、`cleared()` を使えます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
+For explicit initialization, use `zeroed()`, `spaced()`, or `cleared()`. `zeroed()` always uses `0x00`, `spaced()` always uses spaces, and `cleared()` uses `CLEAR_BYTE`.
 
-既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。`with_*` はメソッドチェーン用の部分上書き API で、書き込み前のクリアを行いません。
+Use `set_field_bytes_no_clear` / `set_field_str_no_clear` when you want to preserve existing trailing bytes. The builder-style `with_*` methods also perform partial overwrites without clearing first.
 
 ## List Search
 
-default feature の `list` が有効な場合、`{StructName}List` が生成されます。
+When the default `list` feature is enabled, `{StructName}List` is generated.
 
 ```rust
 let mut list = UserList::new();
@@ -79,13 +81,13 @@ let first = list.try_first_by(UserField::Id, b"00000001")?;
 let by_id = list.get(id);
 ```
 
-フィールド幅を呼び出し側で指定したい場合は、互換APIとして `find_by<const N: usize>` / `first_by<const N: usize>` も使えます。通常は、フィールド enum から幅を判断する `try_find_by` / `try_first_by` を優先します。
+If you want to specify the field width at the call site, compatibility APIs `find_by<const N: usize>` and `first_by<const N: usize>` are also available. In most cases, prefer `try_find_by` / `try_first_by`, which infer the width from the field enum.
 
-先頭一致で検索したい場合は `try_find_by_prefix` / `try_first_by_prefix` を使います。
+Use `try_find_by_prefix` / `try_first_by_prefix` for prefix searches.
 
 ## Reader / Writer
 
-`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n` または `\r\n` は読み飛ばします。
+`Reader` reads fixed-width records sequentially. A trailing `\n` or `\r\n` immediately after each record is skipped automatically.
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
@@ -95,23 +97,23 @@ let mut reader = Reader::<_, User>::new(source)
     .with_sequence_check_options([UserField::Id], false);
 ```
 
-シーケンスチェックでは、前回レコードより今回レコードが小さい場合に `Error::SequenceError` を返します。同一キーはデフォルトで許可されます。
+Sequence checks return `Error::SequenceError` when the current record is smaller than the previous record. Equal keys are allowed by default.
 
-`Writer` は `to_bytes` したレコードを書き出し、レコード末尾に改行を付けます。
+`Writer` writes `to_bytes()` output and appends a newline after each record.
 
 ## Feature Flags
 
-- `list`: default feature。`{StructName}List` と検索インデックス API を生成します。
-- `unchecked`: unsafe なゼロコピー系 API を追加生成します。
+- `list`: enabled by default. Generates `{StructName}List` and search index APIs.
+- `unchecked`: generates unsafe zero-copy APIs.
 
-レコード本体とフィールド操作だけを生成したい場合は、default feature を外します。
+Disable default features when you only want the record type and field operations.
 
 ```toml
 [dependencies]
 fixed-record = { version = "0.1", default-features = false }
 ```
 
-`unchecked` feature では、`as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` が生成されます。これらは構造体のメモリレイアウトが固定長レコードのバイト配置と一致していることを呼び出し側が保証する必要があります。
+The `unchecked` feature generates `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`. Callers must guarantee that the struct memory layout exactly matches the fixed-width record byte layout.
 
 ## Examples
 
@@ -132,6 +134,6 @@ examples/
   no-list/
 ```
 
-公開時の利用者向け入口は `fixed-record` です。`fixed-record-macros` は proc macro 実装用 crate として扱います。
+The public entry point is `fixed-record`. `fixed-record-macros` is the proc macro implementation crate.
 
-開発方針、公開前チェックリスト、今後の修正候補は [DEVELOPMENT.md](DEVELOPMENT.md) にまとめています。
+Development notes, release preparation tasks, and future work are tracked in [DEVELOPMENT.md](DEVELOPMENT.md).

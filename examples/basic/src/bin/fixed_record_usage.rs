@@ -8,6 +8,7 @@ pub struct Payment {
     pub amount: Fixed<8>,
 }
 
+/// Runs a user-facing example that imports `fixed_record::prelude`.
 /// `fixed_record::prelude` を使った利用者目線のサンプルを実行します。
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let payment = Payment::builder()

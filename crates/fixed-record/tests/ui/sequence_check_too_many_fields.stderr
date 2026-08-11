@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `[PaymentField; 2]: SequenceFields<Payment>` is not satisfied
-  --> tests/ui/sequence_check_too_many_fields.rs:13:30
+  --> tests/ui/sequence_check_too_many_fields.rs:14:30
    |
-13 |         .with_sequence_check([PaymentField::Code, PaymentField::Code]);
+14 |         .with_sequence_check([PaymentField::Code, PaymentField::Code]);
    |          ------------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `SequenceFields<Payment>` is not implemented for `[PaymentField; 2]`
    |          |
    |          required by a bound introduced by this call

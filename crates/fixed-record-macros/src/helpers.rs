@@ -1,6 +1,7 @@
 use syn::{Expr, GenericArgument, Lit, PathArguments, Type, UnOp};
 
-/// 型が Fixed<N> であることを確認し、N の数値を取得する
+/// Ensures that a field type is `Fixed<N>` and extracts `N`.
+/// 型が `Fixed<N>` であることを確認し、`N` の数値を取得します。
 pub fn extract_fixed_len(ty: &Type) -> syn::Result<usize> {
     let Type::Path(tp) = ty else {
         return Err(syn::Error::new_spanned(
@@ -9,7 +10,8 @@ pub fn extract_fixed_len(ty: &Type) -> syn::Result<usize> {
         ));
     };
 
-    // 最後のセグメント（Fixed<N>）を取得
+    // Read the last path segment, which should be `Fixed<N>`.
+    // 最後のパスセグメントである `Fixed<N>` を取得します。
     let Some(segment) = tp.path.segments.last() else {
         return Err(syn::Error::new_spanned(
             ty,
@@ -31,7 +33,8 @@ pub fn extract_fixed_len(ty: &Type) -> syn::Result<usize> {
         ));
     };
 
-    // 最初のジェネリクス引数 <N> を取得
+    // Read the first generic argument, which should be `<N>`.
+    // 最初のジェネリクス引数 `<N>` を取得します。
     let Some(GenericArgument::Const(expr)) = args.args.first() else {
         return Err(syn::Error::new_spanned(
             ty,

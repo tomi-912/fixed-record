@@ -1,14 +1,18 @@
+//! Integration tests for generated fixed-record APIs.
+//! 生成される fixed-record API の integration test です。
+
 mod tests {
     use fixed_record::prelude::*;
-
-    // テスト用の構造体を定義
     #[fixed_record]
     pub struct TestRecord {
-        /// 名前フィールド
+        /// Name field used by generated API tests.
+        /// 生成 API テストで使う名前フィールドです。
         name: Fixed<10>,
-        /// コードフィールド
+        /// Code field used by generated API tests.
+        /// 生成 API テストで使うコードフィールドです。
         code: Fixed<5>,
-        /// 金額フィールド
+        /// Amount field used by generated API tests.
+        /// 生成 API テストで使う金額フィールドです。
         amount: Fixed<8>,
     }
 
@@ -22,10 +26,6 @@ mod tests {
     pub struct SpaceClearRecord {
         name: Fixed<6>,
     }
-
-    // ---- apply<F> のテスト ----
-
-    /// `apply` のクロージャで複数フィールドをまとめて更新できることを確認します。
     #[test]
     fn test_apply_closure() {
         let aa = TestRecord::builder().apply_str("test      ttte");
@@ -45,13 +45,8 @@ mod tests {
             "A001"
         );
     }
-
-    // ---- apply_bytes のテスト ----
-
-    /// 全フィールド分ぴったりのバイト列を先頭から流し込めることを確認します。
     #[test]
     fn test_apply_bytes_exact() {
-        // ちょうど TOTAL_LEN (23) バイト
         let data = b"HelloWorldABCDE12345678";
         let rec = TestRecord::spaced().apply_bytes(data);
 
@@ -59,23 +54,16 @@ mod tests {
         assert_eq!(rec.code(), b"ABCDE");
         assert_eq!(rec.amount(), b"12345678");
     }
-
-    /// 入力バイト列が途中で終わる場合に、未到達部分が元のスペース埋めのまま残ることを確認します。
     #[test]
     fn test_apply_bytes_shorter_than_total() {
-        // データが途中で終わる場合 → 残りのフィールドはspaced のまま
-        let data = b"HelloWorldABC"; // name(10) + code の途中(3)
+        let data = b"HelloWorldABC";
         let rec = TestRecord::spaced().apply_bytes(data);
 
         assert_eq!(rec.name(), b"HelloWorld");
         assert_eq!(&rec.code()[..3], b"ABC");
-        assert_eq!(&rec.code()[3..], &[0, 0]); // 到達したフィールドの残りはCLEAR_BYTE
-        assert_eq!(rec.amount(), b"        "); // 未到達はspaced のまま
+        assert_eq!(&rec.code()[3..], &[0, 0]);
+        assert_eq!(rec.amount(), b"        ");
     }
-
-    // ---- apply_str のテスト ----
-
-    /// 文字列入力をバイト列として各フィールドへ順番に流し込めることを確認します。
     #[test]
     fn test_apply_str() {
         let s = b"HelloWorldABCDE12345678";
@@ -94,13 +82,8 @@ mod tests {
             "12345678"
         );
     }
-
-    // ---- apply_bytes_from のテスト ----
-
-    /// 開始フィールドが先頭の場合に `apply_bytes` と同じ結果になることを確認します。
     #[test]
     fn test_apply_bytes_from_first_field() {
-        // 先頭から開始 → apply_bytes と同じ動作
         let data = b"HelloWorldABCDE12345678";
         let rec = TestRecord::spaced().apply_bytes_from(TestRecordField::Name, data);
 
@@ -108,34 +91,24 @@ mod tests {
         assert_eq!(rec.code(), b"ABCDE");
         assert_eq!(rec.amount(), b"12345678");
     }
-
-    /// 中間フィールドから流し込むと、それより前のフィールドが変更されないことを確認します。
     #[test]
     fn test_apply_bytes_from_middle_field() {
-        // code フィールドから開始 → name はspaced のまま
         let data = b"ABCDE12345678";
         let rec = TestRecord::spaced().apply_bytes_from(TestRecordField::Code, data);
 
-        assert_eq!(rec.name(), b"          "); // 未変更
+        assert_eq!(rec.name(), b"          ");
         assert_eq!(rec.code(), b"ABCDE");
         assert_eq!(rec.amount(), b"12345678");
     }
-
-    /// 最後のフィールドだけを指定してバイト列を流し込めることを確認します。
     #[test]
     fn test_apply_bytes_from_last_field() {
-        // amount フィールドのみ書き込み
         let data = b"99999999";
         let rec = TestRecord::spaced().apply_bytes_from(TestRecordField::Amount, data);
 
-        assert_eq!(rec.name(), b"          "); // 未変更
-        assert_eq!(rec.code(), b"     "); // 未変更
+        assert_eq!(rec.name(), b"          ");
+        assert_eq!(rec.code(), b"     ");
         assert_eq!(rec.amount(), b"99999999");
     }
-
-    // ---- apply_str_from のテスト ----
-
-    /// 中間フィールドから文字列を流し込めることを確認します。
     #[test]
     fn test_apply_str_from_middle() {
         let s = "ABCDE12345678";
@@ -151,10 +124,6 @@ mod tests {
             "12345678"
         );
     }
-
-    // ---- メソッドチェーンの組み合わせテスト ----
-
-    /// builder と `with_*` 系メソッドを連鎖してレコードを作成できることを確認します。
     #[test]
     fn test_method_chain() {
         let rec = TestRecord::builder()
@@ -176,8 +145,6 @@ mod tests {
             "00012345"
         );
     }
-
-    /// `set_field_str` がデフォルトの `CLEAR_BYTE` でクリアしてから書き込むことを確認します。
     #[test]
     fn test_set_field_str_clears_with_default_zero_before_write() {
         let mut rec = TestRecord::spaced();
@@ -186,8 +153,6 @@ mod tests {
         assert_eq!(rec.name(), b"Bob\0\0\0\0\0\0\0");
         assert_eq!(TestRecord::CLEAR_BYTE, 0x00);
     }
-
-    /// `set_field_str_no_clear` が既存フィールドの後続バイトを残すことを確認します。
     #[test]
     fn test_set_field_str_no_clear_keeps_existing_tail_bytes() {
         let mut rec = TestRecord::spaced().with_name("Alice");
@@ -195,16 +160,12 @@ mod tests {
 
         assert_eq!(rec.name(), b"Boice     ");
     }
-
-    /// `with_*` がクリアせずに先頭から上書きし、後続バイトを残すことを確認します。
     #[test]
     fn test_with_str_keeps_existing_tail_bytes() {
         let rec = TestRecord::spaced().with_name("Alice").with_name("Bo");
 
         assert_eq!(rec.name(), b"Boice     ");
     }
-
-    /// `clear_byte` option で `set_field_*` のクリア値をスペースに変更できることを確認します。
     #[test]
     fn test_set_field_str_uses_configured_clear_byte() {
         let mut rec = SpaceClearRecord::zeroed();
@@ -213,8 +174,6 @@ mod tests {
         assert_eq!(SpaceClearRecord::CLEAR_BYTE, b' ');
         assert_eq!(rec.name(), b"Bo    ");
     }
-
-    /// `builder` と `Default` がデフォルトの `CLEAR_BYTE` で初期化することを確認します。
     #[test]
     fn test_builder_and_default_use_default_clear_byte() {
         assert_eq!(
@@ -230,16 +189,12 @@ mod tests {
             &[0; TestRecord::FIELD_SIZE_NAME]
         );
     }
-
-    /// `builder` と `Default` が attribute で指定した `CLEAR_BYTE` で初期化することを確認します。
     #[test]
     fn test_builder_and_default_use_configured_clear_byte() {
         assert_eq!(SpaceClearRecord::builder().name(), b"      ");
         assert_eq!(SpaceClearRecord::default().name(), b"      ");
         assert_eq!(SpaceClearRecord::cleared().name(), b"      ");
     }
-
-    /// 数値 setter の Result 版がフィールド幅を超える値をエラーにすることを確認します。
     #[test]
     fn test_try_with_int_reports_field_overflow() {
         let err = TestRecord::builder()
@@ -255,8 +210,6 @@ mod tests {
             }
         );
     }
-
-    /// 符号付き数値 setter の Result 版が符号込みの桁あふれをエラーにすることを確認します。
     #[test]
     fn test_try_with_signed_int_reports_field_overflow() {
         let err = TestRecord::builder()
@@ -272,8 +225,6 @@ mod tests {
             }
         );
     }
-
-    /// 明示的な切り捨て版の数値 setter が幅を超えた値を先頭側だけ残すことを確認します。
     #[test]
     fn test_truncated_int_setter_keeps_existing_truncation_behavior() {
         let rec = TestRecord::builder()
@@ -282,8 +233,6 @@ mod tests {
 
         assert_eq!(rec.amount(), b"12345678");
     }
-
-    /// 明示的な切り捨て版の符号付き数値 setter が符号込みで先頭側だけ残すことを確認します。
     #[test]
     fn test_truncated_signed_int_setter_keeps_existing_truncation_behavior() {
         let rec = TestRecord::builder()
@@ -292,14 +241,10 @@ mod tests {
 
         assert_eq!(rec.amount(), b"-1234567");
     }
-
-    /// `FixedRecord` trait 経由のバイト化と `Reader` / `Writer` の往復を確認します。
     #[test]
     fn test_reader_writer_and_fixed_record_trait() {
         use fixed_record::{FixedRecord, Reader, Writer};
         use std::io::{BufReader, Cursor};
-
-        /// `FixedRecord` trait だけに依存してレコードをバイト列へ変換します。
         fn bytes_via_trait<T: FixedRecord>(record: &T) -> Vec<u8> {
             record.to_bytes()
         }
@@ -344,8 +289,6 @@ mod tests {
         );
         assert!(reader.next().is_none());
     }
-
-    /// 生成された List 型の追加、検索、ソート、論理削除、vacuum を確認します。
     #[test]
     fn test_generated_list_management() {
         let mut list = TestRecordList::new();
@@ -418,8 +361,6 @@ mod tests {
         list.vacuum();
         assert_eq!(list.all_ids(), vec![id_a]);
     }
-
-    /// `get` が ID から有効なレコードだけを取得し、論理削除済みレコードを返さないことを確認します。
     #[test]
     fn test_list_get_returns_only_active_record_by_id() {
         let mut list = TestRecordList::new();
@@ -445,8 +386,6 @@ mod tests {
         assert!(list.get(id).is_none());
         assert_eq!(list.all_ids(), vec![id]);
     }
-
-    /// `update` が ID のレコードを置き換え、検索インデックスも新しい値へ更新することを確認します。
     #[test]
     fn test_list_update_replaces_record_and_rebuilds_indices_for_id() {
         let mut list = TestRecordList::new();
@@ -488,8 +427,6 @@ mod tests {
             "00000030"
         );
     }
-
-    /// `update` が存在しない ID や論理削除済み ID を変更しないことを確認します。
     #[test]
     fn test_list_update_rejects_missing_or_deleted_id() {
         let mut list = TestRecordList::new();
@@ -523,8 +460,6 @@ mod tests {
         assert!(list.get(id).is_none());
         assert!(list.find_by(TestRecordField::Code, *b"D0001").is_empty());
     }
-
-    /// `try_find_by` が短い検索値で 0x00 / スペース埋めの固定長フィールドを取得できることを確認します。
     #[test]
     fn test_try_find_by_matches_short_value_with_zero_or_space_padding() {
         let mut list = TestRecordList::new();
@@ -574,8 +509,6 @@ mod tests {
             vec!["Mixed".to_string(), "Space".to_string(), "Zero".to_string()]
         );
     }
-
-    /// `try_find_by` がフィールド幅を超える検索値をエラーにすることを確認します。
     #[test]
     fn test_try_find_by_reports_overflow_for_too_long_value() {
         let list = TestRecordList::new();
@@ -592,8 +525,6 @@ mod tests {
             }
         );
     }
-
-    /// `try_first_by` が短い検索値で 0x00 / スペース埋めの固定長フィールドを昇順の先頭から取得できることを確認します。
     #[test]
     fn test_try_first_by_matches_short_value_with_zero_or_space_padding() {
         let mut list = TestRecordList::new();
@@ -637,8 +568,6 @@ mod tests {
                 .is_none()
         );
     }
-
-    /// `try_first_by` がフィールド幅を超える検索値をエラーにすることを確認します。
     #[test]
     fn test_try_first_by_reports_overflow_for_too_long_value() {
         let list = TestRecordList::new();
@@ -655,8 +584,6 @@ mod tests {
             }
         );
     }
-
-    /// `try_find_by_prefix` が後続バイトに関係なく先頭一致で固定長フィールドを取得できることを確認します。
     #[test]
     fn test_try_find_by_prefix_matches_any_trailing_bytes() {
         let mut list = TestRecordList::new();
@@ -708,8 +635,6 @@ mod tests {
             vec!["Other".to_string(), "Space".to_string(), "Zero".to_string()]
         );
     }
-
-    /// `try_find_by_prefix` がフィールド幅を超える検索値をエラーにすることを確認します。
     #[test]
     fn test_try_find_by_prefix_reports_overflow_for_too_long_value() {
         let list = TestRecordList::new();
@@ -726,8 +651,6 @@ mod tests {
             }
         );
     }
-
-    /// `try_first_by_prefix` が先頭一致した固定長フィールドのうち昇順で最初のレコードを返すことを確認します。
     #[test]
     fn test_try_first_by_prefix_returns_first_matching_record() {
         let mut list = TestRecordList::new();
@@ -779,8 +702,6 @@ mod tests {
             "A00"
         );
     }
-
-    /// `try_first_by_prefix` がフィールド幅を超える検索値をエラーにすることを確認します。
     #[test]
     fn test_try_first_by_prefix_reports_overflow_for_too_long_value() {
         let list = TestRecordList::new();
@@ -797,21 +718,14 @@ mod tests {
             }
         );
     }
-
-    // ---- apply の冪等性テスト ----
-
-    /// 同じデータを繰り返し適用しても結果が変わらないことを確認します。
     #[test]
     fn test_apply_idempotent() {
-        // 同じデータを2回 apply しても結果は同じ
         let data = b"HelloWorldABCDE12345678";
         let rec1 = TestRecord::spaced().apply_bytes(data);
         let rec2 = TestRecord::spaced().apply_bytes(data).apply_bytes(data);
 
         assert_eq!(rec1.to_bytes(), rec2.to_bytes());
     }
-
-    /// UTF-8 文字列が固定バイト幅どおり保持され、余白だけ trim されることを確認します。
     #[test]
     fn test_utf8_field_keeps_exact_bytes_and_trims_padding_spaces() {
         let mut record = TestRecord::builder().build();
@@ -842,8 +756,6 @@ mod tests {
             "あいう".to_string()
         );
     }
-
-    /// UTF-8 を含む固定長レコードを `Reader` がバイト境界で正確に読み取ることを確認します。
     #[test]
     fn test_utf8_reader_reads_fixed_byte_records_exactly() {
         use fixed_record::Reader;
@@ -889,8 +801,6 @@ mod tests {
 
         assert!(reader.next().is_none());
     }
-
-    /// Reader のシーケンスチェックが指定フィールドの昇順レコードを正常に読み込むことを確認します。
     #[test]
     fn test_reader_sequence_check_accepts_ascending_fields() {
         use fixed_record::Reader;
@@ -936,8 +846,6 @@ mod tests {
         );
         assert!(reader.next().is_none());
     }
-
-    /// Reader のシーケンスチェックが指定フィールドの降順をエラーにすることを確認します。
     #[test]
     fn test_reader_sequence_check_reports_descending_fields() {
         use fixed_record::Reader;
@@ -973,8 +881,6 @@ mod tests {
             }
         );
     }
-
-    /// Reader のシーケンスチェックが同一キーを設定に応じて許可または禁止することを確認します。
     #[test]
     fn test_reader_sequence_check_can_reject_equal_fields() {
         use fixed_record::Reader;
@@ -1021,8 +927,6 @@ mod tests {
             }
         );
     }
-
-    /// Reader のシーケンスチェックが同じフィールドの重複指定を拒否することを確認します。
     #[test]
     #[should_panic(expected = "duplicate sequence check field `code`")]
     fn test_reader_sequence_check_rejects_duplicate_fields() {
@@ -1033,8 +937,6 @@ mod tests {
         let _reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
             .with_sequence_check([TestRecordField::Code, TestRecordField::Code]);
     }
-
-    /// フィールド境界が UTF-8 文字の途中に来た場合に文字列変換が失敗することを確認します。
     #[test]
     fn test_utf8_field_split_at_byte_boundary_reports_utf8_error() {
         let record = SplitUtf8Record::parse("あいう ".as_bytes()).unwrap();
@@ -1048,8 +950,6 @@ mod tests {
             Err(Error::Utf8Error)
         ));
     }
-
-    /// UTF-8 がフィールド幅に収まる場合に `Writer` と `Reader` で往復できることを確認します。
     #[test]
     fn test_utf8_writer_reader_round_trip_when_field_width_is_large_enough() {
         use fixed_record::{Reader, Writer};
@@ -1078,8 +978,6 @@ mod tests {
         assert_eq!(read_back.code(), b"JP002");
         assert_eq!(read_back.amount(), b"00000300");
     }
-
-    /// `unchecked` feature 有効時に unsafe なゼロコピー系 API が利用できることを確認します。
     #[cfg(feature = "unchecked")]
     #[test]
     fn test_unchecked_feature_methods_are_available() {

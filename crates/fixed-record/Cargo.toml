@@ -9,7 +9,8 @@ list = ["fixed-record-macros/list"]
 unchecked = ["fixed-record-macros/unchecked"]
 
 [dependencies]
-# ローカルパスでマクロクレートを指定
+# Use the local proc macro crate while developing the workspace.
+# workspace 開発中はローカルパスの proc macro crate を使います。
 fixed-record-macros = { path = "../fixed-record-macros", default-features = false }
 
 [dev-dependencies]

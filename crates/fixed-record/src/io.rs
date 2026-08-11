@@ -3,8 +3,10 @@ use std::cmp::Ordering;
 use std::io::{self, BufRead, Write};
 use std::marker::PhantomData;
 
+/// Iterator that reads fixed-width records from a stream.
 /// 固定長レコードをストリームから順に読み込むイテレータです。
 ///
+/// A trailing `\n` or `\r\n` immediately after each record is skipped automatically.
 /// 各レコードの直後にある `\n` または `\r\n` は自動的に読み飛ばします。
 pub struct Reader<R, T: FixedRecord> {
     reader: R,
@@ -15,6 +17,7 @@ pub struct Reader<R, T: FixedRecord> {
 }
 
 impl<R: BufRead, T: FixedRecord> Reader<R, T> {
+    /// Creates a new reader.
     /// 新しいリーダーを作成します。
     pub fn new(reader: R) -> Self {
         Self {
@@ -26,6 +29,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
         }
     }
 
+    /// Enables ascending sequence checks using the specified fields as the key.
     /// 指定フィールドをキーにした昇順シーケンスチェックを有効にします。
     pub fn with_sequence_check<F>(mut self, fields: F) -> Self
     where
@@ -35,6 +39,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
         self
     }
 
+    /// Configures ascending sequence checks using the specified fields as the key.
     /// 指定フィールドをキーにした昇順シーケンスチェックを設定します。
     pub fn with_sequence_check_options<F>(mut self, fields: F, allow_equal: bool) -> Self
     where
@@ -45,6 +50,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
         self
     }
 
+    /// Stores the fields used for sequence checks.
     /// シーケンスチェック対象フィールドを設定します。
     fn set_sequence_check_fields(&mut self, fields: Vec<T::Field>) {
         for (index, field) in fields.iter().enumerate() {
@@ -56,6 +62,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
         self.sequence_fields = fields;
     }
 
+    /// Verifies that the loaded record is ordered after the previous record.
     /// 読み込んだレコードが前回レコード以降の順序になっているか確認します。
     fn check_sequence(&mut self, record: &T) -> Result<(), Error> {
         if self.sequence_fields.is_empty() {
@@ -93,6 +100,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
 impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
     type Item = Result<T, Error>;
 
+    /// Reads the next fixed-width record, returning end-of-stream or an error when appropriate.
     /// 次の固定長レコードを読み込み、終端またはエラーを返します。
     fn next(&mut self) -> Option<Self::Item> {
         let mut buf = vec![0u8; T::TOTAL_LEN];
@@ -140,8 +148,10 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
     }
 }
 
+/// Writer for fixed-width records.
 /// 固定長レコードをストリームへ書き出すライターです。
 ///
+/// During writing, NUL bytes (`0x00`) are replaced with spaces (`0x20`) and a newline is appended.
 /// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に改行を付けます。
 pub struct Writer<W> {
     writer: W,
@@ -149,6 +159,7 @@ pub struct Writer<W> {
 }
 
 impl<W: Write> Writer<W> {
+    /// Creates a writer that uses `\n` as the default newline.
     /// デフォルト改行コード `\n` でライターを作成します。
     pub fn new(writer: W) -> Self {
         Self {
@@ -157,12 +168,14 @@ impl<W: Write> Writer<W> {
         }
     }
 
+    /// Changes the newline sequence used after each record.
     /// 改行コードを変更します。
     pub fn with_newline(mut self, newline: &'static [u8]) -> Self {
         self.newline = newline;
         self
     }
 
+    /// Writes one record.
     /// レコードを1件書き込みます。
     pub fn write_record<T: FixedRecord>(&mut self, record: &T) -> io::Result<()> {
         let mut bytes = record.to_bytes();
@@ -177,6 +190,7 @@ impl<W: Write> Writer<W> {
         Ok(())
     }
 
+    /// Flushes the inner writer.
     /// 内部ライターを flush します。
     pub fn flush(&mut self) -> io::Result<()> {
         self.writer.flush()
@@ -196,6 +210,7 @@ mod tests {
 
         const TOTAL_LEN: usize = 4;
 
+        /// Creates the test record from a 4-byte input.
         /// 4バイトの入力からテスト用レコードを作成します。
         fn parse(src: &[u8]) -> Result<Self, Error> {
             if src.len() < Self::TOTAL_LEN {
@@ -206,16 +221,19 @@ mod tests {
             Ok(Self(bytes))
         }
 
+        /// Returns the internal bytes of the test record.
         /// テスト用レコードの内部バイト列を返します。
         fn to_bytes(&self) -> Vec<u8> {
             self.0.to_vec()
         }
 
+        /// Returns a fixed name because this test record has no named fields.
         /// テスト用レコードには名前付きフィールドがないため固定名を返します。
         fn field_name(_field: Self::Field) -> &'static str {
             "record"
         }
 
+        /// Returns the entire test record as the sequence-check byte key.
         /// テスト用レコード全体をシーケンスチェック用バイト列として返します。
         fn field_bytes(&self, _field: Self::Field) -> &[u8] {
             &self.0
@@ -227,6 +245,7 @@ mod tests {
     }
 
     impl Read for FillBufErrorAfterRead {
+        /// Reads bytes normally from the inner cursor.
         /// 内部カーソルから通常どおりバイト列を読み込みます。
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
             self.cursor.read(buf)
@@ -234,15 +253,18 @@ mod tests {
     }
 
     impl BufRead for FillBufErrorAfterRead {
+        /// Produces an I/O error while the reader skips trailing newlines after a record.
         /// レコード読込後の改行読み飛ばしで I/O エラーを発生させます。
         fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Err(io::Error::other("fill_buf failed"))
         }
 
+        /// Does nothing because this helper is only used by tests.
         /// テスト用なのでバッファ消費は何もしません。
         fn consume(&mut self, _amt: usize) {}
     }
 
+    /// Verifies that empty input is treated as a clean end-of-stream.
     /// 入力が空のときに正常な終端として `None` を返すことを確認します。
     #[test]
     fn reader_returns_none_on_clean_eof() {
@@ -251,6 +273,7 @@ mod tests {
         assert!(reader.next().is_none());
     }
 
+    /// Verifies that EOF in the middle of a record returns `IncompleteRecord`.
     /// レコード途中で EOF になったときに `IncompleteRecord` を返すことを確認します。
     #[test]
     fn reader_returns_incomplete_record_on_short_tail() {
@@ -266,6 +289,7 @@ mod tests {
         ));
     }
 
+    /// Verifies that an I/O error while skipping newlines is returned as `Error::Io`.
     /// 改行読み飛ばし中の I/O エラーが `Error::Io` として返ることを確認します。
     #[test]
     fn reader_returns_io_error_from_fill_buf() {

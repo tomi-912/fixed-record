@@ -1,32 +1,43 @@
 use std::{fmt, io};
 
+/// Errors that can occur while parsing or operating on fixed-width records.
 /// 固定長データのパース処理や操作中に発生するエラーを表します。
 #[derive(Debug)]
 pub enum Error {
-    /// 入力データの長さが、期待される固定長サイズよりも短い場合。
+    /// The input is shorter than the expected fixed width.
+    /// 入力データの長さが、期待される固定長サイズよりも短い場合です。
     ///
+    /// This can happen when a 10-byte field receives only 5 bytes of data.
     /// 例えば、10バイト必要なフィールドに対して、5バイトのデータしか与えられなかった場合などに発生します。
     TooShort,
 
-    /// バイト列から文字列（UTF-8）への変換に失敗した場合。
+    /// UTF-8 conversion failed for a byte field.
+    /// バイト列から文字列（UTF-8）への変換に失敗した場合です。
     ///
-    /// 固定長フィールド内に、UTF-8として不正なバイトシーケンスが含まれている場合に発生します。
-    /// (Shift_JISなど他のエンコーディングを扱う場合は、バイト列として取得し別途デコードしてください)
+    /// This occurs when a fixed-width field contains invalid UTF-8 bytes.
+    /// 固定長フィールド内に、UTF-8 として不正なバイトシーケンスが含まれている場合に発生します。
+    ///
+    /// For encodings such as Shift_JIS, read the field as bytes and decode it separately.
+    /// Shift_JIS など他のエンコーディングを扱う場合は、バイト列として取得し別途デコードしてください。
     Utf8Error,
-    /// 固定長レコードの途中で入力が終わった場合。
+    /// The input ended in the middle of a fixed-width record.
+    /// 固定長レコードの途中で入力が終わった場合です。
     IncompleteRecord {
         expected: usize,
         actual: usize,
     },
-    /// Reader / Writer などの I/O 処理中に発生したエラー。
+    /// An I/O error occurred while using `Reader`, `Writer`, or related operations.
+    /// `Reader` / `Writer` などの I/O 処理中に発生したエラーです。
     Io(io::Error),
-    /// フィールドに入れる値が固定長幅を超えた場合。
+    /// A field value exceeded the fixed width of the target field.
+    /// フィールドに入れる値が固定長幅を超えた場合です。
     FieldOverflow {
         field: &'static str,
         size: usize,
         actual: usize,
     },
-    /// Reader のシーケンスチェックで、現在レコードが前回レコードより小さい、または同一禁止設定で同一だった場合。
+    /// A `Reader` sequence check found a descending key or a forbidden duplicate key.
+    /// `Reader` のシーケンスチェックで、現在レコードが前回レコードより小さい、または同一禁止設定で同一だった場合です。
     SequenceError {
         fields: Vec<&'static str>,
         previous: Vec<Vec<u8>>,
@@ -37,6 +48,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
+    /// Formats the error as a short user-facing message.
     /// エラー内容を利用者向けの短いメッセージとして整形します。
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -70,6 +82,7 @@ impl fmt::Display for Error {
 }
 
 impl PartialEq for Error {
+    /// Compares I/O errors by `ErrorKind` and other errors by variant and payload.
     /// I/O エラーは `ErrorKind` で比較し、それ以外は variant と値で比較します。
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -126,6 +139,7 @@ impl PartialEq for Error {
 impl Eq for Error {}
 
 impl std::error::Error for Error {
+    /// Returns the wrapped I/O error as the source when one exists.
     /// ラップしている I/O エラーがあれば原因として返します。
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -136,6 +150,7 @@ impl std::error::Error for Error {
 }
 
 impl From<io::Error> for Error {
+    /// Converts a standard I/O error into a fixed-record error.
     /// 標準 I/O エラーを固定長レコード用エラーへ変換します。
     fn from(err: io::Error) -> Self {
         Self::Io(err)

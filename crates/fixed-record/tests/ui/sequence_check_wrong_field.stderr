@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `[UserField; 1]: SequenceFields<Payment>` is not satisfied
-  --> tests/ui/sequence_check_wrong_field.rs:18:30
+  --> tests/ui/sequence_check_wrong_field.rs:19:30
    |
-18 |         .with_sequence_check([UserField::Id]);
+19 |         .with_sequence_check([UserField::Id]);
    |          ------------------- ^^^^^^^^^^^^^^^ the trait `SequenceFields<Payment>` is not implemented for `[UserField; 1]`
    |          |
    |          required by a bound introduced by this call

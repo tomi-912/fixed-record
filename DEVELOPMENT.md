@@ -1,22 +1,24 @@
 # Development Notes
 
-このファイルは、`fixed-record` の開発方針、公開準備、現状確認、今後の修正候補を置く場所です。
+This file tracks development direction, release preparation, current status, and future work for `fixed-record`.
 
-README は利用者向けの導入と使い方に絞ります。内部設計、作業ルール、調査メモ、公開前タスクはこのファイルへ寄せます。
+README files should stay focused on user-facing installation and usage. Internal design notes, working rules, investigation notes, and pre-release tasks belong here.
+
+Japanese documentation is available in [DEVELOPMENT.ja.md](DEVELOPMENT.ja.md).
 
 ## Naming
 
-公開向けの名前は次で統一します。
+Public-facing names are standardized as follows.
 
-- 公開crate: `fixed-record`
-- コード上のcrate名: `fixed_record`
-- proc macro crate: `fixed-record-macros`
-- attribute macro: `#[fixed_record]`
-- repository name: `fixed-record` へ変更予定
+- Published crate: `fixed-record`
+- Rust crate name: `fixed_record`
+- Proc macro crate: `fixed-record-macros`
+- Attribute macro: `#[fixed_record]`
+- Repository name: planned rename to `fixed-record`
 
-利用者は `fixed-record` だけを `[dependencies]` に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用 crate として扱います。
+Users add only `fixed-record` to `[dependencies]`. `fixed-record-macros` is treated as an internal implementation crate re-exported by `fixed-record`.
 
-生成コード内の参照は `::fixed_record::...` に統一済みです。
+Generated code references are standardized to `::fixed_record::...`.
 
 ## Workspace Layout
 
@@ -29,24 +31,24 @@ examples/
   no-list/
 ```
 
-- `crates/fixed-record/`: 利用者向けの本体 crate。`Fixed<N>`、`Error`、`Reader`、`Writer`、`FixedRecord`、`prelude`、`#[fixed_record]` の再エクスポートを提供します。
-- `crates/fixed-record-macros/`: `#[fixed_record]` を実装する proc macro crate です。
-- `examples/basic/`: 利用者向けの薄い実行サンプルです。
-- `examples/no-list/`: `default-features = false` で List 生成を外す構成を検証する fixture です。
+- `crates/fixed-record/`: the user-facing crate. It provides `Fixed<N>`, `Error`, `Reader`, `Writer`, `FixedRecord`, `prelude`, and the `#[fixed_record]` re-export.
+- `crates/fixed-record-macros/`: the proc macro crate that implements `#[fixed_record]`.
+- `examples/basic/`: a small user-facing runnable example.
+- `examples/no-list/`: a fixture that verifies the `default-features = false` configuration where List generation is disabled.
 
 ## Working Rules
 
-- ソースやドキュメントを変更したら、原則としてその変更をコミットします。
-- push は明示的に依頼されたときだけ行います。
-- README は公開利用者が最初に読む内容として保ちます。
-- 公開前の判断、設計メモ、調査メモ、今後の課題は DEVELOPMENT に追記します。
-- `target/` が残っているため、探索時は `rg --glob '!target/**'` などで除外すると追いやすいです。
+- Commit source or documentation changes by default.
+- Push only when explicitly requested.
+- Keep README files focused on public users.
+- Put release decisions, design notes, investigation notes, and future tasks in DEVELOPMENT.
+- Because `target/` may exist locally, use filters such as `rg --glob '!target/**'` while searching.
 
 ## Current Status
 
-2026-08-11 時点の確認メモです。
+Status note as of 2026-08-11.
 
-成功確認済み:
+Verified commands:
 
 ```bash
 cargo fmt --all --check
@@ -58,67 +60,67 @@ cargo run -p fixed-record-basic-example --bin macro_reexport
 cargo run -p fixed-record-no-list-example
 ```
 
-テスト配置:
+Test layout:
 
 - `crates/fixed-record/tests/generated_api.rs`: builder / parse / to_bytes / Reader / Writer / List / Index / `unchecked`
-- `crates/fixed-record/tests/compile_fail.rs`: proc macro の不正入力、List immutable API、sequence check の compile-fail
-- `examples/no-list/tests/compile_fail.rs`: `default-features = false` 時に `{StructName}List` が生成されないことを確認
+- `crates/fixed-record/tests/compile_fail.rs`: compile-fail coverage for invalid proc macro input, immutable List APIs, and sequence checks
+- `examples/no-list/tests/compile_fail.rs`: verifies that `{StructName}List` is not generated with `default-features = false`
 
-確認済み:
+Verified test results:
 
-- `fixed-record` の integration test: 通常featureで 41 件成功
-- `cargo test --all-features` では `unchecked` feature 用テストを含めて 42 件成功
-- `fixed-record` の doctest: 8 件成功
+- `fixed-record` integration tests: 41 tests pass with default features
+- `cargo test --all-features`: 42 tests pass including the `unchecked` feature test
+- `fixed-record` doctests: 8 tests pass
 
 ## What Works Well
 
-- 利用者向け入口が `fixed-record` にまとまっており、利用側は `fixed_record::prelude::*` だけで始められます。
-- proc macro crate は `fixed-record-macros` として分離済みで、利用者に直接依存させない方針を取れます。
-- `Fixed<N>` は固定長バイト列としての基本操作、UTF-8参照、ゼロ埋め、スペース埋めが小さくまとまっています。
-- `FixedRecord` trait によって、Reader/Writer は生成型に依存しすぎない形になっています。
-- `#[fixed_record]` はレコード本体、field enum、メタ情報、builder、parse、フィールド操作、Reader/Writer連携、List/Index系まで生成できます。
-- フィールドの doc comment を生成 enum や accessor に引き継ぐため、生成APIのrustdoc体験が比較的よいです。
+- The user-facing entry point is consolidated in `fixed-record`, so users can start with `fixed_record::prelude::*`.
+- The proc macro implementation is separated as `fixed-record-macros`, so users do not need to depend on it directly.
+- `Fixed<N>` keeps basic fixed-width byte operations, UTF-8 access, zero padding, and space padding compact.
+- The `FixedRecord` trait lets `Reader` and `Writer` work without depending too tightly on generated record types.
+- `#[fixed_record]` can generate the record body, field enum, metadata, builder, parsing, field operations, Reader/Writer interoperability, and List/Index APIs.
+- Field doc comments are propagated to generated enums and accessors, giving generated APIs a better rustdoc experience.
 
 ## Important Notes
 
 ### unchecked feature
 
-`unchecked` feature で生成される `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` は、構造体のメモリレイアウトに依存します。
+The `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` methods generated by the `unchecked` feature depend on the struct memory layout.
 
-現在の `Fixed<N>` は中身が `[u8; N]` なので alignment が 1 です。そのため、全フィールドが `Fixed<N>` の現在の制約下では期待通り動きやすいです。ただし、Rust の構造体は一般には padding や alignment の影響を受けます。
+The current `Fixed<N>` stores `[u8; N]`, so its alignment is 1. Under the current restriction that all fields are `Fixed<N>`, the layout is likely to behave as expected. In general, however, Rust structs can be affected by padding and alignment.
 
-公開時は次のどちらかに寄せます。
+Before publishing, choose one of these directions:
 
-- `unchecked` を明示featureかつ上級者向けとして残し、README と rustdoc に安全条件を強く書く。
-- 初回公開では `unchecked` を外す、または experimental 扱いにする。
+- Keep `unchecked` as an explicit advanced feature and document the safety requirements strongly in README and rustdoc.
+- Remove `unchecked` from the first public release, or mark it experimental.
 
-今のおすすめは、通常APIを主役にして、`unchecked` は明示featureの上級者向けとして扱うことです。
+The current recommendation is to make normal APIs the default path and keep `unchecked` as an explicit advanced feature.
 
 ### generated List API
 
-`{StructName}List` / Index 系の生成は default feature の `list` で制御します。
+`{StructName}List` / Index generation is controlled by the default `list` feature.
 
-- defaultでは従来どおり生成します。
-- `fixed-record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成します。
+- Default features generate List APIs as before.
+- Depending on `fixed-record` with `default-features = false` generates only the record body and field operations.
 
 ### test placement
 
-主要な挙動は `crates/fixed-record/tests/` に寄せています。`examples/basic` は利用者が読んで動かせる実行サンプルとして薄く保ち、API保証は library crate 側で持ちます。
+Core behavior is covered under `crates/fixed-record/tests/`. `examples/basic` remains a small runnable sample, while library guarantees live in the library crate.
 
-`default-features = false` の compile-fail は、同一 package 内の integration test では依存featureを切り替えにくいため、専用 fixture の `examples/no-list` で検証します。
+The `default-features = false` compile-fail test remains in the dedicated `examples/no-list` fixture because integration tests inside the same package cannot easily switch dependency features for the package under test.
 
 ## Publish Checklist
 
-crates.io 公開前にやること:
+Before publishing to crates.io:
 
-1. GitHub repository を `fixed-record` にリネームする。
-2. `Cargo.toml` の package metadata を埋める。
-3. LICENSE を追加する。
-4. README の install 文言を実際の公開versionに合わせる。
-5. `unchecked` feature の扱いを確定する。
-6. `cargo package --dry-run -p fixed-record-macros` を通す。
-7. `cargo package --dry-run -p fixed-record` を通す。
-8. CI で次を必須にする。
+1. Rename the GitHub repository to `fixed-record`.
+2. Fill package metadata in `Cargo.toml`.
+3. Add a LICENSE.
+4. Align README installation text with the actual published version.
+5. Decide the final policy for the `unchecked` feature.
+6. Run `cargo package --dry-run -p fixed-record-macros`.
+7. Run `cargo package --dry-run -p fixed-record`.
+8. Require the following checks in CI.
 
 ```bash
 cargo fmt --all --check
@@ -127,22 +129,22 @@ cargo test --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-metadata 候補:
+Metadata candidates:
 
 - `description`
-- `license` または `license-file`
+- `license` or `license-file`
 - `repository`
 - `readme`
 - `keywords`
 - `categories`
 - `exclude` / `include`
 
-`fixed-record-macros` の description には、利用者が直接依存する crate ではなく `fixed-record` から使われる proc macro 実装用 crate であることを明記します。
+The `fixed-record-macros` description should state that it is the proc macro implementation crate used through `fixed-record`, not the crate users normally depend on directly.
 
 ## Next Recommended Work
 
-1. `Cargo.toml` の公開metadataと LICENSE を追加する。
-2. GitHub repository 名を `fixed-record` に変える。
-3. `unchecked` feature の安全条件を rustdoc と README にさらに明記する。
-4. `crates/fixed-record/tests/generated_api.rs` を挙動別ファイルへ分割する。
-5. `cargo package --dry-run` で公開パッケージ内容を確認する。
+1. Add public package metadata and a LICENSE.
+2. Rename the GitHub repository to `fixed-record`.
+3. Strengthen `unchecked` safety requirements in rustdoc and README.
+4. Split `crates/fixed-record/tests/generated_api.rs` into behavior-focused files.
+5. Run `cargo package --dry-run` and inspect the package contents.

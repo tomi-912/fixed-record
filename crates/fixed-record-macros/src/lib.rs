@@ -74,6 +74,7 @@ fn parse_clear_byte(expr: &Expr) -> syn::Result<u8> {
     }
 }
 
+/// Generates helper types and implementations for fixed-width records.
 /// 固定長レコード用の補助型と実装を生成する attribute macro です。
 #[proc_macro_attribute]
 pub fn fixed_record(attr: TokenStream, item: TokenStream) -> TokenStream {

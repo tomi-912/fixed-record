@@ -5,6 +5,7 @@ pub struct User {
     pub id: Fixed<4>,
 }
 
+/// Verifies that an immutable list cannot update records.
 /// immutable な list ではレコード更新できないことを確認します。
 fn main() {
     let list = UserList::new();

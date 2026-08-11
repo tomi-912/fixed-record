@@ -6,6 +6,7 @@ pub struct Payment {
     pub code: Fixed<4>,
 }
 
+/// Verifies that sequence checks reject arrays longer than the record field count.
 /// レコードのフィールド数より長い配列はシーケンスチェックに指定できないことを確認します。
 fn main() {
     let bytes = Vec::new();

@@ -1,10 +1,10 @@
 error[E0596]: cannot borrow `list` as mutable, as it is not declared as mutable
-  --> tests/ui/immutable_list_remove.rs:12:5
+  --> tests/ui/immutable_list_remove.rs:13:5
    |
-12 |     list.remove(0);
+13 |     list.remove(0);
    |     ^^^^ cannot borrow as mutable
    |
 help: consider changing this to be mutable
    |
-10 |     let mut list = UserList::new();
+11 |     let mut list = UserList::new();
    |         +++

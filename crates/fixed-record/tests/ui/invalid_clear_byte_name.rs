@@ -5,5 +5,6 @@ pub struct User {
     pub id: Fixed<8>,
 }
 
+/// Empty entry point for a compile-fail fixture.
 /// compile-fail fixture の空エントリポイントです。
 fn main() {}
