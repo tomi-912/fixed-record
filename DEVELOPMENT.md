@@ -96,12 +96,11 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - 同一キーはデフォルト許可で、`with_sequence_check_options(fields, false)` の場合は禁止します。
   - 対象レコードと異なる field enum やフィールド数より長い配列はコンパイルエラーにします。
   - 同じフィールドの重複指定は、通常配列の値なので設定時に検出して panic します。
+- `{StructName}List` / Index 系の生成は default feature の `list` で制御します。
+  - デフォルトでは従来どおり生成します。
+  - `fixed_record_main` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成できます。
 
 ### 重要度中
-
-- 生成される `{StructName}Entry` は private ですが、`{StructName}List` の公開 API は生成量がかなり多いです。
-  - レコード定義だけしたい利用者にも List/Index 実装が常に付いてきます。
-  - 将来的には feature flag や別 macro に分ける余地があります。
 
 ### 重要度低
 

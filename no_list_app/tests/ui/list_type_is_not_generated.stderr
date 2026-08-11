@@ -1,0 +1,5 @@
+error[E0433]: failed to resolve: use of undeclared type `HeaderList`
+ --> tests/ui/list_type_is_not_generated.rs:9:13
+  |
+9 |     let _ = HeaderList::new();
+  |             ^^^^^^^^^^ use of undeclared type `HeaderList`

@@ -28,6 +28,12 @@
 - `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
+`{StructName}List` は default feature の `list` で生成されます。通常は有効です。レコード定義だけを生成したい場合は、依存側で default feature を外します。
+
+```toml
+fixed_record_main = { path = "../fixed_record_main", default-features = false }
+```
+
 `set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
 `builder()`、`Default`、`cleared()` もこの値で初期化します。
 

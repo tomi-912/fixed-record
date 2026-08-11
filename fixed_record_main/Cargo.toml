@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
+default = ["list"]
+list = ["fixed_record_macros/list"]
 unchecked = ["fixed_record_macros/unchecked"]
 
 [dependencies]
 # ローカルパスでマクロクレートを指定
-fixed_record_macros = { path = "../fixed_record_macros" }
+fixed_record_macros = { path = "../fixed_record_macros", default-features = false }

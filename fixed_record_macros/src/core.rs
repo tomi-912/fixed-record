@@ -766,6 +766,343 @@ pub fn impl_fixed_record_core(
         quote!(#field_enum_name::#v => #n)
     });
     let all_variants = metas.iter().map(|m| &m.variant);
+    let list_impl = if cfg!(feature = "list") {
+        quote! {
+            struct #entry_name {
+                record: #struct_name,
+                is_deleted: bool,
+            }
+
+            #[doc = "レコードのコレクションを保持し、検索・削除・ソート用インデックスを管理します。"]
+            pub struct #list_name {
+                records: std::collections::BTreeMap<usize, #entry_name>,
+                next_id: usize,
+                indices: std::collections::HashMap<#field_enum_name, Box<dyn std::any::Any>>,
+                order: Vec<usize>,
+            }
+
+            impl #list_name {
+                #[doc = "空のリストを作成します。"]
+                pub fn new() -> Self {
+                    Self {
+                        records: std::collections::BTreeMap::new(),
+                        next_id: 0,
+                        indices: std::collections::HashMap::new(),
+                        order: Vec::new(),
+                    }
+                }
+
+                #[doc = "有効なレコード数を返します。"]
+                pub fn len(&self) -> usize {
+                    self.records.values().filter(|entry| !entry.is_deleted).count()
+                }
+
+                #[doc = "有効なレコードがないかを返します。"]
+                pub fn is_empty(&self) -> bool {
+                    self.len() == 0
+                }
+
+                #[doc = "有効なレコードのみを現在の順序で返すイテレータです。"]
+                pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a #struct_name> + 'a {
+                    self.order.iter().filter_map(move |id| {
+                        let entry = self.records.get(id)?;
+                        if entry.is_deleted {
+                            None
+                        } else {
+                            Some(&entry.record)
+                        }
+                    })
+                }
+
+                #[doc = "レコードを追加し、採番された ID を返します。"]
+                pub fn insert(&mut self, record: #struct_name) -> usize {
+                    let id = self.next_id;
+                    self.next_id += 1;
+
+                    #( #index_insert_blocks )*
+
+                    self.records.insert(id, #entry_name { record, is_deleted: false });
+                    self.order.push(id);
+                    id
+                }
+
+                #[doc = "指定 ID の有効なレコードを返します。"]
+                pub fn get(&self, id: usize) -> Option<&#struct_name> {
+                    let entry = self.records.get(&id)?;
+                    if entry.is_deleted {
+                        None
+                    } else {
+                        Some(&entry.record)
+                    }
+                }
+
+                #[doc = "指定 ID の有効なレコードを置き換え、検索インデックスを更新します。"]
+                pub fn update(&mut self, id: usize, record: #struct_name) -> bool {
+                    let Some(entry) = self.records.remove(&id) else {
+                        return false;
+                    };
+
+                    if entry.is_deleted {
+                        self.records.insert(id, entry);
+                        return false;
+                    }
+
+                    let old_record = entry.record;
+                    #( #index_update_remove_blocks )*
+                    #( #index_update_insert_blocks )*
+
+                    self.records.insert(id, #entry_name { record, is_deleted: false });
+                    true
+                }
+
+                #[doc = "指定 ID のレコードを論理削除し、検索インデックスからも除外します。"]
+                pub fn remove(&mut self, id: usize) -> bool {
+                    let record = {
+                        let Some(entry) = self.records.get_mut(&id) else {
+                            return false;
+                        };
+                        if entry.is_deleted {
+                            return false;
+                        }
+
+                        entry.is_deleted = true;
+                        entry.record
+                    };
+
+                    #( #index_remove_blocks )*
+                    true
+                }
+
+                #[doc = "指定フィールドが値と完全一致する有効なレコードを返します。"]
+                pub fn find_by<const N: usize>(
+                    &self,
+                    field: #field_enum_name,
+                    value: impl Into<::fixed_record_main::Fixed<N>>,
+                ) -> Vec<&#struct_name> {
+                    let value = value.into();
+                    self.indices.get(&field)
+                        .and_then(|tree| {
+                            tree.downcast_ref::<
+                                std::collections::BTreeMap<
+                                    ::fixed_record_main::Fixed<N>,
+                                    std::collections::BTreeSet<usize>
+                                >
+                            >()
+                        })
+                        .and_then(|map| map.get(&value))
+                        .map(|ids| {
+                            ids.iter()
+                                .filter_map(|id| {
+                                    let entry = self.records.get(id)?;
+                                    if entry.is_deleted {
+                                        None
+                                    } else {
+                                        Some(&entry.record)
+                                    }
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+
+                #[doc = "指定フィールドが値と一致する有効なレコードを返します。"]
+                #[doc = "検索値がフィールド幅より短い場合は、後続バイトが 0x00 または半角スペースのレコードも一致します。"]
+                #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+                pub fn try_find_by(
+                    &self,
+                    field: #field_enum_name,
+                    value: impl AsRef<[u8]>,
+                ) -> Result<Vec<&#struct_name>, ::fixed_record_main::error::Error> {
+                    let raw_value = value.as_ref();
+                    match field {
+                        #( #try_find_by_arms ),*
+                    }
+                }
+
+                #[doc = "指定フィールドが値で始まる有効なレコードを返します。"]
+                #[doc = "検索値がフィールド幅より短い場合は、後続バイトの内容に関係なく一致します。"]
+                #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+                pub fn try_find_by_prefix(
+                    &self,
+                    field: #field_enum_name,
+                    value: impl AsRef<[u8]>,
+                ) -> Result<Vec<&#struct_name>, ::fixed_record_main::error::Error> {
+                    let raw_value = value.as_ref();
+                    match field {
+                        #( #try_find_by_prefix_arms ),*
+                    }
+                }
+
+                #[doc = "指定フィールドの値が範囲内にある有効なレコードを返します。"]
+                pub fn find_range_by<const N: usize, R>(
+                    &self,
+                    field: #field_enum_name,
+                    range: R,
+                ) -> Vec<&#struct_name>
+                where
+                    R: std::ops::RangeBounds<::fixed_record_main::Fixed<N>>,
+                {
+                    self.indices.get(&field)
+                        .and_then(|tree| {
+                            tree.downcast_ref::<
+                                std::collections::BTreeMap<
+                                    ::fixed_record_main::Fixed<N>,
+                                    std::collections::BTreeSet<usize>
+                                >
+                            >()
+                        })
+                        .map(|map| {
+                            map.range(range)
+                                .flat_map(|(_, ids)| ids.iter())
+                                .filter_map(|id| {
+                                    let entry = self.records.get(id)?;
+                                    if entry.is_deleted {
+                                        None
+                                    } else {
+                                        Some(&entry.record)
+                                    }
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                }
+
+                #[doc = "指定フィールドで昇順に並ぶ有効レコードのイテレータを返します。"]
+                pub fn iter_sorted_by<'a, const N: usize>(
+                    &'a self,
+                    field: #field_enum_name,
+                ) -> impl Iterator<Item = &'a #struct_name> + 'a {
+                    self.indices.get(&field)
+                        .and_then(|tree| {
+                            tree.downcast_ref::<
+                                std::collections::BTreeMap<
+                                    ::fixed_record_main::Fixed<N>,
+                                    std::collections::BTreeSet<usize>
+                                >
+                            >()
+                        })
+                        .into_iter()
+                        .flat_map(move |map| {
+                            map.values().flat_map(move |ids| {
+                                ids.iter().filter_map(move |id| {
+                                    let entry = self.records.get(id)?;
+                                    if entry.is_deleted {
+                                        None
+                                    } else {
+                                        Some(&entry.record)
+                                    }
+                                })
+                            })
+                        })
+                }
+
+                #[doc = "現在の有効レコードを定義順の全フィールド比較でソートします。"]
+                pub fn sort(&mut self) {
+                    let records = &self.records;
+                    self.order
+                        .retain(|id| records.get(id).is_some_and(|entry| !entry.is_deleted));
+                    self.order.sort_by(|left, right| {
+                        let left = &records.get(left).unwrap().record;
+                        let right = &records.get(right).unwrap().record;
+                        left.compare_all_fields(right)
+                    });
+                }
+
+                #[doc = "指定したフィールド優先順で現在の有効レコードをソートします。"]
+                pub fn sort_by(&mut self, fields: &[#field_enum_name]) {
+                    let records = &self.records;
+                    self.order
+                        .retain(|id| records.get(id).is_some_and(|entry| !entry.is_deleted));
+                    self.order.sort_by(|left, right| {
+                        let left = &records.get(left).unwrap().record;
+                        let right = &records.get(right).unwrap().record;
+                        left.compare_by_fields(right, fields)
+                    });
+                }
+
+                #[doc = "有効なレコードのうち、現在のID順で最初のものを返します。"]
+                pub fn first(&self) -> Option<&#struct_name> {
+                    self.records
+                        .values()
+                        .find(|entry| !entry.is_deleted)
+                        .map(|entry| &entry.record)
+                }
+
+                #[doc = "指定フィールドの昇順で最初の有効レコードを返します。"]
+                pub fn first_by<const N: usize>(&self, field: #field_enum_name) -> Option<&#struct_name> {
+                    self.iter_sorted_by::<N>(field).next()
+                }
+
+                #[doc = "指定フィールドの昇順で最初の有効レコードを返します。"]
+                #[doc = "`first_by` と違い、呼び出し側でフィールド幅を指定する必要はありません。"]
+                pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
+                    match field {
+                        #( #try_first_sorted_by_arms ),*
+                    }
+                }
+
+                #[doc = "指定フィールドが値と一致する有効レコードのうち、指定フィールドの昇順で最初のものを返します。"]
+                #[doc = "検索値がフィールド幅より短い場合は、後続バイトが 0x00 または半角スペースのレコードも一致します。"]
+                #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+                pub fn try_first_by(
+                    &self,
+                    field: #field_enum_name,
+                    value: impl AsRef<[u8]>,
+                ) -> Result<Option<&#struct_name>, ::fixed_record_main::error::Error> {
+                    let raw_value = value.as_ref();
+                    match field {
+                        #( #try_first_by_arms ),*
+                    }
+                }
+
+                #[doc = "指定フィールドが値で始まる有効レコードのうち、指定フィールドの昇順で最初のものを返します。"]
+                #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+                pub fn try_first_by_prefix(
+                    &self,
+                    field: #field_enum_name,
+                    value: impl AsRef<[u8]>,
+                ) -> Result<Option<&#struct_name>, ::fixed_record_main::error::Error> {
+                    let raw_value = value.as_ref();
+                    match field {
+                        #( #try_first_by_prefix_arms ),*
+                    }
+                }
+
+                #[doc = "物理的に保持している全 ID を返します。"]
+                pub fn all_ids(&self) -> Vec<usize> {
+                    self.records.keys().copied().collect()
+                }
+
+                #[doc = "論理削除済みレコードを物理削除し、インデックスも掃除します。"]
+                pub fn vacuum(&mut self) {
+                    let ids: Vec<usize> = self.records
+                        .iter()
+                        .filter(|(_, entry)| entry.is_deleted)
+                        .map(|(id, _)| *id)
+                        .collect();
+
+                    for id in ids {
+                        if let Some(entry) = self.records.remove(&id) {
+                            let record = entry.record;
+                            #( #index_vacuum_blocks )*
+                        }
+                    }
+
+                    let records = &self.records;
+                    self.order.retain(|id| records.contains_key(id));
+                }
+            }
+
+            impl Default for #list_name {
+                #[doc = "空のリストを作成します。"]
+                fn default() -> Self {
+                    Self::new()
+                }
+            }
+        }
+    } else {
+        quote!()
+    };
 
     Ok(quote! {
         impl #struct_name {
@@ -1116,336 +1453,6 @@ pub fn impl_fixed_record_core(
             }
         }
 
-        struct #entry_name {
-            record: #struct_name,
-            is_deleted: bool,
-        }
-
-        #[doc = "レコードのコレクションを保持し、検索・削除・ソート用インデックスを管理します。"]
-        pub struct #list_name {
-            records: std::collections::BTreeMap<usize, #entry_name>,
-            next_id: usize,
-            indices: std::collections::HashMap<#field_enum_name, Box<dyn std::any::Any>>,
-            order: Vec<usize>,
-        }
-
-        impl #list_name {
-            #[doc = "空のリストを作成します。"]
-            pub fn new() -> Self {
-                Self {
-                    records: std::collections::BTreeMap::new(),
-                    next_id: 0,
-                    indices: std::collections::HashMap::new(),
-                    order: Vec::new(),
-                }
-            }
-
-            #[doc = "有効なレコード数を返します。"]
-            pub fn len(&self) -> usize {
-                self.records.values().filter(|entry| !entry.is_deleted).count()
-            }
-
-            #[doc = "有効なレコードがないかを返します。"]
-            pub fn is_empty(&self) -> bool {
-                self.len() == 0
-            }
-
-            #[doc = "有効なレコードのみを現在の順序で返すイテレータです。"]
-            pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a #struct_name> + 'a {
-                self.order.iter().filter_map(move |id| {
-                    let entry = self.records.get(id)?;
-                    if entry.is_deleted {
-                        None
-                    } else {
-                        Some(&entry.record)
-                    }
-                })
-            }
-
-            #[doc = "レコードを追加し、採番された ID を返します。"]
-            pub fn insert(&mut self, record: #struct_name) -> usize {
-                let id = self.next_id;
-                self.next_id += 1;
-
-                #( #index_insert_blocks )*
-
-                self.records.insert(id, #entry_name { record, is_deleted: false });
-                self.order.push(id);
-                id
-            }
-
-            #[doc = "指定 ID の有効なレコードを返します。"]
-            pub fn get(&self, id: usize) -> Option<&#struct_name> {
-                let entry = self.records.get(&id)?;
-                if entry.is_deleted {
-                    None
-                } else {
-                    Some(&entry.record)
-                }
-            }
-
-            #[doc = "指定 ID の有効なレコードを置き換え、検索インデックスを更新します。"]
-            pub fn update(&mut self, id: usize, record: #struct_name) -> bool {
-                let Some(entry) = self.records.remove(&id) else {
-                    return false;
-                };
-
-                if entry.is_deleted {
-                    self.records.insert(id, entry);
-                    return false;
-                }
-
-                let old_record = entry.record;
-                #( #index_update_remove_blocks )*
-                #( #index_update_insert_blocks )*
-
-                self.records.insert(id, #entry_name { record, is_deleted: false });
-                true
-            }
-
-            #[doc = "指定 ID のレコードを論理削除し、検索インデックスからも除外します。"]
-            pub fn remove(&mut self, id: usize) -> bool {
-                let record = {
-                    let Some(entry) = self.records.get_mut(&id) else {
-                        return false;
-                    };
-                    if entry.is_deleted {
-                        return false;
-                    }
-
-                    entry.is_deleted = true;
-                    entry.record
-                };
-
-                #( #index_remove_blocks )*
-                true
-            }
-
-            #[doc = "指定フィールドが値と完全一致する有効なレコードを返します。"]
-            pub fn find_by<const N: usize>(
-                &self,
-                field: #field_enum_name,
-                value: impl Into<::fixed_record_main::Fixed<N>>,
-            ) -> Vec<&#struct_name> {
-                let value = value.into();
-                self.indices.get(&field)
-                    .and_then(|tree| {
-                        tree.downcast_ref::<
-                            std::collections::BTreeMap<
-                                ::fixed_record_main::Fixed<N>,
-                                std::collections::BTreeSet<usize>
-                            >
-                        >()
-                    })
-                    .and_then(|map| map.get(&value))
-                    .map(|ids| {
-                        ids.iter()
-                            .filter_map(|id| {
-                                let entry = self.records.get(id)?;
-                                if entry.is_deleted {
-                                    None
-                                } else {
-                                    Some(&entry.record)
-                                }
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            }
-
-            #[doc = "指定フィールドが値と一致する有効なレコードを返します。"]
-            #[doc = "検索値がフィールド幅より短い場合は、後続バイトが 0x00 または半角スペースのレコードも一致します。"]
-            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn try_find_by(
-                &self,
-                field: #field_enum_name,
-                value: impl AsRef<[u8]>,
-            ) -> Result<Vec<&#struct_name>, ::fixed_record_main::error::Error> {
-                let raw_value = value.as_ref();
-                match field {
-                    #( #try_find_by_arms ),*
-                }
-            }
-
-            #[doc = "指定フィールドが値で始まる有効なレコードを返します。"]
-            #[doc = "検索値がフィールド幅より短い場合は、後続バイトの内容に関係なく一致します。"]
-            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn try_find_by_prefix(
-                &self,
-                field: #field_enum_name,
-                value: impl AsRef<[u8]>,
-            ) -> Result<Vec<&#struct_name>, ::fixed_record_main::error::Error> {
-                let raw_value = value.as_ref();
-                match field {
-                    #( #try_find_by_prefix_arms ),*
-                }
-            }
-
-            #[doc = "指定フィールドの値が範囲内にある有効なレコードを返します。"]
-            pub fn find_range_by<const N: usize, R>(
-                &self,
-                field: #field_enum_name,
-                range: R,
-            ) -> Vec<&#struct_name>
-            where
-                R: std::ops::RangeBounds<::fixed_record_main::Fixed<N>>,
-            {
-                self.indices.get(&field)
-                    .and_then(|tree| {
-                        tree.downcast_ref::<
-                            std::collections::BTreeMap<
-                                ::fixed_record_main::Fixed<N>,
-                                std::collections::BTreeSet<usize>
-                            >
-                        >()
-                    })
-                    .map(|map| {
-                        map.range(range)
-                            .flat_map(|(_, ids)| ids.iter())
-                            .filter_map(|id| {
-                                let entry = self.records.get(id)?;
-                                if entry.is_deleted {
-                                    None
-                                } else {
-                                    Some(&entry.record)
-                                }
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            }
-
-            #[doc = "指定フィールドで昇順に並ぶ有効レコードのイテレータを返します。"]
-            pub fn iter_sorted_by<'a, const N: usize>(
-                &'a self,
-                field: #field_enum_name,
-            ) -> impl Iterator<Item = &'a #struct_name> + 'a {
-                self.indices.get(&field)
-                    .and_then(|tree| {
-                        tree.downcast_ref::<
-                            std::collections::BTreeMap<
-                                ::fixed_record_main::Fixed<N>,
-                                std::collections::BTreeSet<usize>
-                            >
-                        >()
-                    })
-                    .into_iter()
-                    .flat_map(move |map| {
-                        map.values().flat_map(move |ids| {
-                            ids.iter().filter_map(move |id| {
-                                let entry = self.records.get(id)?;
-                                if entry.is_deleted {
-                                    None
-                                } else {
-                                    Some(&entry.record)
-                                }
-                            })
-                        })
-                    })
-            }
-
-            #[doc = "現在の有効レコードを定義順の全フィールド比較でソートします。"]
-            pub fn sort(&mut self) {
-                let records = &self.records;
-                self.order
-                    .retain(|id| records.get(id).is_some_and(|entry| !entry.is_deleted));
-                self.order.sort_by(|left, right| {
-                    let left = &records.get(left).unwrap().record;
-                    let right = &records.get(right).unwrap().record;
-                    left.compare_all_fields(right)
-                });
-            }
-
-            #[doc = "指定したフィールド優先順で現在の有効レコードをソートします。"]
-            pub fn sort_by(&mut self, fields: &[#field_enum_name]) {
-                let records = &self.records;
-                self.order
-                    .retain(|id| records.get(id).is_some_and(|entry| !entry.is_deleted));
-                self.order.sort_by(|left, right| {
-                    let left = &records.get(left).unwrap().record;
-                    let right = &records.get(right).unwrap().record;
-                    left.compare_by_fields(right, fields)
-                });
-            }
-
-            #[doc = "有効なレコードのうち、現在のID順で最初のものを返します。"]
-            pub fn first(&self) -> Option<&#struct_name> {
-                self.records
-                    .values()
-                    .find(|entry| !entry.is_deleted)
-                    .map(|entry| &entry.record)
-            }
-
-            #[doc = "指定フィールドの昇順で最初の有効レコードを返します。"]
-            pub fn first_by<const N: usize>(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                self.iter_sorted_by::<N>(field).next()
-            }
-
-            #[doc = "指定フィールドの昇順で最初の有効レコードを返します。"]
-            #[doc = "`first_by` と違い、呼び出し側でフィールド幅を指定する必要はありません。"]
-            pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                match field {
-                    #( #try_first_sorted_by_arms ),*
-                }
-            }
-
-            #[doc = "指定フィールドが値と一致する有効レコードのうち、指定フィールドの昇順で最初のものを返します。"]
-            #[doc = "検索値がフィールド幅より短い場合は、後続バイトが 0x00 または半角スペースのレコードも一致します。"]
-            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn try_first_by(
-                &self,
-                field: #field_enum_name,
-                value: impl AsRef<[u8]>,
-            ) -> Result<Option<&#struct_name>, ::fixed_record_main::error::Error> {
-                let raw_value = value.as_ref();
-                match field {
-                    #( #try_first_by_arms ),*
-                }
-            }
-
-            #[doc = "指定フィールドが値で始まる有効レコードのうち、指定フィールドの昇順で最初のものを返します。"]
-            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn try_first_by_prefix(
-                &self,
-                field: #field_enum_name,
-                value: impl AsRef<[u8]>,
-            ) -> Result<Option<&#struct_name>, ::fixed_record_main::error::Error> {
-                let raw_value = value.as_ref();
-                match field {
-                    #( #try_first_by_prefix_arms ),*
-                }
-            }
-
-            #[doc = "物理的に保持している全 ID を返します。"]
-            pub fn all_ids(&self) -> Vec<usize> {
-                self.records.keys().copied().collect()
-            }
-
-            #[doc = "論理削除済みレコードを物理削除し、インデックスも掃除します。"]
-            pub fn vacuum(&mut self) {
-                let ids: Vec<usize> = self.records
-                    .iter()
-                    .filter(|(_, entry)| entry.is_deleted)
-                    .map(|(id, _)| *id)
-                    .collect();
-
-                for id in ids {
-                    if let Some(entry) = self.records.remove(&id) {
-                        let record = entry.record;
-                        #( #index_vacuum_blocks )*
-                    }
-                }
-
-                let records = &self.records;
-                self.order.retain(|id| records.contains_key(id));
-            }
-        }
-
-        impl Default for #list_name {
-            #[doc = "空のリストを作成します。"]
-            fn default() -> Self {
-                Self::new()
-            }
-        }
+        #list_impl
     })
 }

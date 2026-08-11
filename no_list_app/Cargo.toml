@@ -1,0 +1,10 @@
+[package]
+name = "no_list_app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fixed_record_main = { path = "../fixed_record_main", default-features = false }
+
+[dev-dependencies]
+trybuild = "1.0"
