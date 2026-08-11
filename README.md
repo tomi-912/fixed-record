@@ -91,7 +91,7 @@ Use `try_find_by_prefix` / `try_first_by_prefix` for prefix searches.
 
 ## Reader / Writer
 
-`Reader` reads fixed-width records sequentially. A trailing `\n`, `\r\n`, or `,` immediately after each record is skipped automatically.
+`Reader` reads fixed-width records sequentially. A trailing `\n`, `\r`, `\r\n`, or `,` immediately after each record is skipped automatically.
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
@@ -113,6 +113,9 @@ let mut writer = Writer::new(output)
 
 let mut csv_like_writer = Writer::new(output)
     .with_separator(RecordSeparator::Comma);
+
+let mut cr_writer = Writer::new(output)
+    .with_separator(RecordSeparator::Cr);
 ```
 
 ## Feature Flags

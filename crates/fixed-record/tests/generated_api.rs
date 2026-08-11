@@ -428,6 +428,69 @@ mod tests {
         std::fs::remove_file(path).unwrap();
     }
     #[test]
+    fn test_reader_writer_round_trip_file_with_cr_separator() {
+        use fixed_record::{Reader, RecordSeparator, Writer};
+        use std::fs::File;
+        use std::io::BufReader;
+
+        let path = std::env::temp_dir().join(format!(
+            "fixed-record-cr-{}-{}.dat",
+            std::process::id(),
+            "generated-api"
+        ));
+
+        let first = TestRecord::builder()
+            .with_name("Ivy")
+            .with_code("I0001")
+            .with_amount_int(90)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Judy")
+            .with_code("J0001")
+            .with_amount_int(100)
+            .build();
+
+        {
+            let file = File::create(&path).unwrap();
+            let mut writer = Writer::new(file).with_separator(RecordSeparator::Cr);
+            writer.write_record(&first).unwrap();
+            writer.write_record(&second).unwrap();
+            writer.flush().unwrap();
+        }
+
+        let raw = std::fs::read(&path).unwrap();
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&first.to_bytes());
+        expected.push(b'\r');
+        expected.extend_from_slice(&second.to_bytes());
+        expected.push(b'\r');
+        assert_eq!(raw, expected);
+
+        let file = File::open(&path).unwrap();
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Ivy"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Judy"
+        );
+        assert!(reader.next().is_none());
+
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
     fn test_reader_writer_round_trip_file_with_comma_separator() {
         use fixed_record::{Reader, RecordSeparator, Writer};
         use std::fs::File;

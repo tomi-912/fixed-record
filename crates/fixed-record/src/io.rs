@@ -10,6 +10,9 @@ pub enum RecordSeparator {
     /// Line feed (`\n`).
     /// LF (`\n`) です。
     Lf,
+    /// Carriage return (`\r`).
+    /// CR (`\r`) です。
+    Cr,
     /// Carriage return and line feed (`\r\n`).
     /// CRLF (`\r\n`) です。
     Crlf,
@@ -24,6 +27,7 @@ impl RecordSeparator {
     pub const fn as_bytes(self) -> &'static [u8] {
         match self {
             Self::Lf => b"\n",
+            Self::Cr => b"\r",
             Self::Crlf => b"\r\n",
             Self::Comma => b",",
         }
@@ -33,8 +37,8 @@ impl RecordSeparator {
 /// Iterator that reads fixed-width records from a stream.
 /// 固定長レコードをストリームから順に読み込むイテレータです。
 ///
-/// A trailing `\n`, `\r\n`, or `,` immediately after each record is skipped automatically.
-/// 各レコードの直後にある `\n`、`\r\n`、`,` は自動的に読み飛ばします。
+/// A trailing `\n`, `\r`, `\r\n`, or `,` immediately after each record is skipped automatically.
+/// 各レコードの直後にある `\n`、`\r`、`\r\n`、`,` は自動的に読み飛ばします。
 pub struct Reader<R, T: FixedRecord> {
     reader: R,
     sequence_fields: Vec<T::Field>,
@@ -161,6 +165,11 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
                 break;
             }
 
+            if available.starts_with(b"\r\n") {
+                self.reader.consume(2);
+                continue;
+            }
+
             match available[0] {
                 b'\n' | b'\r' | b',' => self.reader.consume(1),
                 _ => break,
@@ -234,7 +243,9 @@ impl<W: Write> Writer<W> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
     use std::io::{BufReader, Cursor, Read};
+    use std::rc::Rc;
 
     #[derive(Debug, PartialEq, Eq)]
     struct TestRecord([u8; 4]);
@@ -298,6 +309,36 @@ mod tests {
         fn consume(&mut self, _amt: usize) {}
     }
 
+    struct TrackingBufRead {
+        cursor: Cursor<Vec<u8>>,
+        consume_amounts: Rc<RefCell<Vec<usize>>>,
+    }
+
+    impl Read for TrackingBufRead {
+        /// Reads bytes normally from the inner cursor.
+        /// 内部カーソルから通常どおりバイト列を読み込みます。
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.cursor.read(buf)
+        }
+    }
+
+    impl BufRead for TrackingBufRead {
+        /// Returns the remaining bytes from the current cursor position.
+        /// 現在のカーソル位置から残りのバイト列を返します。
+        fn fill_buf(&mut self) -> io::Result<&[u8]> {
+            let position = self.cursor.position() as usize;
+            Ok(&self.cursor.get_ref()[position..])
+        }
+
+        /// Records the consumed byte count and advances the cursor.
+        /// 消費したバイト数を記録してカーソルを進めます。
+        fn consume(&mut self, amt: usize) {
+            self.consume_amounts.borrow_mut().push(amt);
+            let position = self.cursor.position() + amt as u64;
+            self.cursor.set_position(position);
+        }
+    }
+
     /// Verifies that empty input is treated as a clean end-of-stream.
     /// 入力が空のときに正常な終端として `None` を返すことを確認します。
     #[test]
@@ -333,5 +374,22 @@ mod tests {
 
         let err = reader.next().unwrap().unwrap_err();
         assert!(matches!(err, Error::Io(_)));
+    }
+
+    /// Verifies that CRLF separators are consumed as a single two-byte separator.
+    /// CRLF 区切りが 2 バイトの区切りとしてまとめて消費されることを確認します。
+    #[test]
+    fn reader_consumes_crlf_separator_together() {
+        let consume_amounts = Rc::new(RefCell::new(Vec::new()));
+        let input = b"abcd\r\nefgh".to_vec();
+        let mut reader = Reader::<_, TestRecord>::new(TrackingBufRead {
+            cursor: Cursor::new(input),
+            consume_amounts: Rc::clone(&consume_amounts),
+        });
+
+        assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"abcd"));
+        assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"efgh"));
+        assert!(reader.next().is_none());
+        assert_eq!(*consume_amounts.borrow(), vec![2]);
     }
 }

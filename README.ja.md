@@ -91,7 +91,7 @@ let by_id = list.get(id);
 
 ## Reader / Writer
 
-`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n`、`\r\n`、`,` は読み飛ばします。
+`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n`、`\r`、`\r\n`、`,` は読み飛ばします。
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
@@ -113,6 +113,9 @@ let mut writer = Writer::new(output)
 
 let mut csv_like_writer = Writer::new(output)
     .with_separator(RecordSeparator::Comma);
+
+let mut cr_writer = Writer::new(output)
+    .with_separator(RecordSeparator::Cr);
 ```
 
 ## Feature Flags
