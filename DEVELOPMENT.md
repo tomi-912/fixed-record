@@ -74,6 +74,8 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - `set_field_*` は書き込み前に `CLEAR_BYTE` でフィールドをクリアします。
   - `CLEAR_BYTE` は `#[fixed_record_main(clear_byte = SPACE)]` のように指定できます。
   - 未指定時の `CLEAR_BYTE` は `0x00` です。
+  - `builder()`、`Default`、`cleared()` は `CLEAR_BYTE` で初期化します。
+  - `zeroed()` は常に `0x00`、`spaced()` は常に半角スペースで初期化します。
   - クリアせず先頭から上書きしたい場合は `set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
   - `with_*` はメソッドチェーン用の部分上書き API として、書き込み前のクリアを行いません。
 

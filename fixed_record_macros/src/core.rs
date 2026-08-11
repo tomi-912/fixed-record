@@ -462,6 +462,13 @@ pub fn impl_fixed_record_core(
                 }
             }
 
+            #[doc = "全フィールドを `CLEAR_BYTE` で埋めた新しいインスタンスを生成します。"]
+            pub const fn cleared() -> Self {
+                Self {
+                    #( #field_names: ::fixed_record_main::types::Fixed::filled(Self::CLEAR_BYTE) ),*
+                }
+            }
+
             #[doc = "インスタンスを固定長バイト配列としてコピーして返します。"]
             pub fn to_bytes(&self) -> [u8; Self::TOTAL_LEN] {
                 let mut out = [0u8; Self::TOTAL_LEN];
@@ -479,9 +486,9 @@ pub fn impl_fixed_record_core(
                 fields.iter().map(|field| Self::size_of(*field)).sum()
             }
 
-            #[doc = "新しいビルダーインスタンスを生成します。"]
+            #[doc = "`CLEAR_BYTE` で初期化した新しいビルダーインスタンスを生成します。"]
             pub fn builder() -> Self {
-                Self::spaced()
+                Self::cleared()
             }
 
             #[doc = "ビルドを完了し、インスタンスを返します（現在は self をそのまま返します）。"]
@@ -738,9 +745,9 @@ pub fn impl_fixed_record_core(
         }
 
         impl Default for #struct_name {
-            #[doc = "zeroed() を呼び出して初期化します。"]
+            #[doc = "cleared() を呼び出して `CLEAR_BYTE` で初期化します。"]
             fn default() -> Self {
-                Self::zeroed()
+                Self::cleared()
             }
         }
 

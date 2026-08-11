@@ -229,6 +229,31 @@ mod tests {
         assert_eq!(rec.name(), b"Bo    ");
     }
 
+    /// `builder` と `Default` がデフォルトの `CLEAR_BYTE` で初期化することを確認します。
+    #[test]
+    fn test_builder_and_default_use_default_clear_byte() {
+        assert_eq!(
+            TestRecord::builder().name(),
+            &[0; TestRecord::FIELD_SIZE_NAME]
+        );
+        assert_eq!(
+            TestRecord::default().name(),
+            &[0; TestRecord::FIELD_SIZE_NAME]
+        );
+        assert_eq!(
+            TestRecord::cleared().name(),
+            &[0; TestRecord::FIELD_SIZE_NAME]
+        );
+    }
+
+    /// `builder` と `Default` が attribute で指定した `CLEAR_BYTE` で初期化することを確認します。
+    #[test]
+    fn test_builder_and_default_use_configured_clear_byte() {
+        assert_eq!(SpaceClearRecord::builder().name(), b"      ");
+        assert_eq!(SpaceClearRecord::default().name(), b"      ");
+        assert_eq!(SpaceClearRecord::cleared().name(), b"      ");
+    }
+
     /// 数値 setter の Result 版がフィールド幅を超える値をエラーにすることを確認します。
     #[test]
     fn test_try_with_int_reports_field_overflow() {
@@ -565,10 +590,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- 3. 新機能: ビルダーパターンと初期化 ---
     println!("--- 3. Builder & Initialization Test ---");
 
-    // builder() (内部で spaced() を使用) と with_... メソッドのテスト
+    // builder() (内部で cleared() を使用) と with_... メソッドのテスト
     let new_user = User::builder()
-        .with_id("999") // 文字列をセット（右スペース埋め）
-        .with_name("Alice") // 文字列をセット（右スペース埋め）
+        .with_id("999") // 文字列を先頭から上書き
+        .with_name("Alice") // 文字列を先頭から上書き
         .with_age_int(20) // 数値をセット（左ゼロ埋め: "020"）
         .build();
 
@@ -578,12 +603,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ID field   : \"{}\"", new_user.id_str()?);
     println!("  Age field  : \"{}\"\n", new_user.age_str()?);
 
-    // zeroed() と spaced() の直接比較
+    // zeroed() / spaced() / cleared() の直接比較
     let z = User::zeroed();
     let s = User::spaced();
+    let c = User::cleared();
     println!("Initialization Comparison:");
     println!("  zeroed bytes: {:?}", &z.to_bytes()[..5]); // [0, 0, 0, 0, 0]
     println!("  spaced bytes: {:?}", &s.to_bytes()[..5]); // [32, 32, 32, 32, 32] (0x20)
+    println!("  cleared bytes: {:?}", &c.to_bytes()[..5]); // default CLEAR_BYTE is 0x00
 
     // --- 4. シリアライズ (to_bytes) ---
     println!("\n--- 4. Serialization Test ---");
@@ -595,7 +622,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let default_user = User::default();
     println!("\n--- 5. Default Trait Test ---");
     println!(
-        "Default user (zeroed) valid: {}",
+        "Default user (cleared) valid: {}",
         default_user.id().iter().all(|&b| b == 0)
     );
 

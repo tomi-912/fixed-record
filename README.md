@@ -29,6 +29,7 @@
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 `set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
+`builder()`、`Default`、`cleared()` もこの値で初期化します。
 
 ```rust
 #[fixed_record_main(clear_byte = SPACE)]
@@ -78,6 +79,8 @@ let user = User::builder()
 `set_field_bytes` / `set_field_str` は、書き込み前に `CLEAR_BYTE` でフィールドをクリアします。既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
 
 `with_*` はメソッドチェーン用の部分上書き API です。書き込み前にクリアしないため、短い文字列を書いた場合は後続バイトが残ります。
+
+明示的に初期化したい場合は、`zeroed()`、`spaced()`、`cleared()` を使い分けます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
 
 ## 開発メモ
 

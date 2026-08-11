@@ -146,6 +146,11 @@ impl<const N: usize> Fixed<N> {
         Self { buf: [b' '; N] }
     }
 
+    /// すべてのバイトが指定された値で埋められたインスタンスを生成します。
+    pub const fn filled(byte: u8) -> Self {
+        Self { buf: [byte; N] }
+    }
+
     /// 任意のバイト列をバッファに書き込みます。
     ///
     /// # 挙動
