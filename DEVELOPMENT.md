@@ -91,6 +91,9 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - `update` は古い検索インデックスを外し、新しいレコード値で検索インデックスを登録し直します。
 - `List::remove` は論理削除と同時に検索インデックスから ID を除外します。
   - `vacuum` は削除済みレコードを `records` / `order` から物理削除する用途として残しています。
+- `Reader` のシーケンスチェック API は `with_sequence_check` / `with_sequence_check_options` を追加済みです。
+  - 指定フィールド配列をキーにして、前回レコードより今回レコードが小さい場合は `Error::SequenceError` を返します。
+  - 同一キーはデフォルト許可で、`with_sequence_check_options(fields, false)` の場合は禁止します。
 
 ### 重要度中
 

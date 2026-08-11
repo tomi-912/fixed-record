@@ -905,6 +905,138 @@ mod tests {
         assert!(reader.next().is_none());
     }
 
+    /// Reader のシーケンスチェックが指定フィールドの昇順レコードを正常に読み込むことを確認します。
+    #[test]
+    fn test_reader_sequence_check_accepts_ascending_fields() {
+        use fixed_record_main::Reader;
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Alice")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Bob")
+            .with_code("A0002")
+            .with_amount_int(20)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.push(b'\n');
+        bytes.extend_from_slice(&second.to_bytes());
+        bytes.push(b'\n');
+
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_sequence_check(&[TestRecordField::Code, TestRecordField::Amount]);
+
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Bob"
+        );
+        assert!(reader.next().is_none());
+    }
+
+    /// Reader のシーケンスチェックが指定フィールドの降順をエラーにすることを確認します。
+    #[test]
+    fn test_reader_sequence_check_reports_descending_fields() {
+        use fixed_record_main::Reader;
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Bob")
+            .with_code("A0002")
+            .with_amount_int(20)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Alice")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.push(b'\n');
+        bytes.extend_from_slice(&second.to_bytes());
+        bytes.push(b'\n');
+
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_sequence_check(&[TestRecordField::Code, TestRecordField::Amount]);
+
+        assert!(reader.next().unwrap().is_ok());
+        assert_eq!(
+            reader.next().unwrap().unwrap_err(),
+            Error::SequenceError {
+                fields: vec!["code", "amount"],
+                previous: vec![b"A0002".to_vec(), b"00000020".to_vec()],
+                current: vec![b"A0001".to_vec(), b"00000010".to_vec()],
+            }
+        );
+    }
+
+    /// Reader のシーケンスチェックが同一キーを設定に応じて許可または禁止することを確認します。
+    #[test]
+    fn test_reader_sequence_check_can_reject_equal_fields() {
+        use fixed_record_main::Reader;
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Alice")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Bob")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.push(b'\n');
+        bytes.extend_from_slice(&second.to_bytes());
+        bytes.push(b'\n');
+
+        let mut allow_equal_reader =
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes.clone())))
+                .with_sequence_check(&[TestRecordField::Code, TestRecordField::Amount]);
+
+        assert!(allow_equal_reader.next().unwrap().is_ok());
+        assert!(allow_equal_reader.next().unwrap().is_ok());
+
+        let mut reject_equal_reader =
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+                .with_sequence_check_options(
+                    &[TestRecordField::Code, TestRecordField::Amount],
+                    false,
+                );
+
+        assert!(reject_equal_reader.next().unwrap().is_ok());
+        assert_eq!(
+            reject_equal_reader.next().unwrap().unwrap_err(),
+            Error::SequenceError {
+                fields: vec!["code", "amount"],
+                previous: vec![b"A0001".to_vec(), b"00000010".to_vec()],
+                current: vec![b"A0001".to_vec(), b"00000010".to_vec()],
+            }
+        );
+    }
+
     /// フィールド境界が UTF-8 文字の途中に来た場合に文字列変換が失敗することを確認します。
     #[test]
     fn test_utf8_field_split_at_byte_boundary_reports_utf8_error() {

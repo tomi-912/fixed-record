@@ -1,12 +1,16 @@
 use crate::{Error, FixedRecord};
+use std::cmp::Ordering;
 use std::io::{self, BufRead, Write};
 use std::marker::PhantomData;
 
 /// 固定長レコードをストリームから順に読み込むイテレータです。
 ///
 /// 各レコードの直後にある `\n` または `\r\n` は自動的に読み飛ばします。
-pub struct Reader<R, T> {
+pub struct Reader<R, T: FixedRecord> {
     reader: R,
+    sequence_fields: Vec<T::Field>,
+    allow_equal_sequence: bool,
+    previous_sequence_key: Option<Vec<Vec<u8>>>,
     _marker: PhantomData<T>,
 }
 
@@ -15,8 +19,57 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
+            sequence_fields: Vec::new(),
+            allow_equal_sequence: true,
+            previous_sequence_key: None,
             _marker: PhantomData,
         }
+    }
+
+    /// 指定フィールドをキーにした昇順シーケンスチェックを有効にします。
+    pub fn with_sequence_check(mut self, fields: &[T::Field]) -> Self {
+        self.sequence_fields = fields.to_vec();
+        self
+    }
+
+    /// 指定フィールドをキーにした昇順シーケンスチェックを設定します。
+    pub fn with_sequence_check_options(mut self, fields: &[T::Field], allow_equal: bool) -> Self {
+        self.sequence_fields = fields.to_vec();
+        self.allow_equal_sequence = allow_equal;
+        self
+    }
+
+    /// 読み込んだレコードが前回レコード以降の順序になっているか確認します。
+    fn check_sequence(&mut self, record: &T) -> Result<(), Error> {
+        if self.sequence_fields.is_empty() {
+            return Ok(());
+        }
+
+        let current_key: Vec<Vec<u8>> = self
+            .sequence_fields
+            .iter()
+            .map(|field| record.field_bytes(*field).to_vec())
+            .collect();
+
+        if let Some(previous_key) = &self.previous_sequence_key {
+            let ordering = current_key.cmp(previous_key);
+            let is_error = ordering == Ordering::Less
+                || (ordering == Ordering::Equal && !self.allow_equal_sequence);
+            if is_error {
+                return Err(Error::SequenceError {
+                    fields: self
+                        .sequence_fields
+                        .iter()
+                        .map(|field| T::field_name(*field))
+                        .collect(),
+                    previous: previous_key.clone(),
+                    current: current_key,
+                });
+            }
+        }
+
+        self.previous_sequence_key = Some(current_key);
+        Ok(())
     }
 }
 
@@ -42,7 +95,10 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
             }
         }
 
-        let record = T::parse(&buf);
+        let record = match T::parse(&buf) {
+            Ok(record) => record,
+            Err(err) => return Some(Err(err)),
+        };
 
         loop {
             let available = match self.reader.fill_buf() {
@@ -59,7 +115,11 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
             }
         }
 
-        Some(record)
+        if let Err(err) = self.check_sequence(&record) {
+            return Some(Err(err));
+        }
+
+        Some(Ok(record))
     }
 }
 
@@ -72,6 +132,8 @@ mod tests {
     struct TestRecord([u8; 4]);
 
     impl FixedRecord for TestRecord {
+        type Field = ();
+
         const TOTAL_LEN: usize = 4;
 
         /// 4バイトの入力からテスト用レコードを作成します。
@@ -87,6 +149,16 @@ mod tests {
         /// テスト用レコードの内部バイト列を返します。
         fn to_bytes(&self) -> Vec<u8> {
             self.0.to_vec()
+        }
+
+        /// テスト用レコードには名前付きフィールドがないため固定名を返します。
+        fn field_name(_field: Self::Field) -> &'static str {
+            "record"
+        }
+
+        /// テスト用レコード全体をシーケンスチェック用バイト列として返します。
+        fn field_bytes(&self, _field: Self::Field) -> &[u8] {
+            &self.0
         }
     }
 

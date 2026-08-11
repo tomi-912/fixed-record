@@ -26,6 +26,12 @@ pub enum Error {
         size: usize,
         actual: usize,
     },
+    /// Reader のシーケンスチェックで、現在レコードが前回レコードより小さい、または同一禁止設定で同一だった場合。
+    SequenceError {
+        fields: Vec<&'static str>,
+        previous: Vec<Vec<u8>>,
+        current: Vec<Vec<u8>>,
+    },
     AlignmentError,
     ParseError,
 }
@@ -48,6 +54,14 @@ impl fmt::Display for Error {
             } => write!(
                 f,
                 "field `{field}` is too wide for the fixed length: expected at most {size} bytes, got {actual} bytes"
+            ),
+            Error::SequenceError {
+                fields,
+                previous,
+                current,
+            } => write!(
+                f,
+                "record sequence is not ascending for fields {fields:?}: previous={previous:?}, current={current:?}"
             ),
             Error::AlignmentError => write!(f, "Alignment error"),
             Error::ParseError => write!(f, "failed to parse field value"),
@@ -85,6 +99,22 @@ impl PartialEq for Error {
                 },
             ) => {
                 left_field == right_field && left_size == right_size && left_actual == right_actual
+            }
+            (
+                Error::SequenceError {
+                    fields: left_fields,
+                    previous: left_previous,
+                    current: left_current,
+                },
+                Error::SequenceError {
+                    fields: right_fields,
+                    previous: right_previous,
+                    current: right_current,
+                },
+            ) => {
+                left_fields == right_fields
+                    && left_previous == right_previous
+                    && left_current == right_current
             }
             (Error::AlignmentError, Error::AlignmentError) => true,
             (Error::ParseError, Error::ParseError) => true,

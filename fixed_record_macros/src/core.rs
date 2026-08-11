@@ -1062,6 +1062,8 @@ pub fn impl_fixed_record_core(
         }
 
         impl ::fixed_record_main::FixedRecord for #struct_name {
+            type Field = #field_enum_name;
+
             const TOTAL_LEN: usize = #struct_name::TOTAL_LEN;
 
             #[doc = "固定長バイト列からレコードを作成します。"]
@@ -1072,6 +1074,16 @@ pub fn impl_fixed_record_core(
             #[doc = "レコードを固定長バイト列としてコピーして返します。"]
             fn to_bytes(&self) -> Vec<u8> {
                 #struct_name::to_bytes(self).to_vec()
+            }
+
+            #[doc = "指定フィールドの定義名を返します。"]
+            fn field_name(field: Self::Field) -> &'static str {
+                #struct_name::name_of(field)
+            }
+
+            #[doc = "指定フィールドのバイト列を返します。"]
+            fn field_bytes(&self, field: Self::Field) -> &[u8] {
+                self.get_field_bytes(field)
             }
         }
 

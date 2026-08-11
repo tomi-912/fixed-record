@@ -97,6 +97,16 @@ let user = list.get(id);
 list.update(id, replacement);
 ```
 
+`Reader` は指定フィールドのシーケンスチェックを設定できます。前回レコードより今回レコードが小さい場合は `Error::SequenceError` になります。同一キーはデフォルトで許可されます。
+
+```rust
+let mut reader = Reader::<_, User>::new(source)
+    .with_sequence_check(&[UserField::Id]);
+
+let mut reader = Reader::<_, User>::new(source)
+    .with_sequence_check_options(&[UserField::Id], false);
+```
+
 後続バイトの内容に関係なく先頭一致で検索したい場合は、`try_find_by_prefix` を使います。先頭一致したうち、指定フィールドの昇順で最初の1件だけ欲しい場合は `try_first_by_prefix` を使います。
 
 ```rust
