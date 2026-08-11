@@ -288,13 +288,6 @@ impl<W: Write> Writer<W> {
         self
     }
 
-    /// Changes the newline sequence used after each record.
-    /// 改行コードを変更します。
-    pub fn with_newline(mut self, newline: &'static [u8]) -> Self {
-        self.separator = newline;
-        self
-    }
-
     /// Writes one record.
     /// レコードを1件書き込みます。
     pub fn write_record<T: FixedRecord>(&mut self, record: &T) -> io::Result<()> {
