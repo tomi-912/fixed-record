@@ -29,6 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bytes = Vec::new();
     let mut writer = Writer::new(&mut bytes);
     writer.write_record(&payment)?;
+    drop(writer);
 
     let mut reader = Reader::<_, Payment>::new(BufReader::new(Cursor::new(bytes)));
     let read_back = reader.next().unwrap()?;

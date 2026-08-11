@@ -230,6 +230,11 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
 /// During writing, NUL bytes (`0x00`) are replaced with spaces (`0x20`) and a separator is appended.
 /// 書き込み時は NUL (`0x00`) をスペース (`0x20`) に置換し、レコード末尾に区切りを付けます。
 ///
+/// The inner writer is flushed automatically when `Writer` is dropped, but explicit [`Writer::flush`]
+/// is recommended when callers need to handle I/O errors before the writer goes out of scope.
+/// `Writer` が drop されるときに内部 writer は自動的に flush されます。ただし、I/O エラーを明示的に扱いたい場合は
+/// [`Writer::flush`] を呼び出してください。
+///
 /// # Examples
 ///
 /// ```
@@ -257,6 +262,7 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
 /// writer.write_record(&first).unwrap();
 /// writer.write_record(&second).unwrap();
 /// writer.flush().unwrap();
+/// drop(writer);
 ///
 /// let mut expected = Vec::new();
 /// expected.extend_from_slice(&first.to_bytes());
@@ -266,7 +272,7 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
 ///
 /// assert_eq!(output, expected);
 /// ```
-pub struct Writer<W> {
+pub struct Writer<W: Write> {
     writer: W,
     separator: &'static [u8],
 }
@@ -310,11 +316,19 @@ impl<W: Write> Writer<W> {
     }
 }
 
+impl<W: Write> Drop for Writer<W> {
+    /// Flushes the inner writer when this writer goes out of scope.
+    /// スコープを抜けるときに内部 writer を flush します。
+    fn drop(&mut self) {
+        let _ = self.writer.flush();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::cell::RefCell;
-    use std::io::{BufReader, Cursor, Read};
+    use std::io::{BufReader, Cursor, Read, Write};
     use std::rc::Rc;
 
     #[derive(Debug, PartialEq, Eq)]
@@ -392,6 +406,27 @@ mod tests {
         }
     }
 
+    struct FlushTrackingWriter {
+        bytes: Rc<RefCell<Vec<u8>>>,
+        flush_count: Rc<RefCell<usize>>,
+    }
+
+    impl Write for FlushTrackingWriter {
+        /// Appends bytes to the shared buffer.
+        /// 共有バッファにバイト列を追加します。
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.bytes.borrow_mut().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        /// Records that a flush was requested.
+        /// flush が要求されたことを記録します。
+        fn flush(&mut self) -> io::Result<()> {
+            *self.flush_count.borrow_mut() += 1;
+            Ok(())
+        }
+    }
+
     impl BufRead for TrackingBufRead {
         /// Returns the remaining bytes from the current cursor position.
         /// 現在のカーソル位置から残りのバイト列を返します。
@@ -461,5 +496,25 @@ mod tests {
         assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"efgh"));
         assert!(reader.next().is_none());
         assert_eq!(*consume_amounts.borrow(), vec![2]);
+    }
+
+    /// Verifies that dropping `Writer` flushes the inner writer.
+    /// `Writer` の drop 時に内部 writer が flush されることを確認します。
+    #[test]
+    fn writer_flushes_inner_writer_on_drop() {
+        let bytes = Rc::new(RefCell::new(Vec::new()));
+        let flush_count = Rc::new(RefCell::new(0));
+
+        {
+            let inner = FlushTrackingWriter {
+                bytes: Rc::clone(&bytes),
+                flush_count: Rc::clone(&flush_count),
+            };
+            let mut writer = Writer::new(inner);
+            writer.write_record(&TestRecord(*b"abcd")).unwrap();
+        }
+
+        assert_eq!(&*bytes.borrow(), b"abcd\n");
+        assert_eq!(*flush_count.borrow(), 1);
     }
 }

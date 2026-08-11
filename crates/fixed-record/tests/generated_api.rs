@@ -284,6 +284,7 @@ mod tests {
         writer.write_record(&first).unwrap();
         writer.write_record(&second).unwrap();
         writer.flush().unwrap();
+        drop(writer);
 
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(buf)));
         assert_eq!(
@@ -1271,6 +1272,7 @@ mod tests {
         let mut writer = Writer::new(&mut bytes);
         writer.write_record(&record).unwrap();
         writer.flush().unwrap();
+        drop(writer);
 
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
         let read_back = reader.next().unwrap().unwrap();
