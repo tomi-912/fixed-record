@@ -319,6 +319,58 @@ pub fn impl_fixed_record_core(
             }
         }
     });
+    let try_find_by_prefix_arms = metas.iter().map(|m| {
+        let variant = &m.variant;
+        let size = m.size;
+        quote! {
+            #field_enum_name::#variant => {
+                if raw_value.len() > #size {
+                    return Err(::fixed_record_main::error::Error::FieldOverflow {
+                        field: #struct_name::name_of(field),
+                        size: #size,
+                        actual: raw_value.len(),
+                    });
+                }
+
+                let Some(tree) = self.indices.get(&field) else {
+                    return Ok(Vec::new());
+                };
+                let Some(map) = tree.downcast_ref::<
+                    std::collections::BTreeMap<
+                        ::fixed_record_main::Fixed<#size>,
+                        std::collections::BTreeSet<usize>
+                    >
+                >() else {
+                    return Ok(Vec::new());
+                };
+
+                let ids: Vec<usize> = if raw_value.len() == #size {
+                    let value = ::fixed_record_main::Fixed::<#size>::from_slice(raw_value)?;
+                    map.get(&value)
+                        .into_iter()
+                        .flat_map(|ids| ids.iter().copied())
+                        .collect()
+                } else {
+                    map.iter()
+                        .filter(|(key, _)| key.as_bytes().starts_with(raw_value))
+                        .flat_map(|(_, ids)| ids.iter().copied())
+                        .collect()
+                };
+
+                Ok(ids
+                    .into_iter()
+                    .filter_map(|id| {
+                        let entry = self.records.get(&id)?;
+                        if entry.is_deleted {
+                            None
+                        } else {
+                            Some(&entry.record)
+                        }
+                    })
+                    .collect())
+            }
+        }
+    });
     let try_first_by_arms = metas.iter().map(|m| {
         let variant = &m.variant;
         let size = m.size;
@@ -945,6 +997,20 @@ pub fn impl_fixed_record_core(
                 let raw_value = value.as_ref();
                 match field {
                     #( #try_find_by_arms ),*
+                }
+            }
+
+            #[doc = "指定フィールドが値で始まる有効なレコードを返します。"]
+            #[doc = "検索値がフィールド幅より短い場合は、後続バイトの内容に関係なく一致します。"]
+            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            pub fn try_find_by_prefix(
+                &self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+            ) -> Result<Vec<&#struct_name>, ::fixed_record_main::error::Error> {
+                let raw_value = value.as_ref();
+                match field {
+                    #( #try_find_by_prefix_arms ),*
                 }
             }
 

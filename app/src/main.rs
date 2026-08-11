@@ -484,6 +484,77 @@ mod tests {
         );
     }
 
+    /// `try_find_by_prefix` が後続バイトに関係なく先頭一致で固定長フィールドを取得できることを確認します。
+    #[test]
+    fn test_try_find_by_prefix_matches_any_trailing_bytes() {
+        let mut list = TestRecordList::new();
+
+        let space_padded = TestRecord::spaced()
+            .with_name("Space")
+            .with_code("A00")
+            .with_amount_int(1)
+            .build();
+
+        let zero_padded = TestRecord::builder()
+            .with_name("Zero")
+            .with_code("A00")
+            .with_amount_int(2)
+            .build();
+
+        let other = TestRecord::spaced()
+            .with_name("Other")
+            .with_code("A00XX")
+            .with_amount_int(3)
+            .build();
+
+        let different_prefix = TestRecord::spaced()
+            .with_name("Different")
+            .with_code("B00XX")
+            .with_amount_int(4)
+            .build();
+
+        list.insert(space_padded);
+        list.insert(zero_padded);
+        list.insert(other);
+        list.insert(different_prefix);
+
+        let found = list
+            .try_find_by_prefix(TestRecordField::Code, b"A00")
+            .unwrap();
+        let mut names: Vec<_> = found
+            .iter()
+            .map(|record| {
+                record
+                    .get_field_string_trimmed(TestRecordField::Name)
+                    .unwrap()
+            })
+            .collect();
+        names.sort();
+
+        assert_eq!(
+            names,
+            vec!["Other".to_string(), "Space".to_string(), "Zero".to_string()]
+        );
+    }
+
+    /// `try_find_by_prefix` がフィールド幅を超える検索値をエラーにすることを確認します。
+    #[test]
+    fn test_try_find_by_prefix_reports_overflow_for_too_long_value() {
+        let list = TestRecordList::new();
+        let err = list
+            .try_find_by_prefix(TestRecordField::Code, b"A00001")
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            Error::FieldOverflow {
+                field: "code",
+                size: TestRecord::FIELD_SIZE_CODE,
+                actual: 6,
+            }
+        );
+    }
+
     // ---- apply の冪等性テスト ----
 
     /// 同じデータを繰り返し適用しても結果が変わらないことを確認します。

@@ -89,6 +89,12 @@ let found = list.try_find_by(UserField::Id, b"0001")?;
 let first = list.try_first_by(UserField::Id);
 ```
 
+後続バイトの内容に関係なく先頭一致で検索したい場合は、`try_find_by_prefix` を使います。
+
+```rust
+let found = list.try_find_by_prefix(UserField::Id, b"000")?;
+```
+
 ## 開発メモ
 
 修正方針、作業ルール、現状確認メモは [`DEVELOPMENT.md`](DEVELOPMENT.md) に分けています。
