@@ -6,6 +6,8 @@ Most users only need to depend on `fixed-record`. The `fixed-record-macros` crat
 
 Japanese documentation is available in [README.ja.md](README.ja.md).
 
+API documentation is published at <https://tomi-912.github.io/fixed-record/>.
+
 ## Installation
 
 ```toml

@@ -6,6 +6,8 @@
 
 英語版は [README.md](README.md) にあります。
 
+API ドキュメントは <https://tomi-912.github.io/fixed-record/> で公開しています。
+
 ## インストール
 
 ```toml
