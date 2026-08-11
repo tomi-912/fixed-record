@@ -106,6 +106,7 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 - `fixed_record_main` が `fixed_record_macros` に依存して再エクスポートしています。
   - 利用者は `fixed_record_main::prelude::*` だけで使えるので便利です。
+  - 公開時の利用者向け依存は `fixed_record_main` だけに寄せ、`fixed_record_macros` は内部実装用 crate として扱います。
   - 一方で通常ライブラリと proc macro の依存関係が常にセットになるため、最小依存にしたい場合は feature 化を検討できます。
 - `app` にサンプルとテストがかなり入っています。
   - workspace の検証としては便利ですが、ライブラリの保証としては `fixed_record_main` / `fixed_record_macros` 側にテストが少なく見えます。

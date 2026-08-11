@@ -1,5 +1,4 @@
-use fixed_record_macros::fixed_record_main;
-use fixed_record_main::{Fixed, FixedRecord};
+use fixed_record_main::{Fixed, FixedRecord, fixed_record_main};
 
 #[fixed_record_main]
 pub struct Customer {
@@ -12,15 +11,15 @@ fn bytes_from_generated_trait<T: FixedRecord>(record: &T) -> Vec<u8> {
     record.to_bytes()
 }
 
-/// proc macro クレートを直接 import するサンプルを実行します。
+/// 本体クレートから再エクスポートされた proc macro を明示 import するサンプルを実行します。
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let customer = Customer::builder()
         .with_id("C00001")
         .with_name("Tanaka")
         .build();
 
-    println!("fixed_record_macros example");
-    println!("crate role: this crate only provides the attribute macro");
+    println!("fixed_record_main macro re-export example");
+    println!("crate role: users only depend on fixed_record_main");
     println!("generated enum name: CustomerField");
     println!(
         "name field offset: {}",

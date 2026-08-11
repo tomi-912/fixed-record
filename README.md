@@ -4,6 +4,8 @@
 
 `fixed_record_main` と `fixed_record_macros` と `app` の3メンバーで構成されています。
 
+利用者は通常、`fixed_record_main` だけを `[dependencies]` に追加します。`fixed_record_macros` は `fixed_record_main` から再エクスポートされる内部実装用の proc macro クレートです。
+
 ## 構成
 
 - `fixed_record_main/`: 利用者が依存する通常ライブラリです。`Fixed<N>`、`Error`、`prelude`、マクロの再エクスポートを持ちます。
@@ -51,6 +53,11 @@ pub struct User {
 
 
 ## 使い方
+
+```toml
+[dependencies]
+fixed_record_main = "0.1"
+```
 
 ```rust
 use fixed_record_main::prelude::*;

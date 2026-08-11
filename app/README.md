@@ -1,11 +1,11 @@
 # app examples
 
-この `app` は、`fixed_record_main` と `fixed_record_macros` の違いを実際に動かして確認するための場所です。
+この `app` は、公開時に利用者が依存する `fixed_record_main` の使い方を実際に動かして確認するための場所です。
 
 ## ざっくりした違い
 
-- `fixed_record_main`: 利用者が普通に依存する本体クレートです。`Fixed<N>`、`Error`、`Reader`、`Writer`、`FixedRecord`、`prelude` を提供します。
-- `fixed_record_macros`: `#[fixed_record_main]` を実装する proc macro クレートです。構造体を読んで、パース、ビルダー、フィールド enum、リスト管理などのコードを生成します。
+- `fixed_record_main`: 利用者が普通に依存する本体クレートです。`Fixed<N>`、`Error`、`Reader`、`Writer`、`FixedRecord`、`prelude`、`#[fixed_record_main]` の再エクスポートを提供します。
+- `fixed_record_macros`: `#[fixed_record_main]` を実装する内部向け proc macro クレートです。構造体を読んで、パース、ビルダー、フィールド enum、リスト管理などのコードを生成します。
 
 ## どちらを使うべきか
 
@@ -17,7 +17,7 @@ use fixed_record_main::prelude::*;
 
 この `prelude` の中に `Fixed` や `Reader` / `Writer`、さらに `#[fixed_record_main]` macro の再エクスポートも入っています。
 
-`fixed_record_macros` を直接使うのは、macro クレート自体の挙動を確認したいとき、または「これは本体ではなくコード生成担当なんだ」と明示したい実験コードのときです。
+公開パッケージとして使う側は、基本的に `fixed_record_macros` へ直接依存しません。
 
 ## 実行例
 
@@ -27,7 +27,7 @@ use fixed_record_main::prelude::*;
 cargo run -p app --bin fixed_record_main_usage
 ```
 
-proc macro クレートを直接 import する例:
+再エクスポートされた proc macro を明示 import する例:
 
 ```bash
 cargo run -p app --bin fixed_record_macros_role
@@ -37,4 +37,4 @@ cargo run -p app --bin fixed_record_macros_role
 
 `fixed_record_macros` は、生成するコードの中で `::fixed_record_main::Fixed` や `::fixed_record_main::Error` などを参照します。
 
-つまり、`fixed_record_macros` は「コードを生成する係」で、`fixed_record_main` は「生成されたコードが使う実体を提供する係」です。
+つまり、`fixed_record_macros` は「コードを生成する係」で、`fixed_record_main` は「生成されたコードが使う実体と利用者向け入口を提供する係」です。
