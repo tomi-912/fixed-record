@@ -2,6 +2,7 @@
 name = "fixed-record-no-list-example"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 fixed-record = { path = "../../crates/fixed-record", default-features = false }

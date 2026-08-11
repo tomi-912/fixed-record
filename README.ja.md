@@ -137,3 +137,7 @@ examples/
 公開時の利用者向け入口は `fixed-record` です。`fixed-record-macros` は proc macro 実装用 crate として扱います。
 
 開発方針、公開前チェックリスト、今後の修正候補は [DEVELOPMENT.md](DEVELOPMENT.md) にまとめています。
+
+## ライセンス
+
+このプロジェクトは MIT License で公開します。詳細は [LICENSE](LICENSE) を参照してください。
