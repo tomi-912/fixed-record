@@ -10,6 +10,15 @@ API ドキュメントは <https://tomi-912.github.io/fixed-record/> で公開�
 
 ## インストール
 
+crates.io に公開する前は、Git repository 依存として追加します。
+
+```toml
+[dependencies]
+fixed-record = { git = "https://github.com/tomi-912/fixed-record.git" }
+```
+
+crates.io 公開後は、version 指定の依存として追加できます。
+
 ```toml
 [dependencies]
 fixed-record = "0.1"

@@ -10,6 +10,15 @@ API documentation is published at <https://tomi-912.github.io/fixed-record/>.
 
 ## Installation
 
+Before the crate is published to crates.io, depend on the Git repository.
+
+```toml
+[dependencies]
+fixed-record = { git = "https://github.com/tomi-912/fixed-record.git" }
+```
+
+After publishing to crates.io, use the versioned dependency.
+
 ```toml
 [dependencies]
 fixed-record = "0.1"
