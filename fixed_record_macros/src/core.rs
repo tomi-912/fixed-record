@@ -261,6 +261,31 @@ pub fn impl_fixed_record_core(
             }
         }
     });
+    let index_remove_blocks = metas.iter().map(|m| {
+        let name = m.name;
+        let variant = &m.variant;
+        let size = m.size;
+        quote! {
+            {
+                let value = record.#name;
+                if let Some(tree) = self.indices.get_mut(&#field_enum_name::#variant) {
+                    if let Some(map) = tree.downcast_mut::<
+                        std::collections::BTreeMap<
+                            ::fixed_record_main::Fixed<#size>,
+                            std::collections::BTreeSet<usize>
+                        >
+                    >() {
+                        if let Some(ids) = map.get_mut(&value) {
+                            ids.remove(&id);
+                            if ids.is_empty() {
+                                map.remove(&value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
     let index_update_remove_blocks = metas.iter().map(|m| {
         let name = m.name;
         let variant = &m.variant;
@@ -1144,15 +1169,22 @@ pub fn impl_fixed_record_core(
                 true
             }
 
-            #[doc = "指定 ID のレコードを論理削除します。"]
+            #[doc = "指定 ID のレコードを論理削除し、検索インデックスからも除外します。"]
             pub fn remove(&mut self, id: usize) -> bool {
-                if let Some(entry) = self.records.get_mut(&id) {
-                    if !entry.is_deleted {
-                        entry.is_deleted = true;
-                        return true;
+                let record = {
+                    let Some(entry) = self.records.get_mut(&id) else {
+                        return false;
+                    };
+                    if entry.is_deleted {
+                        return false;
                     }
-                }
-                false
+
+                    entry.is_deleted = true;
+                    entry.record
+                };
+
+                #( #index_remove_blocks )*
+                true
             }
 
             #[doc = "指定フィールドが値と完全一致する有効なレコードを返します。"]

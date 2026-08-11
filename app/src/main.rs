@@ -408,8 +408,27 @@ mod tests {
             "A0001"
         );
 
+        let code_index = list
+            .indices
+            .get(&TestRecordField::Code)
+            .unwrap()
+            .downcast_ref::<
+                std::collections::BTreeMap<Fixed<5>, std::collections::BTreeSet<usize>>,
+            >()
+            .unwrap();
+        assert!(code_index.contains_key(&Fixed::<5>::from_slice(b"B0001").unwrap()));
+
         assert!(list.remove(id_b));
         assert_eq!(list.len(), 1);
+        let code_index = list
+            .indices
+            .get(&TestRecordField::Code)
+            .unwrap()
+            .downcast_ref::<
+                std::collections::BTreeMap<Fixed<5>, std::collections::BTreeSet<usize>>,
+            >()
+            .unwrap();
+        assert!(!code_index.contains_key(&Fixed::<5>::from_slice(b"B0001").unwrap()));
         assert_eq!(list.all_ids().len(), 2);
         list.vacuum();
         assert_eq!(list.all_ids(), vec![id_a]);

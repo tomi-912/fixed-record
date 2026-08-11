@@ -89,12 +89,11 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - `get` は論理削除済みレコードを返しません。
   - `update` は `&mut self` でのみ呼べるため、immutable な list ではコンパイル時点で禁止されます。
   - `update` は古い検索インデックスを外し、新しいレコード値で検索インデックスを登録し直します。
+- `List::remove` は論理削除と同時に検索インデックスから ID を除外します。
+  - `vacuum` は削除済みレコードを `records` / `order` から物理削除する用途として残しています。
 
 ### 重要度中
 
-- `List::remove` は論理削除だけで、index からは `vacuum` まで消えません。
-  - 検索結果では `is_deleted` を見て除外しているので基本動作は合っています。
-  - ただし大量削除時は index に削除済み ID が残り続け、性能やメモリ効率に影響します。
 - 生成される `{StructName}Entry` は private ですが、`{StructName}List` の公開 API は生成量がかなり多いです。
   - レコード定義だけしたい利用者にも List/Index 実装が常に付いてきます。
   - 将来的には feature flag や別 macro に分ける余地があります。

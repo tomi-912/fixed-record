@@ -25,7 +25,7 @@
 - `apply_*` 系の一括流し込み
 - `FixedRecord` トレイト
 - `Reader` / `Writer`
-- `{StructName}List` による挿入、検索、範囲検索、論理削除、`vacuum`、ソート
+- `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 `set_field_*` が書き込み前にフィールドをクリアするときの値は、デフォルトでは `0x00` です。
