@@ -400,7 +400,7 @@ mod tests {
             .collect();
         assert_eq!(names, vec!["Alice".to_string(), "Bob".to_string()]);
 
-        let first_by_code = list.try_first_by(TestRecordField::Code).unwrap();
+        let first_by_code = list.try_first_sorted_by(TestRecordField::Code).unwrap();
         assert_eq!(
             first_by_code
                 .get_field_trimmed(TestRecordField::Code)
@@ -472,6 +472,69 @@ mod tests {
         let list = TestRecordList::new();
         let err = list
             .try_find_by(TestRecordField::Code, b"A00001")
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            Error::FieldOverflow {
+                field: "code",
+                size: TestRecord::FIELD_SIZE_CODE,
+                actual: 6,
+            }
+        );
+    }
+
+    /// `try_first_by` が短い検索値で 0x00 / スペース埋めの固定長フィールドを昇順の先頭から取得できることを確認します。
+    #[test]
+    fn test_try_first_by_matches_short_value_with_zero_or_space_padding() {
+        let mut list = TestRecordList::new();
+
+        let space_padded = TestRecord::spaced()
+            .with_name("Space")
+            .with_code("A00")
+            .with_amount_int(1)
+            .build();
+
+        let zero_padded = TestRecord::builder()
+            .with_name("Zero")
+            .with_code("A00")
+            .with_amount_int(2)
+            .build();
+
+        let other = TestRecord::spaced()
+            .with_name("Other")
+            .with_code("A00XX")
+            .with_amount_int(3)
+            .build();
+
+        list.insert(space_padded);
+        list.insert(zero_padded);
+        list.insert(other);
+
+        let found = list
+            .try_first_by(TestRecordField::Code, b"A00")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            found
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Zero"
+        );
+        assert!(
+            list.try_first_by(TestRecordField::Code, b"A00X")
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    /// `try_first_by` がフィールド幅を超える検索値をエラーにすることを確認します。
+    #[test]
+    fn test_try_first_by_reports_overflow_for_too_long_value() {
+        let list = TestRecordList::new();
+        let err = list
+            .try_first_by(TestRecordField::Code, b"A00001")
             .unwrap_err();
 
         assert_eq!(

@@ -86,7 +86,7 @@ List 検索でフィールド幅を手で指定したくない場合は、`try_f
 
 ```rust
 let found = list.try_find_by(UserField::Id, b"0001")?;
-let first = list.try_first_by(UserField::Id);
+let first = list.try_first_by(UserField::Id, b"0001")?;
 ```
 
 後続バイトの内容に関係なく先頭一致で検索したい場合は、`try_find_by_prefix` を使います。先頭一致したうち、指定フィールドの昇順で最初の1件だけ欲しい場合は `try_first_by_prefix` を使います。
