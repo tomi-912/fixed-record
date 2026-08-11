@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["fixed_record"],"mod":["doc_examples","error","io","prelude","traits","types"]};
