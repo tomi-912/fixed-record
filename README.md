@@ -2,7 +2,7 @@
 
 固定長レコードライブラリを、通常ライブラリ・proc macro・サンプルアプリに分けたワークスペース版です。
 
-`fixed_record_main` と `fixed_record_macros` と `app` の3メンバーで構成されています。
+`fixed_record_main`、`fixed_record_macros`、`app`、`no_list_app` の4メンバーで構成されています。
 
 利用者は通常、`fixed_record_main` だけを `[dependencies]` に追加します。`fixed_record_macros` は `fixed_record_main` から再エクスポートされる内部実装用の proc macro クレートです。
 
@@ -11,6 +11,7 @@
 - `fixed_record_main/`: 利用者が依存する通常ライブラリです。`Fixed<N>`、`Error`、`prelude`、マクロの再エクスポートを持ちます。
 - `fixed_record_macros/`: `#[fixed_record_main]` attribute macro を定義する proc macro クレートです。
 - `app/`: ライブラリの使い方と挙動確認用のサンプルアプリです。
+- `no_list_app/`: `default-features = false` で List 生成を外した場合の検証用サンプルです。
 
 ## 役割
 
@@ -130,5 +131,7 @@ let first = list.try_first_by_prefix(UserField::Id, b"000")?;
 ## 開発メモ
 
 修正方針、作業ルール、現状確認メモは [`DEVELOPMENT.md`](DEVELOPMENT.md) に分けています。
+
+公開前に優先して整理する項目も [`DEVELOPMENT.md`](DEVELOPMENT.md) の「公開前のおすすめ方針」にまとめています。
 
 README は利用者向けの使い方を中心に置きます。API や実行方法など、使い方が変わる変更を入れた場合は README も更新します。
