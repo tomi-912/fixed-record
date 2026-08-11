@@ -25,7 +25,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build rustdoc
-        run: cargo doc --workspace --all-features --no-deps
+        run: cargo doc -p fixed-record --all-features --no-deps
 
       - name: Redirect Pages root to fixed-record docs
         run: |
