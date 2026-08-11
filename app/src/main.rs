@@ -555,6 +555,77 @@ mod tests {
         );
     }
 
+    /// `try_first_by_prefix` が先頭一致した固定長フィールドのうち昇順で最初のレコードを返すことを確認します。
+    #[test]
+    fn test_try_first_by_prefix_returns_first_matching_record() {
+        let mut list = TestRecordList::new();
+
+        let later = TestRecord::spaced()
+            .with_name("Later")
+            .with_code("A01AA")
+            .with_amount_int(1)
+            .build();
+
+        let first = TestRecord::spaced()
+            .with_name("First")
+            .with_code("A00")
+            .with_amount_int(2)
+            .build();
+
+        let with_suffix = TestRecord::spaced()
+            .with_name("Suffix")
+            .with_code("A00XX")
+            .with_amount_int(3)
+            .build();
+
+        let different_prefix = TestRecord::spaced()
+            .with_name("Different")
+            .with_code("B00XX")
+            .with_amount_int(4)
+            .build();
+
+        list.insert(later);
+        list.insert(first);
+        list.insert(with_suffix);
+        list.insert(different_prefix);
+
+        let found = list
+            .try_first_by_prefix(TestRecordField::Code, b"A0")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            found
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "First"
+        );
+        assert_eq!(
+            found
+                .get_field_string_trimmed(TestRecordField::Code)
+                .unwrap(),
+            "A00"
+        );
+    }
+
+    /// `try_first_by_prefix` がフィールド幅を超える検索値をエラーにすることを確認します。
+    #[test]
+    fn test_try_first_by_prefix_reports_overflow_for_too_long_value() {
+        let list = TestRecordList::new();
+        let err = list
+            .try_first_by_prefix(TestRecordField::Code, b"A00001")
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            Error::FieldOverflow {
+                field: "code",
+                size: TestRecord::FIELD_SIZE_CODE,
+                actual: 6,
+            }
+        );
+    }
+
     // ---- apply の冪等性テスト ----
 
     /// 同じデータを繰り返し適用しても結果が変わらないことを確認します。

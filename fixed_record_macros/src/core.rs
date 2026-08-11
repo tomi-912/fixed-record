@@ -395,6 +395,62 @@ pub fn impl_fixed_record_core(
             }
         }
     });
+    let try_first_by_prefix_arms = metas.iter().map(|m| {
+        let variant = &m.variant;
+        let size = m.size;
+        quote! {
+            #field_enum_name::#variant => {
+                if raw_value.len() > #size {
+                    return Err(::fixed_record_main::error::Error::FieldOverflow {
+                        field: #struct_name::name_of(field),
+                        size: #size,
+                        actual: raw_value.len(),
+                    });
+                }
+
+                let Some(tree) = self.indices.get(&field) else {
+                    return Ok(None);
+                };
+                let Some(map) = tree.downcast_ref::<
+                    std::collections::BTreeMap<
+                        ::fixed_record_main::Fixed<#size>,
+                        std::collections::BTreeSet<usize>
+                    >
+                >() else {
+                    return Ok(None);
+                };
+
+                let record = if raw_value.len() == #size {
+                    let value = ::fixed_record_main::Fixed::<#size>::from_slice(raw_value)?;
+                    map.get(&value)
+                        .into_iter()
+                        .flat_map(|ids| ids.iter())
+                        .find_map(|id| {
+                            let entry = self.records.get(id)?;
+                            if entry.is_deleted {
+                                None
+                            } else {
+                                Some(&entry.record)
+                            }
+                        })
+                } else {
+                    map.iter()
+                        .filter(|(key, _)| key.as_bytes().starts_with(raw_value))
+                        .flat_map(|(_, ids)| ids.iter())
+                        .find_map(|id| {
+                            let entry = self.records.get(id)?;
+                            if entry.is_deleted {
+                                None
+                            } else {
+                                Some(&entry.record)
+                            }
+                        })
+                };
+
+                Ok(record)
+            }
+        }
+    });
 
     // ゲッター群
     // ゲッター & セッター (ビルダー用) 群
@@ -1119,6 +1175,19 @@ pub fn impl_fixed_record_core(
             pub fn try_first_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
                 match field {
                     #( #try_first_by_arms ),*
+                }
+            }
+
+            #[doc = "指定フィールドが値で始まる有効レコードのうち、指定フィールドの昇順で最初のものを返します。"]
+            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            pub fn try_first_by_prefix(
+                &self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+            ) -> Result<Option<&#struct_name>, ::fixed_record_main::error::Error> {
+                let raw_value = value.as_ref();
+                match field {
+                    #( #try_first_by_prefix_arms ),*
                 }
             }
 
