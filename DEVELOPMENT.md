@@ -78,12 +78,14 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - `zeroed()` は常に `0x00`、`spaced()` は常に半角スペースで初期化します。
   - クリアせず先頭から上書きしたい場合は `set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。
   - `with_*` はメソッドチェーン用の部分上書き API として、書き込み前のクリアを行いません。
+- `List` の検索 API は `try_find_by` を追加済みです。
+  - `find_by<const N: usize>` / `first_by<const N: usize>` は互換性のため残しています。
+  - `try_find_by` / `try_first_by` は呼び出し側にフィールド幅 `N` を指定させず、フィールド enum から幅を判断します。
+  - 検索値がフィールド幅より長い場合は `Error::FieldOverflow` を返します。
+  - 検索値がフィールド幅より短い場合は、後続バイトが `0x00` または半角スペースのレコードも一致します。
 
 ### 重要度中
 
-- `List` の `find_by<const N: usize>` / `first_by<const N: usize>` は、呼び出し側がフィールド幅と同じ `N` を指定する必要があります。
-  - 間違った `N` でもコンパイルは通り、結果が空になるだけです。
-  - フィールド enum からサイズを型レベルに持てないためですが、API としては誤用しやすいです。
 - `List::remove` は論理削除だけで、index からは `vacuum` まで消えません。
   - 検索結果では `is_deleted` を見て除外しているので基本動作は合っています。
   - ただし大量削除時は index に削除済み ID が残り続け、性能やメモリ効率に影響します。

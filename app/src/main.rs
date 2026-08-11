@@ -400,7 +400,7 @@ mod tests {
             .collect();
         assert_eq!(names, vec!["Alice".to_string(), "Bob".to_string()]);
 
-        let first_by_code = list.first_by::<5>(TestRecordField::Code).unwrap();
+        let first_by_code = list.try_first_by(TestRecordField::Code).unwrap();
         assert_eq!(
             first_by_code
                 .get_field_trimmed(TestRecordField::Code)
@@ -413,6 +413,75 @@ mod tests {
         assert_eq!(list.all_ids().len(), 2);
         list.vacuum();
         assert_eq!(list.all_ids(), vec![id_a]);
+    }
+
+    /// `try_find_by` が短い検索値で 0x00 / スペース埋めの固定長フィールドを取得できることを確認します。
+    #[test]
+    fn test_try_find_by_matches_short_value_with_zero_or_space_padding() {
+        let mut list = TestRecordList::new();
+
+        let space_padded = TestRecord::spaced()
+            .with_name("Space")
+            .with_code("A00")
+            .with_amount_int(1)
+            .build();
+
+        let zero_padded = TestRecord::builder()
+            .with_name("Zero")
+            .with_code("A00")
+            .with_amount_int(2)
+            .build();
+
+        let mut mixed_padded = TestRecord::spaced()
+            .with_name("Mixed")
+            .with_amount_int(3)
+            .build();
+        mixed_padded.set_field_bytes(TestRecordField::Code, b"A00 ");
+
+        let other = TestRecord::spaced()
+            .with_name("Other")
+            .with_code("A00XX")
+            .with_amount_int(4)
+            .build();
+
+        list.insert(space_padded);
+        list.insert(zero_padded);
+        list.insert(mixed_padded);
+        list.insert(other);
+
+        let found = list.try_find_by(TestRecordField::Code, b"A00").unwrap();
+        let mut names: Vec<_> = found
+            .iter()
+            .map(|record| {
+                record
+                    .get_field_string_trimmed(TestRecordField::Name)
+                    .unwrap()
+            })
+            .collect();
+        names.sort();
+
+        assert_eq!(
+            names,
+            vec!["Mixed".to_string(), "Space".to_string(), "Zero".to_string()]
+        );
+    }
+
+    /// `try_find_by` がフィールド幅を超える検索値をエラーにすることを確認します。
+    #[test]
+    fn test_try_find_by_reports_overflow_for_too_long_value() {
+        let list = TestRecordList::new();
+        let err = list
+            .try_find_by(TestRecordField::Code, b"A00001")
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            Error::FieldOverflow {
+                field: "code",
+                size: TestRecord::FIELD_SIZE_CODE,
+                actual: 6,
+            }
+        );
     }
 
     // ---- apply の冪等性テスト ----

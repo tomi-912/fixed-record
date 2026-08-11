@@ -82,6 +82,13 @@ let user = User::builder()
 
 明示的に初期化したい場合は、`zeroed()`、`spaced()`、`cleared()` を使い分けます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
 
+List 検索でフィールド幅を手で指定したくない場合は、`try_find_by` や `try_first_by` を使います。検索値がフィールド幅より短い場合、後続バイトが `0x00` または半角スペースのレコードも一致します。
+
+```rust
+let found = list.try_find_by(UserField::Id, b"0001")?;
+let first = list.try_first_by(UserField::Id);
+```
+
 ## 開発メモ
 
 修正方針、作業ルール、現状確認メモは [`DEVELOPMENT.md`](DEVELOPMENT.md) に分けています。
