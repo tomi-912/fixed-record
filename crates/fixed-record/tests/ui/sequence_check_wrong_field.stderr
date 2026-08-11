@@ -15,7 +15,7 @@ help: the following other types implement trait `SequenceFields<T>`
    | `&[UserField; 1]`
    | `[UserField; 1]`
 note: required by a bound in `fixed_record::Reader::<R, T>::with_sequence_check`
-  --> $WORKSPACE/crates/fixed-record/src/io.rs
+  --> src/io.rs
    |
    |     pub fn with_sequence_check<F>(mut self, fields: F) -> Self
    |            ------------------- required by a bound in this associated function

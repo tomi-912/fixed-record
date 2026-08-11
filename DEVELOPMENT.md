@@ -31,8 +31,8 @@ examples/
 
 - `crates/fixed-record/`: 利用者向けの本体 crate。`Fixed<N>`、`Error`、`Reader`、`Writer`、`FixedRecord`、`prelude`、`#[fixed_record]` の再エクスポートを提供します。
 - `crates/fixed-record-macros/`: `#[fixed_record]` を実装する proc macro crate です。
-- `examples/basic/`: 主要APIのサンプルと現状の中心的なテストを持ちます。
-- `examples/no-list/`: `default-features = false` で List 生成を外す構成を検証します。
+- `examples/basic/`: 利用者向けの薄い実行サンプルです。
+- `examples/no-list/`: `default-features = false` で List 生成を外す構成を検証する fixture です。
 
 ## Working Rules
 
@@ -58,12 +58,17 @@ cargo run -p fixed-record-basic-example --bin macro_reexport
 cargo run -p fixed-record-no-list-example
 ```
 
-テスト状況:
+テスト配置:
 
-- `fixed-record-basic-example` 側の単体テスト: 41 件成功
+- `crates/fixed-record/tests/generated_api.rs`: builder / parse / to_bytes / Reader / Writer / List / Index / `unchecked`
+- `crates/fixed-record/tests/compile_fail.rs`: proc macro の不正入力、List immutable API、sequence check の compile-fail
+- `examples/no-list/tests/compile_fail.rs`: `default-features = false` 時に `{StructName}List` が生成されないことを確認
+
+確認済み:
+
+- `fixed-record` の integration test: 通常featureで 41 件成功
 - `cargo test --all-features` では `unchecked` feature 用テストを含めて 42 件成功
 - `fixed-record` の doctest: 8 件成功
-- `fixed-record-no-list-example` の compile-fail test で、`default-features = false` 時に `{StructName}List` が生成されないことを確認済み
 
 ## What Works Well
 
@@ -96,19 +101,11 @@ cargo run -p fixed-record-no-list-example
 - defaultでは従来どおり生成します。
 - `fixed-record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成します。
 
-### current test placement
+### test placement
 
-現在は `examples/basic` が強い検証役を持っています。公開ライブラリとしては、主要な挙動を `crates/fixed-record/tests/` へ移すと保守しやすくなります。
+主要な挙動は `crates/fixed-record/tests/` に寄せています。`examples/basic` は利用者が読んで動かせる実行サンプルとして薄く保ち、API保証は library crate 側で持ちます。
 
-移動候補:
-
-- builder / parse / to_bytes
-- Reader / Writer
-- List / Index
-- compile-fail
-- feature combinations: default, `default-features = false`, `unchecked`
-
-`examples/basic` は実行サンプルとして薄く残し、保証は library crate 側に寄せるのがよさそうです。
+`default-features = false` の compile-fail は、同一 package 内の integration test では依存featureを切り替えにくいため、専用 fixture の `examples/no-list` で検証します。
 
 ## Publish Checklist
 
@@ -119,10 +116,9 @@ crates.io 公開前にやること:
 3. LICENSE を追加する。
 4. README の install 文言を実際の公開versionに合わせる。
 5. `unchecked` feature の扱いを確定する。
-6. 主要テストを `crates/fixed-record/tests/` へ移す。
-7. `cargo package --dry-run -p fixed-record-macros` を通す。
-8. `cargo package --dry-run -p fixed-record` を通す。
-9. CI で次を必須にする。
+6. `cargo package --dry-run -p fixed-record-macros` を通す。
+7. `cargo package --dry-run -p fixed-record` を通す。
+8. CI で次を必須にする。
 
 ```bash
 cargo fmt --all --check
@@ -148,5 +144,5 @@ metadata 候補:
 1. `Cargo.toml` の公開metadataと LICENSE を追加する。
 2. GitHub repository 名を `fixed-record` に変える。
 3. `unchecked` feature の安全条件を rustdoc と README にさらに明記する。
-4. `examples/basic` のテストを `crates/fixed-record/tests/` へ段階的に移す。
+4. `crates/fixed-record/tests/generated_api.rs` を挙動別ファイルへ分割する。
 5. `cargo package --dry-run` で公開パッケージ内容を確認する。

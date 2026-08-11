@@ -11,3 +11,6 @@ unchecked = ["fixed-record-macros/unchecked"]
 [dependencies]
 # ローカルパスでマクロクレートを指定
 fixed-record-macros = { path = "../fixed-record-macros", default-features = false }
+
+[dev-dependencies]
+trybuild = "1.0"

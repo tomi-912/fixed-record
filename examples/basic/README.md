@@ -2,6 +2,8 @@
 
 この example は、公開時に利用者が依存する `fixed-record` の使い方を実際に動かして確認するための場所です。
 
+主要APIの保証は `crates/fixed-record/tests/` に置き、この example は読みやすい実行サンプルとして薄く保ちます。
+
 ## ざっくりした違い
 
 - `fixed-record`: 利用者が普通に依存する本体クレートです。`Fixed<N>`、`Error`、`Reader`、`Writer`、`FixedRecord`、`prelude`、`#[fixed_record]` の再エクスポートを提供します。

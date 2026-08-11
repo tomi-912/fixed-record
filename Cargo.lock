@@ -13,6 +13,7 @@ name = "fixed-record"
 version = "0.1.0"
 dependencies = [
  "fixed-record-macros",
+ "trybuild",
 ]
 
 [[package]]
@@ -20,7 +21,6 @@ name = "fixed-record-basic-example"
 version = "0.1.0"
 dependencies = [
  "fixed-record",
- "trybuild",
 ]
 
 [[package]]

@@ -8,6 +8,3 @@ unchecked = ["fixed-record/unchecked"]
 
 [dependencies]
 fixed-record = { path = "../../crates/fixed-record" }
-
-[dev-dependencies]
-trybuild = "1.0"
