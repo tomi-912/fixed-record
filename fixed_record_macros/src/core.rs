@@ -261,6 +261,60 @@ pub fn impl_fixed_record_core(
             }
         }
     });
+    let index_update_remove_blocks = metas.iter().map(|m| {
+        let name = m.name;
+        let variant = &m.variant;
+        let size = m.size;
+        quote! {
+            {
+                let value = old_record.#name;
+                if let Some(tree) = self.indices.get_mut(&#field_enum_name::#variant) {
+                    if let Some(map) = tree.downcast_mut::<
+                        std::collections::BTreeMap<
+                            ::fixed_record_main::Fixed<#size>,
+                            std::collections::BTreeSet<usize>
+                        >
+                    >() {
+                        if let Some(ids) = map.get_mut(&value) {
+                            ids.remove(&id);
+                            if ids.is_empty() {
+                                map.remove(&value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+    let index_update_insert_blocks = metas.iter().map(|m| {
+        let name = m.name;
+        let variant = &m.variant;
+        let size = m.size;
+        quote! {
+            {
+                let value = record.#name;
+                let tree = self.indices
+                    .entry(#field_enum_name::#variant)
+                    .or_insert_with(|| {
+                        Box::new(
+                            std::collections::BTreeMap::<
+                                ::fixed_record_main::Fixed<#size>,
+                                std::collections::BTreeSet<usize>
+                            >::new()
+                        )
+                    });
+
+                if let Some(map) = tree.downcast_mut::<
+                    std::collections::BTreeMap<
+                        ::fixed_record_main::Fixed<#size>,
+                        std::collections::BTreeSet<usize>
+                    >
+                >() {
+                    map.entry(value).or_default().insert(id);
+                }
+            }
+        }
+    });
     let try_find_by_arms = metas.iter().map(|m| {
         let variant = &m.variant;
         let size = m.size;
@@ -1059,6 +1113,35 @@ pub fn impl_fixed_record_core(
                 self.records.insert(id, #entry_name { record, is_deleted: false });
                 self.order.push(id);
                 id
+            }
+
+            #[doc = "指定 ID の有効なレコードを返します。"]
+            pub fn get(&self, id: usize) -> Option<&#struct_name> {
+                let entry = self.records.get(&id)?;
+                if entry.is_deleted {
+                    None
+                } else {
+                    Some(&entry.record)
+                }
+            }
+
+            #[doc = "指定 ID の有効なレコードを置き換え、検索インデックスを更新します。"]
+            pub fn update(&mut self, id: usize, record: #struct_name) -> bool {
+                let Some(entry) = self.records.remove(&id) else {
+                    return false;
+                };
+
+                if entry.is_deleted {
+                    self.records.insert(id, entry);
+                    return false;
+                }
+
+                let old_record = entry.record;
+                #( #index_update_remove_blocks )*
+                #( #index_update_insert_blocks )*
+
+                self.records.insert(id, #entry_name { record, is_deleted: false });
+                true
             }
 
             #[doc = "指定 ID のレコードを論理削除します。"]

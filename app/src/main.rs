@@ -415,6 +415,111 @@ mod tests {
         assert_eq!(list.all_ids(), vec![id_a]);
     }
 
+    /// `get` が ID から有効なレコードだけを取得し、論理削除済みレコードを返さないことを確認します。
+    #[test]
+    fn test_list_get_returns_only_active_record_by_id() {
+        let mut list = TestRecordList::new();
+
+        let id = list.insert(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+
+        assert_eq!(
+            list.get(id)
+                .unwrap()
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
+        assert!(list.get(id + 1).is_none());
+
+        assert!(list.remove(id));
+        assert!(list.get(id).is_none());
+        assert_eq!(list.all_ids(), vec![id]);
+    }
+
+    /// `update` が ID のレコードを置き換え、検索インデックスも新しい値へ更新することを確認します。
+    #[test]
+    fn test_list_update_replaces_record_and_rebuilds_indices_for_id() {
+        let mut list = TestRecordList::new();
+
+        let id = list.insert(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+
+        assert!(
+            list.update(
+                id,
+                TestRecord::builder()
+                    .with_name("Carol")
+                    .with_code("C0001")
+                    .with_amount_int(30)
+                    .build(),
+            )
+        );
+
+        assert!(list.find_by(TestRecordField::Code, *b"A0001").is_empty());
+
+        let found = list.find_by(TestRecordField::Code, *b"C0001");
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            found[0]
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Carol"
+        );
+        assert_eq!(
+            list.get(id)
+                .unwrap()
+                .get_field_string_trimmed(TestRecordField::Amount)
+                .unwrap(),
+            "00000030"
+        );
+    }
+
+    /// `update` が存在しない ID や論理削除済み ID を変更しないことを確認します。
+    #[test]
+    fn test_list_update_rejects_missing_or_deleted_id() {
+        let mut list = TestRecordList::new();
+
+        let id = list.insert(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+        let replacement = TestRecord::builder()
+            .with_name("Carol")
+            .with_code("C0001")
+            .with_amount_int(30)
+            .build();
+
+        assert!(!list.update(id + 1, replacement));
+
+        assert!(list.remove(id));
+        assert!(
+            !list.update(
+                id,
+                TestRecord::builder()
+                    .with_name("Dave")
+                    .with_code("D0001")
+                    .with_amount_int(40)
+                    .build(),
+            )
+        );
+        assert!(list.get(id).is_none());
+        assert!(list.find_by(TestRecordField::Code, *b"D0001").is_empty());
+    }
+
     /// `try_find_by` が短い検索値で 0x00 / スペース埋めの固定長フィールドを取得できることを確認します。
     #[test]
     fn test_try_find_by_matches_short_value_with_zero_or_space_padding() {
