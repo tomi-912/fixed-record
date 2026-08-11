@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Reader","Writer"]};
+window.SIDEBAR_ITEMS = {"enum":["RecordSeparator"],"struct":["Reader","Writer"]};
