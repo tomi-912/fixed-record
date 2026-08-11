@@ -42,6 +42,8 @@ examples/
 - Push only when explicitly requested.
 - Keep README files focused on public users.
 - Put release decisions, design notes, investigation notes, and future tasks in DEVELOPMENT.
+- Add or update doc comments in bilingual order: English first, then Japanese.
+- When README or DEVELOPMENT content changes, update both the English file and the Japanese companion file.
 - Because `target/` may exist locally, use filters such as `rg --glob '!target/**'` while searching.
 
 ## Current Status
