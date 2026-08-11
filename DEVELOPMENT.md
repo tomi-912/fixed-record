@@ -66,12 +66,13 @@ proc macro 版を本命として整理したい場合は、このワークスペ
   - `with_*_int_signed` の生成コードでは `#size - 1` を使うため、フィールドサイズ 0 を許すと underflow します。
   - `Fixed<0>` は `Fixed<N> length must be greater than 0` という compile error にしています。
   - `Fixed<-1>` のような負数は `Fixed<N> length must not be negative` という compile error にしています。
+- 数値 setter の桁あふれは Result 版 API で検知できます。
+  - `try_with_*_int` / `try_with_*_int_signed` は、値がフィールド幅を超える場合に `Error::FieldOverflow` を返します。
+  - 明示的に切り捨てたい場合は `with_*_int_truncated` / `with_*_int_signed_truncated` を使います。
+  - 既存の `with_*_int` / `with_*_int_signed` は互換性のため残し、切り捨て時は stderr に警告を出します。
 
 ### 重要度中
 
-- `with_*_int` / `with_*_int_signed` は値がフィールド幅を超えてもエラーにならず、最終的に `write_bytes` で先頭側から切り捨てられます。
-  - 例: 幅 3 に `12345` を入れると `"123"` になります。
-  - 固定長レコードでは桁あふれを検知したい場面が多いので、Result を返す setter も欲しいです。
 - `set_field_bytes` は書き込み前にフィールドをクリアしません。
   - 短いデータを書いた場合、残りのバイトは以前の値が残ります。
   - `set_field_str` や `with_*` はスペース埋めしてから書くため、同じ「set」でも挙動が違います。
@@ -101,6 +102,6 @@ proc macro 版を本命として整理したい場合は、このワークスペ
 
 1. unchecked API を残すか、別 trait に分けるかを決める。
 2. `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` の安全条件をテストとドキュメントでさらに固める。
-3. 桁あふれの扱いを決め、Result 版 setter または入力検証を追加する。
+3. `set_field_bytes` / `apply_bytes_from` の短い入力時の残存バイト挙動を整理する。
 4. app 側のテストを library crate の integration test へ移す。
 5. Clippy 警告を潰して、`cargo clippy -- -D warnings` でも通る状態にする。

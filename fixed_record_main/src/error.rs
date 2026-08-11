@@ -20,6 +20,12 @@ pub enum Error {
     },
     /// Reader / Writer などの I/O 処理中に発生したエラー。
     Io(io::Error),
+    /// フィールドに入れる値が固定長幅を超えた場合。
+    FieldOverflow {
+        field: &'static str,
+        size: usize,
+        actual: usize,
+    },
     AlignmentError,
     ParseError,
 }
@@ -35,6 +41,14 @@ impl fmt::Display for Error {
                 "incomplete fixed record: expected {expected} bytes, got {actual} bytes"
             ),
             Error::Io(err) => write!(f, "I/O error while processing fixed record: {err}"),
+            Error::FieldOverflow {
+                field,
+                size,
+                actual,
+            } => write!(
+                f,
+                "field `{field}` is too wide for the fixed length: expected at most {size} bytes, got {actual} bytes"
+            ),
             Error::AlignmentError => write!(f, "Alignment error"),
             Error::ParseError => write!(f, "failed to parse field value"),
         }
@@ -58,6 +72,20 @@ impl PartialEq for Error {
                 },
             ) => left_expected == right_expected && left_actual == right_actual,
             (Error::Io(left), Error::Io(right)) => left.kind() == right.kind(),
+            (
+                Error::FieldOverflow {
+                    field: left_field,
+                    size: left_size,
+                    actual: left_actual,
+                },
+                Error::FieldOverflow {
+                    field: right_field,
+                    size: right_size,
+                    actual: right_actual,
+                },
+            ) => {
+                left_field == right_field && left_size == right_size && left_actual == right_actual
+            }
             (Error::AlignmentError, Error::AlignmentError) => true,
             (Error::ParseError, Error::ParseError) => true,
             _ => false,

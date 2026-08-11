@@ -187,6 +187,60 @@ mod tests {
         );
     }
 
+    /// 数値 setter の Result 版がフィールド幅を超える値をエラーにすることを確認します。
+    #[test]
+    fn test_try_with_int_reports_field_overflow() {
+        let err = TestRecord::builder()
+            .try_with_amount_int(123456789)
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            Error::FieldOverflow {
+                field: "amount",
+                size: TestRecord::FIELD_SIZE_AMOUNT,
+                actual: 9,
+            }
+        );
+    }
+
+    /// 符号付き数値 setter の Result 版が符号込みの桁あふれをエラーにすることを確認します。
+    #[test]
+    fn test_try_with_signed_int_reports_field_overflow() {
+        let err = TestRecord::builder()
+            .try_with_amount_int_signed(12345678)
+            .unwrap_err();
+
+        assert_eq!(
+            err,
+            Error::FieldOverflow {
+                field: "amount",
+                size: TestRecord::FIELD_SIZE_AMOUNT,
+                actual: 9,
+            }
+        );
+    }
+
+    /// 明示的な切り捨て版の数値 setter が幅を超えた値を先頭側だけ残すことを確認します。
+    #[test]
+    fn test_truncated_int_setter_keeps_existing_truncation_behavior() {
+        let rec = TestRecord::builder()
+            .with_amount_int_truncated(123456789)
+            .build();
+
+        assert_eq!(rec.amount(), b"12345678");
+    }
+
+    /// 明示的な切り捨て版の符号付き数値 setter が符号込みで先頭側だけ残すことを確認します。
+    #[test]
+    fn test_truncated_signed_int_setter_keeps_existing_truncation_behavior() {
+        let rec = TestRecord::builder()
+            .with_amount_int_signed_truncated(-12345678)
+            .build();
+
+        assert_eq!(rec.amount(), b"-1234567");
+    }
+
     /// `FixedRecord` trait 経由のバイト化と `Reader` / `Writer` の往復を確認します。
     #[test]
     fn test_reader_writer_and_fixed_record_trait() {

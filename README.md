@@ -56,6 +56,16 @@ assert_eq!(User::TOTAL_LEN, 27);
 assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 ```
 
+数値フィールドで桁あふれを検知したい場合は、`try_with_*_int` / `try_with_*_int_signed` を使います。
+
+```rust
+let user = User::builder()
+    .try_with_age_int(25)?
+    .build();
+```
+
+桁あふれを許容して先頭側だけ残したい場合は、`with_*_int_truncated` / `with_*_int_signed_truncated` を使います。切り捨てが発生した場合は stderr に警告を出します。
+
 ## 開発メモ
 
 修正方針、作業ルール、現状確認メモは [`DEVELOPMENT.md`](DEVELOPMENT.md) に分けています。

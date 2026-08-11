@@ -258,6 +258,10 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
         let with_name = quote::format_ident!("with_{}", name);
         let with_name_int = quote::format_ident!("with_{}_int", name);
         let with_name_signed = quote::format_ident!("with_{}_int_signed", name);
+        let try_with_name_int = quote::format_ident!("try_with_{}_int", name);
+        let try_with_name_signed = quote::format_ident!("try_with_{}_int_signed", name);
+        let with_name_int_truncated = quote::format_ident!("with_{}_int_truncated", name);
+        let with_name_signed_truncated = quote::format_ident!("with_{}_int_signed_truncated", name);
         let size = m.size;
         let docs = &m.doc_attrs;
 
@@ -284,21 +288,93 @@ pub fn impl_fixed_record_core(input: &syn::DeriveInput) -> syn::Result<proc_macr
 
             #( #docs )*
             #[doc = "フィールドに数値をゼロ埋め文字列としてセットします。"]
+            #[doc = "値がフィールド幅を超える場合は切り捨て、stderr に警告を出します。"]
             pub fn #with_name_int(self, val: i64) -> Self {
+                self.#with_name_int_truncated(val)
+            }
+
+            #( #docs )*
+            #[doc = "フィールドに数値をゼロ埋め文字列としてセットします。"]
+            #[doc = "値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            pub fn #try_with_name_int(self, val: i64) -> Result<Self, ::fixed_record_main::error::Error> {
                 let s = format!("{:0>width$}", val, width = #size);
+                let actual = s.as_bytes().len();
+                if actual > #size {
+                    return Err(::fixed_record_main::error::Error::FieldOverflow {
+                        field: stringify!(#name),
+                        size: #size,
+                        actual,
+                    });
+                }
+                Ok(self.#with_name(&s))
+            }
+
+            #( #docs )*
+            #[doc = "フィールドに数値をゼロ埋め文字列としてセットし、幅を超えた場合は先頭側だけ残します。"]
+            #[doc = "切り捨てが発生した場合は stderr に警告を出します。"]
+            pub fn #with_name_int_truncated(self, val: i64) -> Self {
+                let s = format!("{:0>width$}", val, width = #size);
+                let actual = s.as_bytes().len();
+                if actual > #size {
+                    eprintln!(
+                        "fixed_record_main: truncating field `{}` from {} bytes to {} bytes",
+                        stringify!(#name),
+                        actual,
+                        #size
+                    );
+                }
                 self.#with_name(&s)
             }
 
             #( #docs )*
             #[doc = "フィールドに符号付き数値を + または - を先頭にしてゼロ埋めでセットします。"]
+            #[doc = "値がフィールド幅を超える場合は切り捨て、stderr に警告を出します。"]
             pub fn #with_name_signed(self, val: i64) -> Self {
+                self.#with_name_signed_truncated(val)
+            }
+
+            #( #docs )*
+            #[doc = "フィールドに符号付き数値を + または - を先頭にしてゼロ埋めでセットします。"]
+            #[doc = "値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            pub fn #try_with_name_signed(self, val: i64) -> Result<Self, ::fixed_record_main::error::Error> {
                 let sign = if val < 0 { '-' } else { '+' };
-                let abs = val.abs();
+                let abs = val.unsigned_abs();
 
                 // 残りの幅 = 全体サイズ - 1（符号分）
                 let rest = #size - 1;
 
                 let s = format!("{}{:0>width$}", sign, abs, width = rest);
+                let actual = s.as_bytes().len();
+                if actual > #size {
+                    return Err(::fixed_record_main::error::Error::FieldOverflow {
+                        field: stringify!(#name),
+                        size: #size,
+                        actual,
+                    });
+                }
+                Ok(self.#with_name(&s))
+            }
+
+            #( #docs )*
+            #[doc = "フィールドに符号付き数値をセットし、幅を超えた場合は先頭側だけ残します。"]
+            #[doc = "切り捨てが発生した場合は stderr に警告を出します。"]
+            pub fn #with_name_signed_truncated(self, val: i64) -> Self {
+                let sign = if val < 0 { '-' } else { '+' };
+                let abs = val.unsigned_abs();
+
+                // 残りの幅 = 全体サイズ - 1（符号分）
+                let rest = #size - 1;
+
+                let s = format!("{}{:0>width$}", sign, abs, width = rest);
+                let actual = s.as_bytes().len();
+                if actual > #size {
+                    eprintln!(
+                        "fixed_record_main: truncating field `{}` from {} bytes to {} bytes",
+                        stringify!(#name),
+                        actual,
+                        #size
+                    );
+                }
                 self.#with_name(&s)
             }
         }
