@@ -675,7 +675,7 @@ mod tests {
 
         assert_eq!(list.len(), 2);
 
-        let found = list.find_by(TestRecordField::Code, b"A0001").unwrap();
+        let found = list.try_find_by(TestRecordField::Code, b"A0001").unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(
             found[0].get_field_trimmed(TestRecordField::Name).unwrap(),
@@ -705,7 +705,7 @@ mod tests {
         assert!(list.remove(1));
         assert_eq!(list.len(), 1);
         assert!(
-            list.find_by(TestRecordField::Code, b"B0001")
+            list.try_find_by(TestRecordField::Code, b"B0001")
                 .unwrap()
                 .is_empty()
         );
@@ -775,7 +775,7 @@ mod tests {
         assert!(!code_index.contains_key(&Fixed::from(*b"B0001")));
         assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(
-            list.find_by(TestRecordField::Code, b"A0001")
+            list.try_find_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .iter()
                 .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
@@ -854,7 +854,7 @@ mod tests {
         );
         assert_eq!(list.len(), 4);
         assert!(
-            list.find_by(TestRecordField::Code, b"X0001")
+            list.try_find_by(TestRecordField::Code, b"X0001")
                 .unwrap()
                 .is_empty()
         );
@@ -941,16 +941,16 @@ mod tests {
         );
 
         let bob_before =
-            list.find_by(TestRecordField::Code, b"B0001").unwrap()[0] as *const TestRecord;
+            list.try_find_by(TestRecordField::Code, b"B0001").unwrap()[0] as *const TestRecord;
         let alice_before =
-            list.find_by(TestRecordField::Code, b"A0001").unwrap()[0] as *const TestRecord;
+            list.try_find_by(TestRecordField::Code, b"A0001").unwrap()[0] as *const TestRecord;
 
         list.sort_by(&[TestRecordField::Name]);
 
         let alice_after =
-            list.find_by(TestRecordField::Code, b"A0001").unwrap()[0] as *const TestRecord;
+            list.try_find_by(TestRecordField::Code, b"A0001").unwrap()[0] as *const TestRecord;
         let bob_after =
-            list.find_by(TestRecordField::Code, b"B0001").unwrap()[0] as *const TestRecord;
+            list.try_find_by(TestRecordField::Code, b"B0001").unwrap()[0] as *const TestRecord;
 
         assert_eq!(alice_before, alice_after);
         assert_eq!(bob_before, bob_after);
@@ -987,12 +987,12 @@ mod tests {
         );
 
         assert!(
-            list.find_by(TestRecordField::Code, b"A0001")
+            list.try_find_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .is_empty()
         );
 
-        let found = list.find_by(TestRecordField::Code, b"C0001").unwrap();
+        let found = list.try_find_by(TestRecordField::Code, b"C0001").unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(
             found[0]
@@ -1040,7 +1040,7 @@ mod tests {
         );
         assert!(list.get(id).is_none());
         assert!(
-            list.find_by(TestRecordField::Code, b"D0001")
+            list.try_find_by(TestRecordField::Code, b"D0001")
                 .unwrap()
                 .is_empty()
         );
@@ -1076,7 +1076,7 @@ mod tests {
         assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0, 1]));
         assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(
-            list.find_by(TestRecordField::Code, b"A0001")
+            list.try_find_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .iter()
                 .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
@@ -1113,7 +1113,7 @@ mod tests {
         assert_eq!(code_index.get(&Fixed::from(*b"B0001")), Some(&vec![0]));
         assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![1]));
         assert!(
-            list.find_by(TestRecordField::Code, b"A0001")
+            list.try_find_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .is_empty()
         );
@@ -1141,7 +1141,7 @@ mod tests {
         }
 
         let in_range = list
-            .find_range_by(TestRecordField::Amount, b"00000015"..=b"00000025")
+            .try_find_range_by(TestRecordField::Amount, b"00000015"..=b"00000025")
             .unwrap();
         assert_eq!(
             in_range
@@ -1174,7 +1174,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_range_by_allows_any_trailing_bytes_for_short_bounds() {
+    fn test_try_find_range_by_allows_any_trailing_bytes_for_short_bounds() {
         let mut list = TestRecordList::new();
 
         for amount in [10, 20, 21, 30] {
@@ -1188,7 +1188,7 @@ mod tests {
         }
 
         let short_both = list
-            .find_range_by(TestRecordField::Amount, b"0000002"..=b"0000002")
+            .try_find_range_by(TestRecordField::Amount, b"0000002"..=b"0000002")
             .unwrap();
         assert_eq!(
             short_both
@@ -1202,36 +1202,36 @@ mod tests {
         let exact_low: &[u8] = b"00000010";
         let exact_high: &[u8] = b"00000030";
         let short_start = list
-            .find_range_by(TestRecordField::Amount, short..=exact_high)
+            .try_find_range_by(TestRecordField::Amount, short..=exact_high)
             .unwrap();
         assert_eq!(short_start.len(), 3);
 
         let short_end = list
-            .find_range_by(TestRecordField::Amount, exact_low..=short)
+            .try_find_range_by(TestRecordField::Amount, exact_low..=short)
             .unwrap();
         assert_eq!(short_end.len(), 3);
 
         assert_eq!(
-            list.find_range_by(TestRecordField::Amount, b"00000020"..)
+            list.try_find_range_by(TestRecordField::Amount, b"00000020"..)
                 .unwrap()
                 .len(),
             3
         );
         assert_eq!(
-            list.find_range_by(TestRecordField::Amount, ..=b"00000020")
+            list.try_find_range_by(TestRecordField::Amount, ..=b"00000020")
                 .unwrap()
                 .len(),
             2
         );
         assert_eq!(
-            list.find_range_by(TestRecordField::Amount, ..)
+            list.try_find_range_by(TestRecordField::Amount, ..)
                 .unwrap()
                 .len(),
             4
         );
 
         let exclusive = list
-            .find_range_by(
+            .try_find_range_by(
                 TestRecordField::Amount,
                 (
                     std::ops::Bound::Excluded(b"00000010"),
@@ -1243,11 +1243,11 @@ mod tests {
     }
 
     #[test]
-    fn test_find_range_by_reports_bound_errors() {
+    fn test_try_find_range_by_reports_bound_errors() {
         let list = TestRecordList::new();
 
         assert_eq!(
-            list.find_range_by(TestRecordField::Amount, b"000000000"..)
+            list.try_find_range_by(TestRecordField::Amount, b"000000000"..)
                 .unwrap_err(),
             Error::FieldOverflow {
                 field: "amount",
@@ -1256,7 +1256,7 @@ mod tests {
             }
         );
         assert_eq!(
-            list.find_range_by(TestRecordField::Amount, ..=b"000000000")
+            list.try_find_range_by(TestRecordField::Amount, ..=b"000000000")
                 .unwrap_err(),
             Error::FieldOverflow {
                 field: "amount",
@@ -1265,7 +1265,7 @@ mod tests {
             }
         );
         assert_eq!(
-            list.find_range_by(TestRecordField::Amount, b"00000030"..=b"00000010")
+            list.try_find_range_by(TestRecordField::Amount, b"00000030"..=b"00000010")
                 .unwrap_err(),
             Error::InvalidRange {
                 field: "amount",
@@ -1276,15 +1276,17 @@ mod tests {
     }
 
     #[test]
-    fn test_find_by_requires_exact_field_width() {
+    fn test_try_find_by_requires_exact_field_width() {
         let list = TestRecordList::new();
 
         assert_eq!(
-            list.find_by(TestRecordField::Code, b"A000").unwrap_err(),
+            list.try_find_by(TestRecordField::Code, b"A000")
+                .unwrap_err(),
             Error::TooShort
         );
         assert_eq!(
-            list.find_by(TestRecordField::Code, b"A00001").unwrap_err(),
+            list.try_find_by(TestRecordField::Code, b"A00001")
+                .unwrap_err(),
             Error::FieldOverflow {
                 field: "code",
                 size: TestRecord::FIELD_SIZE_CODE,
@@ -1292,14 +1294,14 @@ mod tests {
             }
         );
         assert!(
-            list.find_by(TestRecordField::Code, b"A0001")
+            list.try_find_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .is_empty()
         );
     }
 
     #[test]
-    fn test_first_by_requires_exact_field_width() {
+    fn test_try_first_by_requires_exact_field_width() {
         let mut list = TestRecordList::new();
         list.push(
             TestRecord::builder()
@@ -1315,7 +1317,7 @@ mod tests {
         );
 
         assert_eq!(
-            list.first_by(TestRecordField::Code, b"A0001")
+            list.try_first_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .unwrap()
                 .get_field_trimmed(TestRecordField::Name)
@@ -1323,46 +1325,17 @@ mod tests {
             "Alice"
         );
         assert!(
-            list.first_by(TestRecordField::Code, b"X0001")
+            list.try_first_by(TestRecordField::Code, b"X0001")
                 .unwrap()
                 .is_none()
         );
         assert_eq!(
-            list.first_by(TestRecordField::Code, b"A000").unwrap_err(),
-            Error::TooShort
-        );
-        assert_eq!(
-            list.first_by(TestRecordField::Code, b"A00001").unwrap_err(),
-            Error::FieldOverflow {
-                field: "code",
-                size: TestRecord::FIELD_SIZE_CODE,
-                actual: 6,
-            }
-        );
-    }
-
-    #[test]
-    fn test_first_by_prefix_requires_exact_field_width() {
-        let mut list = TestRecordList::new();
-        list.push(
-            TestRecord::builder()
-                .with_name("Alice")
-                .with_code("A0001")
-                .build(),
-        );
-
-        assert!(
-            list.first_by_prefix(TestRecordField::Code, b"A0001")
-                .unwrap()
-                .is_some()
-        );
-        assert_eq!(
-            list.first_by_prefix(TestRecordField::Code, b"A00")
+            list.try_first_by(TestRecordField::Code, b"A000")
                 .unwrap_err(),
             Error::TooShort
         );
         assert_eq!(
-            list.first_by_prefix(TestRecordField::Code, b"A00001")
+            list.try_first_by(TestRecordField::Code, b"A00001")
                 .unwrap_err(),
             Error::FieldOverflow {
                 field: "code",
@@ -1373,7 +1346,33 @@ mod tests {
     }
 
     #[test]
-    fn test_try_find_by_matches_short_value_with_zero_or_space_padding() {
+    fn test_list_search_names_match_return_types() {
+        let list = TestRecordList::new();
+
+        let _: Result<Vec<&TestRecord>, Error> = list.try_find_by(TestRecordField::Code, b"A0001");
+        let _: Result<Vec<&TestRecord>, Error> =
+            list.try_find_by_padded(TestRecordField::Code, b"A00");
+        let _: Result<Vec<&TestRecord>, Error> =
+            list.try_find_by_prefix(TestRecordField::Code, b"A00");
+        let _: Result<Vec<&TestRecord>, Error> =
+            list.try_find_range_by(TestRecordField::Code, b"A"..=b"Z");
+        let _: Result<Option<&TestRecord>, Error> =
+            list.try_first_by(TestRecordField::Code, b"A0001");
+        let _: Result<Option<&TestRecord>, Error> =
+            list.try_first_by_padded(TestRecordField::Code, b"A00");
+        let _: Result<Option<&TestRecord>, Error> =
+            list.try_first_by_prefix(TestRecordField::Code, b"A00");
+
+        let _: Option<&TestRecord> = list.first();
+        let _: Option<&TestRecord> = list.first_sorted_by(TestRecordField::Code);
+        let _: Vec<&TestRecord> = list.iter().collect();
+        let _: Vec<&TestRecord> = list
+            .iter_sorted_by::<{ TestRecord::FIELD_SIZE_CODE }>(TestRecordField::Code)
+            .collect();
+    }
+
+    #[test]
+    fn test_try_find_by_padded_matches_short_value_with_zero_or_space_padding() {
         let mut list = TestRecordList::new();
 
         let space_padded = TestRecord::spaced()
@@ -1404,7 +1403,9 @@ mod tests {
         list.push(mixed_padded);
         list.push(other);
 
-        let found = list.try_find_by(TestRecordField::Code, b"A00").unwrap();
+        let found = list
+            .try_find_by_padded(TestRecordField::Code, b"A00")
+            .unwrap();
         let mut names: Vec<_> = found
             .iter()
             .map(|record| {
@@ -1421,10 +1422,10 @@ mod tests {
         );
     }
     #[test]
-    fn test_try_find_by_reports_overflow_for_too_long_value() {
+    fn test_try_find_by_padded_reports_overflow_for_too_long_value() {
         let list = TestRecordList::new();
         let err = list
-            .try_find_by(TestRecordField::Code, b"A00001")
+            .try_find_by_padded(TestRecordField::Code, b"A00001")
             .unwrap_err();
 
         assert_eq!(
@@ -1437,7 +1438,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_try_first_by_matches_short_value_with_zero_or_space_padding() {
+    fn test_try_first_by_padded_matches_short_value_with_zero_or_space_padding() {
         let mut list = TestRecordList::new();
 
         let space_padded = TestRecord::spaced()
@@ -1463,7 +1464,7 @@ mod tests {
         list.push(other);
 
         let found = list
-            .try_first_by(TestRecordField::Code, b"A00")
+            .try_first_by_padded(TestRecordField::Code, b"A00")
             .unwrap()
             .unwrap();
 
@@ -1474,16 +1475,16 @@ mod tests {
             "Space"
         );
         assert!(
-            list.try_first_by(TestRecordField::Code, b"A00X")
+            list.try_first_by_padded(TestRecordField::Code, b"A00X")
                 .unwrap()
                 .is_none()
         );
     }
     #[test]
-    fn test_try_first_by_reports_overflow_for_too_long_value() {
+    fn test_try_first_by_padded_reports_overflow_for_too_long_value() {
         let list = TestRecordList::new();
         let err = list
-            .try_first_by(TestRecordField::Code, b"A00001")
+            .try_first_by_padded(TestRecordField::Code, b"A00001")
             .unwrap_err();
 
         assert_eq!(

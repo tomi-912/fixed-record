@@ -349,13 +349,13 @@
 //! assert_eq!(list.len(), 2);
 //! assert_eq!(list.get(id_first).unwrap().amount(), b"00000200");
 //!
-//! let exact = list.find_by(OrderField::CustomerId, b"C001").unwrap();
+//! let exact = list.try_find_by(OrderField::CustomerId, b"C001").unwrap();
 //! assert_eq!(exact.len(), 2);
 //!
-//! let first_exact = list.first_by(OrderField::OrderNo, b"A00001").unwrap().unwrap();
+//! let first_exact = list.try_first_by(OrderField::OrderNo, b"A00001").unwrap().unwrap();
 //! assert_eq!(first_exact.amount(), b"00000100");
 //!
-//! let padded = list.try_find_by(OrderField::OrderNo, b"A00001").unwrap();
+//! let padded = list.try_find_by_padded(OrderField::OrderNo, b"A00001").unwrap();
 //! assert_eq!(padded[0].amount(), b"00000100");
 //!
 //! let prefix = list.try_find_by_prefix(OrderField::OrderNo, b"A000").unwrap();
@@ -369,16 +369,18 @@
 //!     .with_order_no("B00001")
 //!     .with_amount_int(300)
 //!     .build());
-//! assert!(list.try_find_by(OrderField::CustomerId, b"C001").unwrap().len() == 1);
+//! assert!(list.try_find_by_padded(OrderField::CustomerId, b"C001").unwrap().len() == 1);
 //!
 //! assert!(list.remove(id_second));
 //! assert_eq!(list.len(), 1);
 //! assert_eq!(list.all_ids(), vec![id_first]);
 //! ```
 //!
-//! Range searches use [`Fixed<N>`](Fixed) bounds whose width matches the searched field.
+//! Fallible search methods use the `try_` prefix. Range searches accept byte-like bounds through
+//! [`ByteRangeBounds`](traits::ByteRangeBounds).
 //!
-//! range 検索では、検索対象フィールドと同じ幅の [`Fixed<N>`](Fixed) 境界値を使います。
+//! 失敗する可能性がある検索メソッドは `try_` prefix を使います。range 検索は
+//! [`ByteRangeBounds`](traits::ByteRangeBounds) を通して byte 列として扱える境界値を受け取ります。
 //!
 //! ```
 //! use fixed_record::prelude::*;
@@ -396,7 +398,7 @@
 //! list.push(Order::builder().with_customer_id("C001").with_order_no("A00003").with_amount_int(300).build());
 //!
 //! let found = list
-//!     .find_range_by(OrderField::Amount, b"00000150"..=b"00000300")
+//!     .try_find_range_by(OrderField::Amount, b"00000150"..=b"00000300")
 //!     .unwrap();
 //!
 //! assert_eq!(found.len(), 2);

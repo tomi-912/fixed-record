@@ -65,7 +65,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             }
         }
     });
-    let find_by_arms = metas.iter().map(|meta| {
+    let find_exact_by_arms = metas.iter().map(|meta| {
         let name = meta.name;
         let size = meta.size;
         let variant = &meta.variant;
@@ -506,7 +506,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             #[doc = "検索値がフィールド幅より短い場合は `Error::TooShort` を返します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
             #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn find_by(
+            pub fn try_find_by(
                 &self,
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
@@ -515,7 +515,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 Self::validate_exact_search_width(field, raw_value)?;
 
                 let ids = match field {
-                    #( #find_by_arms ),*
+                    #( #find_exact_by_arms ),*
                 };
                 let Some(ids) = ids else {
                     return Ok(Vec::new());
@@ -523,13 +523,13 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 Ok(ids.iter().filter_map(|id| self.get(*id)).collect())
             }
 
-            #[doc = "Returns records whose specified field matches the value using the field index."]
-            #[doc = "フィールド索引を使い、指定フィールドが値と一致するレコードを返します。"]
+            #[doc = "Returns records whose specified field matches a possibly shortened padded value."]
+            #[doc = "指定フィールドが、短縮可能な padding 付きの値と一致するレコードを返します。"]
             #[doc = "When the search value is shorter than the field width, trailing `0x00` or space bytes are accepted."]
             #[doc = "検索値がフィールド幅より短い場合は、後続バイトが `0x00` または半角スペースのレコードも一致します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
             #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn try_find_by(
+            pub fn try_find_by_padded(
                 &self,
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
@@ -565,7 +565,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             #[doc = "いずれかの境界値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
             #[doc = "Returns `Error::InvalidRange` when the start value is greater than the end value."]
             #[doc = "開始値が終了値より大きい場合は `Error::InvalidRange` を返します。"]
-            pub fn find_range_by<R>(
+            pub fn try_find_range_by<R>(
                 &self,
                 field: #field_enum_name,
                 range: R,
@@ -715,7 +715,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             #[doc = "検索値がフィールド幅より短い場合は `Error::TooShort` を返します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
             #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn first_by(
+            pub fn try_first_by(
                 &self,
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
@@ -737,33 +737,13 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.get(id)
             }
 
-            #[doc = "Compatibility alias for `first_sorted_by`."]
-            #[doc = "`first_sorted_by` の互換 alias です。"]
-            pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                self.first_sorted_by(field)
-            }
-
-            #[doc = "Returns the first full-width prefix match for the specified field."]
-            #[doc = "指定フィールドに対する固定幅の prefix 完全一致のうち最初のレコードを返します。"]
-            #[doc = "A full-width prefix has the same matching behavior as `first_by`."]
-            #[doc = "固定幅の prefix は `first_by` と同じ一致結果になります。"]
-            #[doc = "Returns `Error::TooShort` or `Error::FieldOverflow` when the width differs."]
-            #[doc = "幅が異なる場合は `Error::TooShort` または `Error::FieldOverflow` を返します。"]
-            pub fn first_by_prefix(
-                &self,
-                field: #field_enum_name,
-                value: impl AsRef<[u8]>,
-            ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
-                self.first_by(field, value)
-            }
-
-            #[doc = "Returns the first indexed record whose specified field matches the value."]
-            #[doc = "指定フィールドが値と一致するレコードのうち、索引上で最初のものを返します。"]
+            #[doc = "Returns the first indexed record matching a possibly shortened padded value."]
+            #[doc = "短縮可能な padding 付きの値と一致する、索引上で最初のレコードを返します。"]
             #[doc = "When the search value is shorter than the field width, trailing `0x00` or space bytes are accepted."]
             #[doc = "検索値がフィールド幅より短い場合は、後続バイトが `0x00` または半角スペースのレコードも一致します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
             #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
-            pub fn try_first_by(
+            pub fn try_first_by_padded(
                 &self,
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
