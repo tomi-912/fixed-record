@@ -1,0 +1,9 @@
+error[E0502]: cannot borrow `list` as mutable because it is also borrowed as immutable
+  --> tests/ui/list_iter_across_sort.rs:15:5
+   |
+14 |     let mut records = list.iter();
+   |                       ---- immutable borrow occurs here
+15 |     list.sort();
+   |     ^^^^^^^^^^^ mutable borrow occurs here
+16 |     let _ = records.next();
+   |             ------- immutable borrow later used here

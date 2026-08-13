@@ -67,7 +67,7 @@ cargo run -p fixed-record-no-list-example
 テスト配置:
 
 - `crates/fixed-record/tests/generated_api.rs`: builder / parse / to_bytes / Reader / Writer / List / zerocopy
-- `crates/fixed-record/tests/compile_fail.rs`: proc macro の不正入力、List immutable API、sequence check の compile-fail
+- `crates/fixed-record/tests/compile_fail.rs`: proc macro の不正入力、List immutable API、iterator を保持したままの mutable sort、sequence check の compile-fail
 - `examples/no-list/tests/compile_fail.rs`: `default-features = false` 時に `{StructName}List` が生成されないことを確認
 
 確認済み:

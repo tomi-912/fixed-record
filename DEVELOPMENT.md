@@ -67,7 +67,7 @@ cargo run -p fixed-record-no-list-example
 Test layout:
 
 - `crates/fixed-record/tests/generated_api.rs`: builder / parse / to_bytes / Reader / Writer / List / zerocopy
-- `crates/fixed-record/tests/compile_fail.rs`: compile-fail coverage for invalid proc macro input, immutable List APIs, and sequence checks
+- `crates/fixed-record/tests/compile_fail.rs`: compile-fail coverage for invalid proc macro input, immutable List APIs, iterators held across mutable sorting, and sequence checks
 - `examples/no-list/tests/compile_fail.rs`: verifies that `{StructName}List` is not generated with `default-features = false`
 
 Verified test results:
