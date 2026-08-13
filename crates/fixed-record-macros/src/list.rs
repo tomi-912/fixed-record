@@ -71,12 +71,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
         let variant = &meta.variant;
         quote! {
             #field_enum_name::#variant => {
-                if N != #size {
-                    return Vec::new();
-                }
-                let Ok(key) = ::fixed_record::Fixed::<#size>::from_slice(value.as_bytes()) else {
-                    return Vec::new();
-                };
+                let key = ::fixed_record::Fixed::<#size>::from_slice(raw_value)?;
                 self.indices.#name.get(&key)
             }
         }
@@ -483,19 +478,29 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
 
             #[doc = "Returns records whose specified field exactly matches the value using the field index."]
             #[doc = "フィールド索引を使い、指定フィールドが値と完全一致するレコードを返します。"]
-            pub fn find_by<const N: usize>(
+            #[doc = "Returns `Error::TooShort` when the search value is shorter than the field."]
+            #[doc = "検索値がフィールド幅より短い場合は `Error::TooShort` を返します。"]
+            #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
+            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            pub fn find_by(
                 &self,
                 field: #field_enum_name,
-                value: impl Into<::fixed_record::Fixed<N>>,
-            ) -> Vec<&#struct_name> {
-                let value = value.into();
+                value: impl AsRef<[u8]>,
+            ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
+                let raw_value = value.as_ref();
+                let size = #struct_name::size_of(field);
+                if raw_value.len() < size {
+                    return Err(::fixed_record::error::Error::TooShort);
+                }
+                Self::validate_search_width(field, raw_value)?;
+
                 let ids = match field {
                     #( #find_by_arms ),*
                 };
                 let Some(ids) = ids else {
-                    return Vec::new();
+                    return Ok(Vec::new());
                 };
-                ids.iter().filter_map(|id| self.get(*id)).collect()
+                Ok(ids.iter().filter_map(|id| self.get(*id)).collect())
             }
 
             #[doc = "Returns records whose specified field matches the value using the field index."]

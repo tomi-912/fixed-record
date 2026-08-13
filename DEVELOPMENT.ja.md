@@ -72,7 +72,7 @@ cargo run -p fixed-record-no-list-example
 
 確認済み:
 
-- `fixed-record` の generated API integration test: 通常 feature で 66 件成功
+- `fixed-record` の generated API integration test: 通常 feature で 67 件成功
 - `fixed-record` の doctest: 25 件成功
 
 ## うまくできている点
@@ -110,7 +110,7 @@ cargo run -p fixed-record-no-list-example
 `{StructName}List` の生成は default feature の `list` で制御します。
 
 - default では List API を生成します。
-- 生成される List は `Vec<Box<Record>>` としてレコードを保持します。非公開の `{StructName}ListIndices` struct がレコードの各フィールドに1つずつ `BTreeMap<Fixed<N>, Vec<usize>>` を持つため、異なる幅の `Fixed<N>` キーは静的に型付けされ、`Vec<u8>` キーの割り当ても不要です。動的フィールドAPIは生成された `match` で各型付きMapへ振り分けます。索引型は公開レコードの場合も常に非公開です。完全一致は索引を直接参照し、prefix、padding を考慮した検索、range、ソート済み参照には各フィールドの順序付き索引の範囲を使います。`push` は末尾へ1件追加して索引登録します。位置指定 `insert` は挿入位置以降の既存索引IDを1つ繰り上げ、フィールドキーを再構築せずに新レコードを索引登録します。`update` は対象項目を更新します。`remove` は1件を索引から外して後ろのIDを繰り下げ、フィールドキーは再構築しません。全体の順序が変わる `sort` と `sort_by` は索引を再構築します。`pop` は残る ID が変わらないため、削除した末尾レコードだけを索引から除外します。ソートと途中挿入では Box が移動し、レコード本体は移動しません。
+- 生成される List は `Vec<Box<Record>>` としてレコードを保持します。非公開の `{StructName}ListIndices` struct がレコードの各フィールドに1つずつ `BTreeMap<Fixed<N>, Vec<usize>>` を持つため、異なる幅の `Fixed<N>` キーは静的に型付けされ、`Vec<u8>` キーの割り当ても不要です。動的フィールドAPIは生成された `match` で各型付きMapへ振り分けます。索引型は公開レコードの場合も常に非公開です。完全一致の `find_by` は選択フィールドと同じ幅を要求し、`Error::TooShort` と `Error::FieldOverflow` を区別します。prefix、padding を考慮した検索、range、ソート済み参照には各フィールドの順序付き索引の範囲を使います。`push` は末尾へ1件追加して索引登録します。位置指定 `insert` は挿入位置以降の既存索引IDを1つ繰り上げ、フィールドキーを再構築せずに新レコードを索引登録します。`update` は対象項目を更新します。`remove` は1件を索引から外して後ろのIDを繰り下げ、フィールドキーは再構築しません。全体の順序が変わる `sort` と `sort_by` は索引を再構築します。`pop` は残る ID が変わらないため、削除した末尾レコードだけを索引から除外します。ソートと途中挿入では Box が移動し、レコード本体は移動しません。
 - 選択フィールドの異なる値が `u` 件、一致件数が `k` 件の場合、完全一致検索は全 `n` レコードの走査ではなく `O(log u + k)` です。prefix・range 検索は `O(log u + m + k log k)` で、`m` は走査した異なる索引キー数、`k log k` は現在の List 順序を維持するための ID ソートです。代わりに、フィールドバイト列のコピーと、レコードごと・フィールドごとに1つの `usize` を索引用メモリとして使います。
 - `fixed-record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成します。
 

@@ -349,7 +349,7 @@
 //! assert_eq!(list.len(), 2);
 //! assert_eq!(list.get(id_first).unwrap().amount(), b"00000200");
 //!
-//! let exact = list.find_by(OrderField::CustomerId, b"C001");
+//! let exact = list.find_by(OrderField::CustomerId, b"C001").unwrap();
 //! assert_eq!(exact.len(), 2);
 //!
 //! let padded = list.try_find_by(OrderField::OrderNo, b"A00001").unwrap();

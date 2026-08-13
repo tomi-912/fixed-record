@@ -96,7 +96,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 `{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持します。マクロは、`BTreeMap<Fixed<8>, Vec<usize>>` や `BTreeMap<Fixed<16>, Vec<usize>>` のような型付き索引をフィールドごとに持つ、非公開の `{StructName}ListIndices` 型も生成します。この内部型は定義モジュールの外から名前を指定できません。キーはレコードのフィールドから直接コピーされ、`Vec<u8>` の割り当ては行いません。値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 
-完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。全体の順序が変わる `sort` と `sort_by` だけが索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
+完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。`find_by` は選択フィールドと同じ幅の入力だけを受け付け、短い場合は `Error::TooShort`、長い場合は `Error::FieldOverflow` を返します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。全体の順序が変わる `sort` と `sort_by` だけが索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
 
 List の ID は現在の vector index です。補助機能としては素直ですが、`remove`、`sort`、`sort_by` の後は index が変わる可能性があります。
 
@@ -106,12 +106,13 @@ record parsing、field access、`Reader`、`Writer` だけでよい場合は def
 let mut list = UserList::new();
 let id = list.push(user);
 
-let found = list.try_find_by(UserField::Id, b"00000001")?;
+let exact = list.find_by(UserField::Id, b"00000001")?;
+let padded = list.try_find_by(UserField::Id, b"00000001")?;
 let first = list.try_first_by(UserField::Id, b"00000001")?;
 let by_id = list.get(id);
 ```
 
-フィールド幅を呼び出し側で指定したい場合は、互換 API として `find_by<const N: usize>` / `first_by<const N: usize>` も使えます。通常は、フィールド enum から幅を判断する `try_find_by` / `try_first_by` を優先します。
+短い入力で、残りのフィールドバイトがスペースまたは `0x00` のレコードにも一致させたい場合は `try_find_by` を使います。索引上で最小の値を取得する互換 API として `first_by<const N: usize>` も残っていますが、`try_first_sorted_by` なら幅指定は不要です。
 
 先頭一致で検索したい場合は `try_find_by_prefix` / `try_first_by_prefix` を使います。
 
