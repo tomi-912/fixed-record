@@ -1346,6 +1346,25 @@ mod tests {
     }
 
     #[test]
+    fn test_ref_from_str_handles_utf8_by_byte_width() {
+        let rec = SplitUtf8Record::ref_from_str("あいX OK").unwrap();
+
+        assert_eq!(rec.name(), "あいX ".as_bytes());
+        assert_eq!(rec.name_str().unwrap(), "あいX ");
+        assert_eq!(rec.rest(), b"OK");
+        assert_eq!(rec.as_str().unwrap(), "あいX OK");
+    }
+
+    #[test]
+    fn test_ref_from_str_prefix_can_split_trailing_utf8_text() {
+        let rec = SplitUtf8Record::ref_from_str_prefix("あいX OK続き").unwrap();
+
+        assert_eq!(rec.name_str().unwrap(), "あいX ");
+        assert_eq!(rec.rest(), b"OK");
+        assert_eq!(rec.as_str().unwrap(), "あいX OK");
+    }
+
+    #[test]
     fn test_record_as_str_reports_invalid_utf8() {
         let mut rec = TestRecord::builder()
             .with_name("HelloWorld")
