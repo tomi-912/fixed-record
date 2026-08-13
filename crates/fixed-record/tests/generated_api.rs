@@ -656,7 +656,7 @@ mod tests {
     fn test_generated_list_management() {
         let mut list = TestRecordList::new();
 
-        let id_b = list.insert(
+        let id_b = list.push(
             TestRecord::builder()
                 .with_name("Bob")
                 .with_code("B0001")
@@ -664,7 +664,7 @@ mod tests {
                 .build(),
         );
         assert_eq!(id_b, 0);
-        let id_a = list.insert(
+        let id_a = list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
@@ -718,7 +718,7 @@ mod tests {
     fn test_list_get_and_remove_by_current_index() {
         let mut list = TestRecordList::new();
 
-        let id = list.insert(
+        let id = list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
@@ -741,24 +741,99 @@ mod tests {
     }
 
     #[test]
-    fn test_list_pop_removes_only_the_last_record_from_field_indices() {
+    fn test_list_insert_at_index_shifts_records_and_field_indices() {
         let mut list = TestRecordList::new();
 
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
                 .with_amount_int(10)
                 .build(),
         );
-        list.insert(
+        list.push(
+            TestRecord::builder()
+                .with_name("Carol")
+                .with_code("C0001")
+                .with_amount_int(30)
+                .build(),
+        );
+        let carol_before = list.get(1).unwrap() as *const TestRecord;
+
+        assert!(
+            list.insert(
+                1,
+                TestRecord::builder()
+                    .with_name("Bob")
+                    .with_code("A0001")
+                    .with_amount_int(20)
+                    .build(),
+            )
+        );
+
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Bob", "Carol"]
+        );
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
+        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        assert_eq!(carol_before, list.get(2).unwrap() as *const TestRecord);
+
+        assert!(
+            list.insert(
+                list.len(),
+                TestRecord::builder()
+                    .with_name("Dave")
+                    .with_code("D0001")
+                    .with_amount_int(40)
+                    .build(),
+            )
+        );
+        assert_eq!(list.len(), 4);
+        assert_eq!(
+            list.indices
+                .get(&TestRecordField::Code)
+                .unwrap()
+                .get(b"D0001".as_slice()),
+            Some(&vec![3])
+        );
+
+        assert!(
+            !list.insert(
+                list.len() + 1,
+                TestRecord::builder()
+                    .with_name("Invalid")
+                    .with_code("X0001")
+                    .with_amount_int(99)
+                    .build(),
+            )
+        );
+        assert_eq!(list.len(), 4);
+        assert!(list.find_by(TestRecordField::Code, *b"X0001").is_empty());
+    }
+
+    #[test]
+    fn test_list_pop_removes_only_the_last_record_from_field_indices() {
+        let mut list = TestRecordList::new();
+
+        list.push(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+        list.push(
             TestRecord::builder()
                 .with_name("Bob")
                 .with_code("A0001")
                 .with_amount_int(20)
                 .build(),
         );
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Carol")
                 .with_code("C0001")
@@ -806,14 +881,14 @@ mod tests {
     fn test_list_sort_keeps_record_addresses_stable() {
         let mut list = TestRecordList::new();
 
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Bob")
                 .with_code("B0001")
                 .with_amount_int(20)
                 .build(),
         );
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
@@ -844,7 +919,7 @@ mod tests {
     fn test_list_update_replaces_record_for_id() {
         let mut list = TestRecordList::new();
 
-        let id = list.insert(
+        let id = list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
@@ -885,7 +960,7 @@ mod tests {
     fn test_list_update_rejects_missing_id() {
         let mut list = TestRecordList::new();
 
-        let id = list.insert(
+        let id = list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
@@ -916,24 +991,24 @@ mod tests {
     }
 
     #[test]
-    fn test_list_field_indices_follow_insert_update_sort_and_remove() {
+    fn test_list_field_indices_follow_push_update_sort_and_remove() {
         let mut list = TestRecordList::new();
 
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Alice")
                 .with_code("A0001")
                 .with_amount_int(10)
                 .build(),
         );
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Bob")
                 .with_code("A0001")
                 .with_amount_int(20)
                 .build(),
         );
-        list.insert(
+        list.push(
             TestRecord::builder()
                 .with_name("Carol")
                 .with_code("C0001")
@@ -995,7 +1070,7 @@ mod tests {
         let mut list = TestRecordList::new();
 
         for (name, amount) in [("Thirty", 30), ("Ten", 10), ("Twenty", 20), ("Second", 20)] {
-            list.insert(
+            list.push(
                 TestRecord::builder()
                     .with_name(name)
                     .with_code("A0001")
@@ -1064,10 +1139,10 @@ mod tests {
             .with_amount_int(4)
             .build();
 
-        list.insert(space_padded);
-        list.insert(zero_padded);
-        list.insert(mixed_padded);
-        list.insert(other);
+        list.push(space_padded);
+        list.push(zero_padded);
+        list.push(mixed_padded);
+        list.push(other);
 
         let found = list.try_find_by(TestRecordField::Code, b"A00").unwrap();
         let mut names: Vec<_> = found
@@ -1123,9 +1198,9 @@ mod tests {
             .with_amount_int(3)
             .build();
 
-        list.insert(space_padded);
-        list.insert(zero_padded);
-        list.insert(other);
+        list.push(space_padded);
+        list.push(zero_padded);
+        list.push(other);
 
         let found = list
             .try_first_by(TestRecordField::Code, b"A00")
@@ -1188,10 +1263,10 @@ mod tests {
             .with_amount_int(4)
             .build();
 
-        list.insert(space_padded);
-        list.insert(zero_padded);
-        list.insert(other);
-        list.insert(different_prefix);
+        list.push(space_padded);
+        list.push(zero_padded);
+        list.push(other);
+        list.push(different_prefix);
 
         let found = list
             .try_find_by_prefix(TestRecordField::Code, b"A00")
@@ -1255,10 +1330,10 @@ mod tests {
             .with_amount_int(4)
             .build();
 
-        list.insert(later);
-        list.insert(first);
-        list.insert(with_suffix);
-        list.insert(different_prefix);
+        list.push(later);
+        list.push(first);
+        list.push(with_suffix);
+        list.push(different_prefix);
 
         let found = list
             .try_first_by_prefix(TestRecordField::Code, b"A0")

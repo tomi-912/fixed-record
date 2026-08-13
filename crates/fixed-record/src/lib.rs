@@ -309,17 +309,17 @@
 //! # Searchable Lists / 検索可能な List
 //!
 //! With the default `list` feature, the macro generates the optional helper `{StructName}List`. It
-//! stores boxed records in a vector and maintains ordered field-byte indexes for lookup, update,
-//! physical removal, popping the last record, sorting, exact searches, padded searches, prefix
-//! searches, and range searches.
+//! stores boxed records in a vector and maintains ordered field-byte indexes for appending,
+//! position-based insertion, lookup, update, physical removal, popping the last record, sorting,
+//! exact searches, padded searches, prefix searches, and range searches.
 //! Exact searches use the index directly instead of scanning every record.
 //! Sorting moves boxes in the vector, not the record values allocated behind them.
 //! List IDs are the current vector indexes, so IDs can change after removal or sorting.
 //!
 //! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
 //! これは Box 化したレコードを vector に保持し、フィールドの実バイト列による順序付き索引を管理して、
-//! lookup、update、物理削除、末尾レコードの pop、sort、完全一致検索、padding を考慮した検索、
-//! prefix 検索、range 検索を提供します。
+//! 末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの pop、sort、完全一致検索、
+//! padding を考慮した検索、prefix 検索、range 検索を提供します。
 //! 完全一致検索は全レコードを走査せず、索引を直接参照します。
 //! ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 //! List ID は現在の vector index なので、削除やソート後に変わる可能性があります。
@@ -335,12 +335,12 @@
 //! }
 //!
 //! let mut list = OrderList::new();
-//! let id_first = list.insert(Order::builder()
+//! let id_first = list.push(Order::builder()
 //!     .with_customer_id("C001")
 //!     .with_order_no("A00002")
 //!     .with_amount_int(200)
 //!     .build());
-//! let id_second = list.insert(Order::builder()
+//! let id_second = list.push(Order::builder()
 //!     .with_customer_id("C001")
 //!     .with_order_no("A00001")
 //!     .with_amount_int(100)
@@ -388,9 +388,9 @@
 //! }
 //!
 //! let mut list = OrderList::new();
-//! list.insert(Order::builder().with_customer_id("C001").with_order_no("A00001").with_amount_int(100).build());
-//! list.insert(Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build());
-//! list.insert(Order::builder().with_customer_id("C001").with_order_no("A00003").with_amount_int(300).build());
+//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00001").with_amount_int(100).build());
+//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build());
+//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00003").with_amount_int(300).build());
 //!
 //! let low = Fixed::<8>::from(*b"00000150");
 //! let high = Fixed::<8>::from(*b"00000300");

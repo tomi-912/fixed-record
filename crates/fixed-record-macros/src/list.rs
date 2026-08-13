@@ -129,6 +129,19 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 self.indices = indices;
             }
 
+            #[doc = "Increments indexed record IDs at or after an insertion position."]
+            #[doc = "挿入位置以降の索引内レコード ID を1つ繰り上げます。"]
+            fn increment_index_ids_at_or_after(&mut self, index: usize) {
+                for field_index in self.indices.values_mut() {
+                    for ids in field_index.values_mut() {
+                        let first_shifted = ids.partition_point(|id| *id < index);
+                        for id in &mut ids[first_shifted..] {
+                            *id += 1;
+                        }
+                    }
+                }
+            }
+
             #[doc = "Returns the exclusive upper bound for byte keys that share a prefix."]
             #[doc = "同じ prefix を持つバイトキーを範囲検索するための排他的上限を返します。"]
             fn prefix_upper_bound(prefix: &[u8]) -> Option<Vec<u8>> {
@@ -231,13 +244,32 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 Ok(())
             }
 
-            #[doc = "Inserts a record and returns its current index as the ID."]
-            #[doc = "レコードを追加し、現在の index を ID として返します。"]
-            pub fn insert(&mut self, record: #struct_name) -> usize {
+            #[doc = "Appends a record and returns its current index as the ID."]
+            #[doc = "レコードを末尾へ追加し、現在の index を ID として返します。"]
+            pub fn push(&mut self, record: #struct_name) -> usize {
                 let id = self.records.len();
                 self.records.push(Box::new(record));
                 Self::index_record(&mut self.indices, id, self.records[id].as_ref());
                 id
+            }
+
+            #[doc = "Inserts a record at the specified index and updates shifted field indexes."]
+            #[doc = "指定 index にレコードを挿入し、移動したフィールド索引を更新します。"]
+            #[doc = "Returns `false` without changing the list when `index` is greater than `len()`."]
+            #[doc = "`index` が `len()` より大きい場合は List を変更せず `false` を返します。"]
+            pub fn insert(&mut self, index: usize, record: #struct_name) -> bool {
+                if index > self.records.len() {
+                    return false;
+                }
+                if index == self.records.len() {
+                    self.push(record);
+                    return true;
+                }
+
+                self.records.insert(index, Box::new(record));
+                self.increment_index_ids_at_or_after(index);
+                Self::index_record(&mut self.indices, index, self.records[index].as_ref());
+                true
             }
 
             #[doc = "Returns the record at the specified current index."]

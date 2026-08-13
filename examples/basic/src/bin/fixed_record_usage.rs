@@ -36,8 +36,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("read back account: {}", read_back.account_no_str()?);
 
     let mut list = PaymentList::new();
-    list.insert(payment);
-    list.insert(
+    list.push(payment);
+    list.push(
         Payment::builder()
             .with_bank_code("0002")
             .with_account_no("7654321")

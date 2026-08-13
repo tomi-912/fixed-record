@@ -89,14 +89,14 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 - `apply_*` 系の一括流し込み
 - `FixedRecord` trait 実装
 - `Reader` / `Writer` との連携
-- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、`pop`、ソート
+- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による末尾追加、位置指定挿入、検索、範囲検索、削除、`pop`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 ## List 検索
 
 `{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持し、`BTreeMap<Field, BTreeMap<Vec<u8>, Vec<usize>>>` という形の順序付き索引を管理します。内側のキーは各フィールドに格納された実際のバイト列で、値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 
-完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`insert` と `update` は対象の索引項目を更新し、`remove`、`sort`、`sort_by` は現在の vector index が変化するため索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
+完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更し、`remove`、`sort`、`sort_by` は現在の vector index が変化するため索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
 
 List の ID は現在の vector index です。補助機能としては素直ですが、`remove`、`sort`、`sort_by` の後は index が変わる可能性があります。
 
@@ -104,7 +104,7 @@ record parsing、field access、`Reader`、`Writer` だけでよい場合は def
 
 ```rust
 let mut list = UserList::new();
-let id = list.insert(user);
+let id = list.push(user);
 
 let found = list.try_find_by(UserField::Id, b"00000001")?;
 let first = list.try_first_by(UserField::Id, b"00000001")?;
