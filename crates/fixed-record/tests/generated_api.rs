@@ -675,7 +675,7 @@ mod tests {
 
         assert_eq!(list.len(), 2);
 
-        let found = list.find_by(TestRecordField::Code, *b"A0001");
+        let found = list.find_by(TestRecordField::Code, b"A0001");
         assert_eq!(found.len(), 1);
         assert_eq!(
             found[0].get_field_trimmed(TestRecordField::Name).unwrap(),
@@ -704,7 +704,7 @@ mod tests {
         // IDs are current Vec indexes. After sorting by name, Bob is at index 1.
         assert!(list.remove(1));
         assert_eq!(list.len(), 1);
-        assert!(list.find_by(TestRecordField::Code, *b"B0001").is_empty());
+        assert!(list.find_by(TestRecordField::Code, b"B0001").is_empty());
         assert_eq!(list.all_ids(), vec![0]);
         assert_eq!(
             list.get(0)
@@ -771,7 +771,7 @@ mod tests {
         assert!(!code_index.contains_key(&Fixed::from(*b"B0001")));
         assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(
-            list.find_by(TestRecordField::Code, *b"A0001")
+            list.find_by(TestRecordField::Code, b"A0001")
                 .iter()
                 .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
                 .collect::<Vec<_>>(),
@@ -848,7 +848,7 @@ mod tests {
             )
         );
         assert_eq!(list.len(), 4);
-        assert!(list.find_by(TestRecordField::Code, *b"X0001").is_empty());
+        assert!(list.find_by(TestRecordField::Code, b"X0001").is_empty());
     }
 
     #[test]
@@ -931,13 +931,13 @@ mod tests {
                 .build(),
         );
 
-        let bob_before = list.find_by(TestRecordField::Code, *b"B0001")[0] as *const TestRecord;
-        let alice_before = list.find_by(TestRecordField::Code, *b"A0001")[0] as *const TestRecord;
+        let bob_before = list.find_by(TestRecordField::Code, b"B0001")[0] as *const TestRecord;
+        let alice_before = list.find_by(TestRecordField::Code, b"A0001")[0] as *const TestRecord;
 
         list.sort_by(&[TestRecordField::Name]);
 
-        let alice_after = list.find_by(TestRecordField::Code, *b"A0001")[0] as *const TestRecord;
-        let bob_after = list.find_by(TestRecordField::Code, *b"B0001")[0] as *const TestRecord;
+        let alice_after = list.find_by(TestRecordField::Code, b"A0001")[0] as *const TestRecord;
+        let bob_after = list.find_by(TestRecordField::Code, b"B0001")[0] as *const TestRecord;
 
         assert_eq!(alice_before, alice_after);
         assert_eq!(bob_before, bob_after);
@@ -973,9 +973,9 @@ mod tests {
             )
         );
 
-        assert!(list.find_by(TestRecordField::Code, *b"A0001").is_empty());
+        assert!(list.find_by(TestRecordField::Code, b"A0001").is_empty());
 
-        let found = list.find_by(TestRecordField::Code, *b"C0001");
+        let found = list.find_by(TestRecordField::Code, b"C0001");
         assert_eq!(found.len(), 1);
         assert_eq!(
             found[0]
@@ -1022,7 +1022,7 @@ mod tests {
             )
         );
         assert!(list.get(id).is_none());
-        assert!(list.find_by(TestRecordField::Code, *b"D0001").is_empty());
+        assert!(list.find_by(TestRecordField::Code, b"D0001").is_empty());
     }
 
     #[test]
@@ -1055,7 +1055,7 @@ mod tests {
         assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0, 1]));
         assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(
-            list.find_by(TestRecordField::Code, *b"A0001")
+            list.find_by(TestRecordField::Code, b"A0001")
                 .iter()
                 .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
                 .collect::<Vec<_>>(),
@@ -1090,7 +1090,7 @@ mod tests {
         assert!(!code_index.contains_key(&Fixed::from(*b"A0001")));
         assert_eq!(code_index.get(&Fixed::from(*b"B0001")), Some(&vec![0]));
         assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![1]));
-        assert!(list.find_by(TestRecordField::Code, *b"A0001").is_empty());
+        assert!(list.find_by(TestRecordField::Code, b"A0001").is_empty());
         assert_eq!(
             list.try_find_by_prefix(TestRecordField::Code, b"C")
                 .unwrap()[0]

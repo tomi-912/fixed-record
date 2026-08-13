@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build(),
     );
 
-    let found = list.find_by(PaymentField::BankCode, *b"0001");
+    let found = list.find_by(PaymentField::BankCode, b"0001");
     println!("found by bank_code=0001: {}", found.len());
 
     Ok(())
