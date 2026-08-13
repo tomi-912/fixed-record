@@ -139,6 +139,20 @@ let mut cr_writer = Writer::new(output)
 fixed-record = { version = "0.1", default-features = false }
 ```
 
+unsafe なゼロコピー系 API も使いたい場合は、`unchecked` を有効にします。この書き方では default feature の `list` も有効なままです。
+
+```toml
+[dependencies]
+fixed-record = { version = "0.1", features = ["unchecked"] }
+```
+
+List 生成なしで `unchecked` だけを使いたい場合は、default feature を外して `unchecked` だけを有効にします。
+
+```toml
+[dependencies]
+fixed-record = { version = "0.1", default-features = false, features = ["unchecked"] }
+```
+
 `unchecked` feature では、`as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` が生成されます。これらは構造体のメモリレイアウトが固定長レコードのバイト配置と一致していることを呼び出し側が保証する必要があります。
 
 ## Examples

@@ -139,6 +139,20 @@ Disable default features when you only want the record type and field operations
 fixed-record = { version = "0.1", default-features = false }
 ```
 
+Enable `unchecked` when you also want unsafe zero-copy APIs. The default `list` feature remains enabled in this form.
+
+```toml
+[dependencies]
+fixed-record = { version = "0.1", features = ["unchecked"] }
+```
+
+If you want `unchecked` without List generation, disable default features and enable only `unchecked`.
+
+```toml
+[dependencies]
+fixed-record = { version = "0.1", default-features = false, features = ["unchecked"] }
+```
+
 The `unchecked` feature generates `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`. Callers must guarantee that the struct memory layout exactly matches the fixed-width record byte layout.
 
 ## Examples
