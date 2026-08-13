@@ -8,6 +8,7 @@ use syn::{
 
 mod core;
 mod helpers;
+mod list;
 
 struct MacroArgs {
     clear_byte: u8,
