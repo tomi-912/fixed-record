@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":["FixedRecord","SequenceFields"]};
+window.SIDEBAR_ITEMS = {"trait":["ByteRangeBounds","FixedRecord","SequenceFields"]};
