@@ -72,7 +72,7 @@ Test layout:
 
 Verified test results:
 
-- `fixed-record` generated API integration tests: 63 tests pass with default features
+- `fixed-record` generated API integration tests: 64 tests pass with default features
 - `fixed-record` doctests: 25 tests pass
 
 ## What Works Well
@@ -110,7 +110,7 @@ Important behavioral points:
 `{StructName}List` generation is controlled by the default `list` feature.
 
 - Default features generate List APIs.
-- The generated List stores records as `Vec<Box<Record>>` and maintains `BTreeMap<Field, BTreeMap<Vec<u8>, Vec<usize>>>` indexes. The inner key is the actual field byte sequence and the value holds current vector indexes, including duplicate field values. Exact lookup is indexed; prefix, padded-value, range, and sorted lookup use ordered index ranges. `insert` and `update` maintain affected entries, while `remove`, `sort`, and `sort_by` rebuild indexes because current IDs change. Sorting moves boxes instead of moving record values themselves.
+- The generated List stores records as `Vec<Box<Record>>` and maintains `BTreeMap<Field, BTreeMap<Vec<u8>, Vec<usize>>>` indexes. The inner key is the actual field byte sequence and the value holds current vector indexes, including duplicate field values. Exact lookup is indexed; prefix, padded-value, range, and sorted lookup use ordered index ranges. `insert` and `update` maintain affected entries, while `remove`, `sort`, and `sort_by` rebuild indexes because current IDs change. `pop` only unindexes the removed last record because remaining IDs do not change. Sorting moves boxes instead of moving record values themselves.
 - For `u` distinct values in a selected field and `k` matches, exact lookup is `O(log u + k)` instead of scanning all `n` records. Prefix and range lookup are `O(log u + m + k log k)`, where `m` is the number of distinct indexed keys visited; matching IDs are sorted to preserve current List order. The tradeoff is index memory for copied field bytes and one `usize` per record per field.
 - Depending on `fixed-record` with `default-features = false` generates only the record body and field operations.
 

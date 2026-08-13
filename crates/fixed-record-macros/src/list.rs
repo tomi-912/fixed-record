@@ -271,6 +271,15 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 true
             }
 
+            #[doc = "Removes and returns the last record without rebuilding the field indexes."]
+            #[doc = "フィールド索引を再構築せず、末尾のレコードを削除して返します。"]
+            pub fn pop(&mut self) -> Option<#struct_name> {
+                let id = self.records.len().checked_sub(1)?;
+                let record = self.records.pop()?;
+                Self::unindex_record(&mut self.indices, id, record.as_ref());
+                Some(*record)
+            }
+
             #[doc = "Returns records whose specified field exactly matches the value using the field index."]
             #[doc = "フィールド索引を使い、指定フィールドが値と完全一致するレコードを返します。"]
             pub fn find_by<const N: usize>(

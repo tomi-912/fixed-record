@@ -741,6 +741,68 @@ mod tests {
     }
 
     #[test]
+    fn test_list_pop_removes_only_the_last_record_from_field_indices() {
+        let mut list = TestRecordList::new();
+
+        list.insert(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+        list.insert(
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("A0001")
+                .with_amount_int(20)
+                .build(),
+        );
+        list.insert(
+            TestRecord::builder()
+                .with_name("Carol")
+                .with_code("C0001")
+                .with_amount_int(30)
+                .build(),
+        );
+
+        let popped = list.pop().unwrap();
+        assert_eq!(
+            popped.get_field_trimmed(TestRecordField::Name).unwrap(),
+            "Carol"
+        );
+        assert_eq!(list.len(), 2);
+
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
+        assert!(!code_index.contains_key(b"C0001".as_slice()));
+
+        let popped = list.pop().unwrap();
+        assert_eq!(
+            popped.get_field_trimmed(TestRecordField::Name).unwrap(),
+            "Bob"
+        );
+        assert_eq!(
+            list.indices
+                .get(&TestRecordField::Code)
+                .unwrap()
+                .get(b"A0001".as_slice()),
+            Some(&vec![0])
+        );
+
+        assert_eq!(
+            list.pop()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
+        assert!(list.is_empty());
+        assert!(list.indices.is_empty());
+        assert!(list.pop().is_none());
+    }
+
+    #[test]
     fn test_list_sort_keeps_record_addresses_stable() {
         let mut list = TestRecordList::new();
 
