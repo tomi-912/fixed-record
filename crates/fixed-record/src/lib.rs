@@ -392,9 +392,9 @@
 //! list.push(Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build());
 //! list.push(Order::builder().with_customer_id("C001").with_order_no("A00003").with_amount_int(300).build());
 //!
-//! let low = Fixed::<8>::from(*b"00000150");
-//! let high = Fixed::<8>::from(*b"00000300");
-//! let found = list.find_range_by(OrderField::Amount, low..=high);
+//! let found = list
+//!     .find_range_by(OrderField::Amount, b"00000150"..=b"00000300")
+//!     .unwrap();
 //!
 //! assert_eq!(found.len(), 2);
 //! assert_eq!(found[0].amount(), b"00000200");
@@ -550,15 +550,15 @@ pub use zerocopy;
 
 pub use error::Error;
 pub use io::{Reader, RecordSeparator, Writer};
-pub use traits::FixedRecord;
+pub use traits::{ByteRangeBounds, FixedRecord};
 pub use types::Fixed;
 pub use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 pub mod prelude {
     pub use crate::fixed_record;
     pub use crate::{
-        Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout, Reader,
-        RecordSeparator, Writer,
+        ByteRangeBounds, Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout,
+        Reader, RecordSeparator, Writer,
     };
 }
 

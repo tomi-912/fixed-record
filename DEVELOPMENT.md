@@ -72,7 +72,7 @@ Test layout:
 
 Verified test results:
 
-- `fixed-record` generated API integration tests: 67 tests pass with default features
+- `fixed-record` generated API integration tests: 69 tests pass with default features
 - `fixed-record` doctests: 25 tests pass
 
 ## What Works Well
@@ -110,7 +110,7 @@ Important behavioral points:
 `{StructName}List` generation is controlled by the default `list` feature.
 
 - Default features generate List APIs.
-- The generated List stores records as `Vec<Box<Record>>`. A private `{StructName}ListIndices` struct stores one `BTreeMap<Fixed<N>, Vec<usize>>` per record field, so differently sized `Fixed<N>` keys remain statically typed and no `Vec<u8>` key allocation is needed. Dynamic field APIs dispatch to these typed maps with generated `match` arms. The index type is always private, including for public records. Exact `find_by` lookup requires the selected field width and distinguishes `Error::TooShort` from `Error::FieldOverflow`; prefix, padded-value, range, and sorted lookup use ordered field-index ranges. `push` appends and indexes one record. Position-based `insert` increments existing indexed IDs at or after the insertion point, then indexes the new record without rebuilding field keys. `update` maintains affected entries. `remove` unindexes one record and decrements later IDs without rebuilding field keys. `sort` and `sort_by` rebuild indexes because the complete order can change. `pop` only unindexes the removed last record because remaining IDs do not change. Sorting and insertion move boxes instead of moving record values themselves.
+- The generated List stores records as `Vec<Box<Record>>`. A private `{StructName}ListIndices` struct stores one `BTreeMap<Fixed<N>, Vec<usize>>` per record field, so differently sized `Fixed<N>` keys remain statically typed and no `Vec<u8>` key allocation is needed. Dynamic field APIs dispatch to these typed maps with generated `match` arms. The index type is always private, including for public records. Exact `find_by` lookup requires the selected field width and distinguishes `Error::TooShort` from `Error::FieldOverflow`. `find_range_by` uses `ByteRangeBounds` to accept standard ranges over `AsRef<[u8]>` values; short start/end bounds are extended with `0x00`/`0xFF`, oversized bounds return `FieldOverflow`, and reversed bounds return `InvalidRange`. Prefix, padded-value, and sorted lookup use ordered field-index ranges. `push` appends and indexes one record. Position-based `insert` increments existing indexed IDs at or after the insertion point, then indexes the new record without rebuilding field keys. `update` maintains affected entries. `remove` unindexes one record and decrements later IDs without rebuilding field keys. `sort` and `sort_by` rebuild indexes because the complete order can change. `pop` only unindexes the removed last record because remaining IDs do not change. Sorting and insertion move boxes instead of moving record values themselves.
 - For `u` distinct values in a selected field and `k` matches, exact lookup is `O(log u + k)` instead of scanning all `n` records. Prefix and range lookup are `O(log u + m + k log k)`, where `m` is the number of distinct indexed keys visited; matching IDs are sorted to preserve current List order. The tradeoff is index memory for copied field bytes and one `usize` per record per field.
 - Depending on `fixed-record` with `default-features = false` generates only the record body and field operations.
 

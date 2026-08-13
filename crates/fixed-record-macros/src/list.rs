@@ -82,7 +82,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
         let variant = &meta.variant;
         quote! {
             #field_enum_name::#variant => {
-                Self::range_ids_for::<#size, N, R>(&self.indices.#name, &range)
+                Self::range_ids_for::<#size, R>(&self.indices.#name, &range, field_name)?
             }
         }
     });
@@ -539,93 +539,117 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
 
             #[doc = "Returns records whose specified field value is within the indexed range."]
             #[doc = "指定フィールドの値が索引上の範囲内にあるレコードを返します。"]
-            pub fn find_range_by<const N: usize, R>(
+            #[doc = "Short bounds allow any trailing field bytes."]
+            #[doc = "短い境界値では、フィールドの後続バイトを任意として扱います。"]
+            #[doc = "Returns `Error::FieldOverflow` when either bound is wider than the field."]
+            #[doc = "いずれかの境界値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            #[doc = "Returns `Error::InvalidRange` when the start value is greater than the end value."]
+            #[doc = "開始値が終了値より大きい場合は `Error::InvalidRange` を返します。"]
+            pub fn find_range_by<R>(
                 &self,
                 field: #field_enum_name,
                 range: R,
-            ) -> Vec<&#struct_name>
+            ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error>
             where
-                R: std::ops::RangeBounds<::fixed_record::Fixed<N>>,
+                R: ::fixed_record::traits::ByteRangeBounds,
             {
-                if N != #struct_name::size_of(field) {
-                    return Vec::new();
-                }
+                let field_name = #struct_name::name_of(field);
                 let ids = match field {
                     #( #find_range_by_arms ),*
                 };
-                self.records_for_ids(ids)
+                Ok(self.records_for_ids(ids))
             }
 
             #[doc = "Returns record IDs within a range from one typed field index."]
             #[doc = "1つの型付きフィールド索引から範囲内のレコード ID を返します。"]
-            fn range_ids_for<const M: usize, const N: usize, R>(
+            fn range_ids_for<const N: usize, R>(
                 field_index: &std::collections::BTreeMap<
-                    ::fixed_record::Fixed<M>,
+                    ::fixed_record::Fixed<N>,
                     Vec<usize>,
                 >,
                 range: &R,
-            ) -> Vec<usize>
+                field_name: &'static str,
+            ) -> Result<Vec<usize>, ::fixed_record::error::Error>
             where
-                R: std::ops::RangeBounds<::fixed_record::Fixed<N>>,
+                R: ::fixed_record::traits::ByteRangeBounds,
             {
                 use std::ops::Bound::{Excluded, Included, Unbounded};
 
-                if M != N {
-                    return Vec::new();
+                let start_bound = range.start_bound_bytes();
+                let end_bound = range.end_bound_bytes();
+                let start_bytes = match start_bound {
+                    Included(value) | Excluded(value) => Some(value),
+                    Unbounded => None,
+                };
+                let end_bytes = match end_bound {
+                    Included(value) | Excluded(value) => Some(value),
+                    Unbounded => None,
+                };
+
+                for value in [start_bytes, end_bytes].into_iter().flatten() {
+                    if value.len() > N {
+                        return Err(::fixed_record::error::Error::FieldOverflow {
+                            field: field_name,
+                            size: N,
+                            actual: value.len(),
+                        });
+                    }
                 }
-                let start = match range.start_bound() {
+
+                let start = match start_bound {
                     Included(value) => {
-                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
-                            return Vec::new();
-                        };
-                        Included(value)
+                        let mut bound = ::fixed_record::Fixed::<N>::zeroed();
+                        bound.write_bytes(value);
+                        Included(bound)
                     }
                     Excluded(value) => {
-                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
-                            return Vec::new();
-                        };
-                        Excluded(value)
+                        let mut bound = ::fixed_record::Fixed::<N>::zeroed();
+                        bound.write_bytes(value);
+                        Excluded(bound)
                     }
                     Unbounded => Unbounded,
                 };
-                let end = match range.end_bound() {
+                let end = match end_bound {
                     Included(value) => {
-                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
-                            return Vec::new();
-                        };
-                        Included(value)
+                        let mut bound = ::fixed_record::Fixed::<N>::filled(u8::MAX);
+                        bound.write_bytes(value);
+                        Included(bound)
                     }
                     Excluded(value) => {
-                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
-                            return Vec::new();
-                        };
-                        Excluded(value)
+                        let mut bound = ::fixed_record::Fixed::<N>::filled(u8::MAX);
+                        bound.write_bytes(value);
+                        Excluded(bound)
                     }
                     Unbounded => Unbounded,
                 };
                 let start_is_excluded = matches!(&start, Excluded(_));
                 let end_is_excluded = matches!(&end, Excluded(_));
-                let invalid_range = match (&start, &end) {
+                let bounds_order = match (&start, &end) {
                     (
                         Included(start_value) | Excluded(start_value),
                         Included(end_value) | Excluded(end_value),
-                    ) => {
-                        start_value > end_value
-                            || (start_value == end_value
-                                && start_is_excluded
-                                && end_is_excluded)
-                    }
-                    _ => false,
+                    ) => Some(start_value.cmp(end_value)),
+                    _ => None,
                 };
-                if invalid_range {
-                    return Vec::new();
+                if bounds_order == Some(std::cmp::Ordering::Greater) {
+                    return Err(::fixed_record::error::Error::InvalidRange {
+                        field: field_name,
+                        start: start_bytes.unwrap_or_default().to_vec(),
+                        end: end_bytes.unwrap_or_default().to_vec(),
+                    });
+                }
+                if bounds_order == Some(std::cmp::Ordering::Equal)
+                    && start_is_excluded
+                    && end_is_excluded
+                {
+                    return Ok(Vec::new());
                 }
 
                 let mut ids = Vec::new();
                 for indexed_ids in field_index.range((start, end)).map(|(_, ids)| ids) {
                     ids.extend_from_slice(indexed_ids);
                 }
-                ids
+                Ok(ids)
             }
 
             #[doc = "Returns an iterator over records in indexed ascending order by the specified field."]

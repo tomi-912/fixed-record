@@ -96,7 +96,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 `{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持します。マクロは、`BTreeMap<Fixed<8>, Vec<usize>>` や `BTreeMap<Fixed<16>, Vec<usize>>` のような型付き索引をフィールドごとに持つ、非公開の `{StructName}ListIndices` 型も生成します。この内部型は定義モジュールの外から名前を指定できません。キーはレコードのフィールドから直接コピーされ、`Vec<u8>` の割り当ては行いません。値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 
-完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。`find_by` は選択フィールドと同じ幅の入力だけを受け付け、短い場合は `Error::TooShort`、長い場合は `Error::FieldOverflow` を返します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。全体の順序が変わる `sort` と `sort_by` だけが索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
+完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。`find_by` は選択フィールドと同じ幅の入力だけを受け付け、短い場合は `Error::TooShort`、長い場合は `Error::FieldOverflow` を返します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`find_range_by` は境界が `AsRef<[u8]>` を実装する標準 Rust range を受け取ります。短い開始境界は末尾を `0x00`、短い終了境界は末尾を `0xFF` で補うため、後続バイトは任意になります。いずれかの境界が長すぎる場合は `FieldOverflow`、開始が終了より大きい場合は `InvalidRange` を返します。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。全体の順序が変わる `sort` と `sort_by` だけが索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
 
 List の ID は現在の vector index です。補助機能としては素直ですが、`remove`、`sort`、`sort_by` の後は index が変わる可能性があります。
 
@@ -108,6 +108,7 @@ let id = list.push(user);
 
 let exact = list.find_by(UserField::Id, b"00000001")?;
 let padded = list.try_find_by(UserField::Id, b"00000001")?;
+let ages_in_20s_and_30s = list.find_range_by(UserField::Age, b"02"..=b"03")?;
 let first = list.try_first_by(UserField::Id, b"00000001")?;
 let by_id = list.get(id);
 ```

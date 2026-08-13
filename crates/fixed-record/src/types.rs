@@ -283,6 +283,14 @@ impl<const N: usize> Default for Fixed<N> {
     }
 }
 
+impl<const N: usize> AsRef<[u8]> for Fixed<N> {
+    /// Borrows the fixed-width value as a byte slice.
+    /// 固定長値をバイトスライスとして参照します。
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
 impl<const N: usize> From<[u8; N]> for Fixed<N> {
     /// Converts directly from a fixed-size byte array.
     /// 固定長配列から直接変換します。

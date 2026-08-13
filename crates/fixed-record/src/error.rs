@@ -42,6 +42,13 @@ pub enum Error {
         size: usize,
         actual: usize,
     },
+    /// A range search specified a start value greater than its end value.
+    /// 範囲検索で開始値が終了値より大きく指定された場合です。
+    InvalidRange {
+        field: &'static str,
+        start: Vec<u8>,
+        end: Vec<u8>,
+    },
     /// A `Reader` sequence check found a descending key or a forbidden duplicate key.
     /// `Reader` のシーケンスチェックで、現在レコードが前回レコードより小さい、または同一禁止設定で同一だった場合です。
     SequenceError {
@@ -76,6 +83,10 @@ impl fmt::Display for Error {
             } => write!(
                 f,
                 "field `{field}` is too wide for the fixed length: expected at most {size} bytes, got {actual} bytes"
+            ),
+            Error::InvalidRange { field, start, end } => write!(
+                f,
+                "invalid range for field `{field}`: start {start:?} is greater than end {end:?}"
             ),
             Error::SequenceError {
                 fields,
@@ -133,6 +144,18 @@ impl PartialEq for Error {
             ) => {
                 left_field == right_field && left_size == right_size && left_actual == right_actual
             }
+            (
+                Error::InvalidRange {
+                    field: left_field,
+                    start: left_start,
+                    end: left_end,
+                },
+                Error::InvalidRange {
+                    field: right_field,
+                    start: right_start,
+                    end: right_end,
+                },
+            ) => left_field == right_field && left_start == right_start && left_end == right_end,
             (
                 Error::SequenceError {
                     fields: left_fields,

@@ -1,4 +1,95 @@
 use crate::Error;
+use std::ops::{Bound, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+
+/// Converts standard Rust range types with byte-like bounds into borrowed byte bounds.
+/// バイト列として参照できる境界を持つ標準 Rust range 型を、借用バイト境界へ変換します。
+pub trait ByteRangeBounds {
+    /// Returns the start bound as borrowed bytes.
+    /// 開始境界を借用バイト列として返します。
+    fn start_bound_bytes(&self) -> Bound<&[u8]>;
+
+    /// Returns the end bound as borrowed bytes.
+    /// 終了境界を借用バイト列として返します。
+    fn end_bound_bytes(&self) -> Bound<&[u8]>;
+}
+
+impl<T: AsRef<[u8]>> ByteRangeBounds for Range<T> {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Included(self.start.as_ref())
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Excluded(self.end.as_ref())
+    }
+}
+
+impl<T: AsRef<[u8]>> ByteRangeBounds for RangeInclusive<T> {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Included(self.start().as_ref())
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Included(self.end().as_ref())
+    }
+}
+
+impl<T: AsRef<[u8]>> ByteRangeBounds for RangeFrom<T> {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Included(self.start.as_ref())
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Unbounded
+    }
+}
+
+impl<T: AsRef<[u8]>> ByteRangeBounds for RangeTo<T> {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Unbounded
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Excluded(self.end.as_ref())
+    }
+}
+
+impl<T: AsRef<[u8]>> ByteRangeBounds for RangeToInclusive<T> {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Unbounded
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Included(self.end.as_ref())
+    }
+}
+
+impl ByteRangeBounds for RangeFull {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Unbounded
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        Bound::Unbounded
+    }
+}
+
+impl<T: AsRef<[u8]>> ByteRangeBounds for (Bound<T>, Bound<T>) {
+    fn start_bound_bytes(&self) -> Bound<&[u8]> {
+        match &self.0 {
+            Bound::Included(value) => Bound::Included(value.as_ref()),
+            Bound::Excluded(value) => Bound::Excluded(value.as_ref()),
+            Bound::Unbounded => Bound::Unbounded,
+        }
+    }
+
+    fn end_bound_bytes(&self) -> Bound<&[u8]> {
+        match &self.1 {
+            Bound::Included(value) => Bound::Included(value.as_ref()),
+            Bound::Excluded(value) => Bound::Excluded(value.as_ref()),
+            Bound::Unbounded => Bound::Unbounded,
+        }
+    }
+}
 
 /// Common interface for types that can be handled as fixed-width records.
 /// 固定長レコードとして扱える型の共通インターフェースです。

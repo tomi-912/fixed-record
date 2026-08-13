@@ -1140,9 +1140,9 @@ mod tests {
             );
         }
 
-        let low = Fixed::<8>::from(*b"00000015");
-        let high = Fixed::<8>::from(*b"00000025");
-        let in_range = list.find_range_by(TestRecordField::Amount, low..=high);
+        let in_range = list
+            .find_range_by(TestRecordField::Amount, b"00000015"..=b"00000025")
+            .unwrap();
         assert_eq!(
             in_range
                 .iter()
@@ -1170,6 +1170,108 @@ mod tests {
                 .get_field_trimmed(TestRecordField::Name)
                 .unwrap(),
             "Ten"
+        );
+    }
+
+    #[test]
+    fn test_find_range_by_allows_any_trailing_bytes_for_short_bounds() {
+        let mut list = TestRecordList::new();
+
+        for amount in [10, 20, 21, 30] {
+            let name = format!("Amount{amount}");
+            list.push(
+                TestRecord::builder()
+                    .with_name(&name)
+                    .with_amount_int(amount)
+                    .build(),
+            );
+        }
+
+        let short_both = list
+            .find_range_by(TestRecordField::Amount, b"0000002"..=b"0000002")
+            .unwrap();
+        assert_eq!(
+            short_both
+                .iter()
+                .map(|record| record.amount().to_vec())
+                .collect::<Vec<_>>(),
+            vec![b"00000020".to_vec(), b"00000021".to_vec()]
+        );
+
+        let short: &[u8] = b"0000002";
+        let exact_low: &[u8] = b"00000010";
+        let exact_high: &[u8] = b"00000030";
+        let short_start = list
+            .find_range_by(TestRecordField::Amount, short..=exact_high)
+            .unwrap();
+        assert_eq!(short_start.len(), 3);
+
+        let short_end = list
+            .find_range_by(TestRecordField::Amount, exact_low..=short)
+            .unwrap();
+        assert_eq!(short_end.len(), 3);
+
+        assert_eq!(
+            list.find_range_by(TestRecordField::Amount, b"00000020"..)
+                .unwrap()
+                .len(),
+            3
+        );
+        assert_eq!(
+            list.find_range_by(TestRecordField::Amount, ..=b"00000020")
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            list.find_range_by(TestRecordField::Amount, ..)
+                .unwrap()
+                .len(),
+            4
+        );
+
+        let exclusive = list
+            .find_range_by(
+                TestRecordField::Amount,
+                (
+                    std::ops::Bound::Excluded(b"00000010"),
+                    std::ops::Bound::Excluded(b"00000030"),
+                ),
+            )
+            .unwrap();
+        assert_eq!(exclusive.len(), 2);
+    }
+
+    #[test]
+    fn test_find_range_by_reports_bound_errors() {
+        let list = TestRecordList::new();
+
+        assert_eq!(
+            list.find_range_by(TestRecordField::Amount, b"000000000"..)
+                .unwrap_err(),
+            Error::FieldOverflow {
+                field: "amount",
+                size: TestRecord::FIELD_SIZE_AMOUNT,
+                actual: 9,
+            }
+        );
+        assert_eq!(
+            list.find_range_by(TestRecordField::Amount, ..=b"000000000")
+                .unwrap_err(),
+            Error::FieldOverflow {
+                field: "amount",
+                size: TestRecord::FIELD_SIZE_AMOUNT,
+                actual: 9,
+            }
+        );
+        assert_eq!(
+            list.find_range_by(TestRecordField::Amount, b"00000030"..=b"00000010")
+                .unwrap_err(),
+            Error::InvalidRange {
+                field: "amount",
+                start: b"00000030".to_vec(),
+                end: b"00000010".to_vec(),
+            }
         );
     }
 
