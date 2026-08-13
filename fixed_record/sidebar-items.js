@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"attr":["fixed_record"],"mod":["doc_examples","error","io","prelude","traits","types"]};
+window.SIDEBAR_ITEMS = {"attr":["fixed_record"],"derive":["FromBytes","Immutable","IntoBytes","KnownLayout"],"mod":["doc_examples","error","io","prelude","traits","types"],"trait":["FromBytes","Immutable","IntoBytes","KnownLayout"]};

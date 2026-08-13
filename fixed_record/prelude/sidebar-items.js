@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"attr":["fixed_record"]};
+window.SIDEBAR_ITEMS = {"attr":["fixed_record"],"derive":["FromBytes","Immutable","IntoBytes","KnownLayout"],"trait":["FromBytes","Immutable","IntoBytes","KnownLayout"]};
