@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Fixed-width record helpers generated from plain Rust structs."><title>fixed_record - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="fixed_record" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate fixed_record</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../fixed_record/index.html">fixed_<wbr>record</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#installation--インストール" title="Installation / インストール">Installation / インストール</a></li><li><a href="#define-a-record--レコードを定義する" title="Define a Record / レコードを定義する">Define a Record / レコードを定義する</a></li><li><a href="#build-records--レコードを作成する" title="Build Records / レコードを作成する">Build Records / レコードを作成する</a></li><li><a href="#parse-and-serialize--パースとシリアライズ" title="Parse and Serialize / パースとシリアライズ">Parse and Serialize / パースとシリアライズ</a></li><li><a href="#dynamic-field-operations--動的フィールド操作" title="Dynamic Field Operations / 動的フィールド操作">Dynamic Field Operations / 動的フィールド操作</a></li><li><a href="#bulk-application-helpers--一括流し込み-helper" title="Bulk Application Helpers / 一括流し込み helper">Bulk Application Helpers / 一括流し込み helper</a></li><li><a href="#reader-and-writer--reader--writer" title="Reader and Writer / Reader / Writer">Reader and Writer / Reader / Writer</a></li><li><a href="#searchable-lists--検索可能な-list" title="Searchable Lists / 検索可能な List">Searchable Lists / 検索可能な List</a></li><li><a href="#clear-byte-and-initialization--clear_byte-と初期化" title="Clear Byte and Initialization / clear_byte と初期化">Clear Byte and Initialization / clear_byte と初期化</a></li><li><a href="#fixedrecord-trait--fixedrecord-trait" title="FixedRecord Trait / FixedRecord trait">FixedRecord Trait / FixedRecord trait</a></li><li><a href="#feature-flags--feature-flag" title="Feature Flags / feature flag">Feature Flags / feature flag</a></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#attributes" title="Attribute Macros">Attribute Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>fixed_<wbr>record</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/fixed_record/lib.rs.html#1-532">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Fixed-width record helpers generated from plain Rust structs.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Fixed-width record helpers generated from plain Rust structs."><title>fixed_record - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="fixed_record" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate fixed_record</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../fixed_record/index.html">fixed_<wbr>record</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#installation--インストール" title="Installation / インストール">Installation / インストール</a></li><li><a href="#define-a-record--レコードを定義する" title="Define a Record / レコードを定義する">Define a Record / レコードを定義する</a></li><li><a href="#build-records--レコードを作成する" title="Build Records / レコードを作成する">Build Records / レコードを作成する</a></li><li><a href="#parse-and-serialize--パースとシリアライズ" title="Parse and Serialize / パースとシリアライズ">Parse and Serialize / パースとシリアライズ</a></li><li><a href="#dynamic-field-operations--動的フィールド操作" title="Dynamic Field Operations / 動的フィールド操作">Dynamic Field Operations / 動的フィールド操作</a></li><li><a href="#bulk-application-helpers--一括流し込み-helper" title="Bulk Application Helpers / 一括流し込み helper">Bulk Application Helpers / 一括流し込み helper</a></li><li><a href="#reader-and-writer--reader--writer" title="Reader and Writer / Reader / Writer">Reader and Writer / Reader / Writer</a></li><li><a href="#searchable-lists--検索可能な-list" title="Searchable Lists / 検索可能な List">Searchable Lists / 検索可能な List</a></li><li><a href="#clear-byte-and-initialization--clear_byte-と初期化" title="Clear Byte and Initialization / clear_byte と初期化">Clear Byte and Initialization / clear_byte と初期化</a></li><li><a href="#fixedrecord-trait--fixedrecord-trait" title="FixedRecord Trait / FixedRecord trait">FixedRecord Trait / FixedRecord trait</a></li><li><a href="#feature-flags--feature-flag" title="Feature Flags / feature flag">Feature Flags / feature flag</a></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#attributes" title="Attribute Macros">Attribute Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>fixed_<wbr>record</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/fixed_record/lib.rs.html#1-534">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Fixed-width record helpers generated from plain Rust structs.</p>
 <p><code>fixed-record</code> lets application code describe a fixed-width record once as a Rust struct,
 then use generated builders, parsers, field accessors, stream readers/writers, and searchable
 list APIs.</p>
@@ -26,10 +26,10 @@ a byte width, not a character count.</p>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
-    <span class="kw">pub </span>customer_id: Fixed&lt;<span class="number">4</span>&gt;,
-    <span class="kw">pub </span>order_no: Fixed&lt;<span class="number">6</span>&gt;,
-    <span class="kw">pub </span>amount: Fixed&lt;<span class="number">8</span>&gt;,
+</span><span class="kw">struct </span>Order {
+    customer_id: Fixed&lt;<span class="number">4</span>&gt;,
+    order_no: Fixed&lt;<span class="number">6</span>&gt;,
+    amount: Fixed&lt;<span class="number">8</span>&gt;,
 }
 
 <span class="macro">assert_eq!</span>(Order::TOTAL_LEN, <span class="number">18</span>);
@@ -39,7 +39,9 @@ a byte width, not a character count.</p>
 <span class="macro">assert_eq!</span>(OrderField::Amount.as_str(), <span class="string">"amount"</span>);
 <span class="macro">assert_eq!</span>(OrderField::Amount.size(), <span class="number">8</span>);</code></pre></div>
 <p>Generated names follow the input struct:</p>
-<p>生成名は入力 struct から決まります。</p>
+<p>生成名は入力 struct から決まります。
+<code>OrderField</code> and <code>OrderList</code> use the same visibility as <code>Order</code>.
+<code>OrderField</code> と <code>OrderList</code> は <code>Order</code> と同じ可視性で生成されます。</p>
 <ul>
 <li><code>Order</code>: the record type / レコード型</li>
 <li><code>OrderField</code>: the field enum / フィールド enum</li>
@@ -55,7 +57,7 @@ the field, while numeric helpers write zero-padded strings.</p>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -79,7 +81,7 @@ variants keep the leading bytes when a formatted number is too wide.</p>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Balance {
+</span><span class="kw">struct </span>Balance {
     account: Fixed&lt;<span class="number">4</span>&gt;,
     signed_amount: Fixed&lt;<span class="number">6</span>&gt;,
 }
@@ -104,7 +106,7 @@ back to its fixed-width byte array.</p>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -127,7 +129,7 @@ back to its fixed-width byte array.</p>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -155,7 +157,7 @@ variants begin at a selected field.</p>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -184,7 +186,7 @@ output and appends a <a href="io/enum.RecordSeparator.html" title="enum fixed_re
 <span class="kw">use </span>std::io::{BufReader, Cursor};
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -220,7 +222,7 @@ drop(writer);
 <span class="kw">use </span>std::io::{BufReader, Cursor};
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -251,7 +253,7 @@ padding を考慮した検索、prefix 検索、range 検索を提供します�
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -302,7 +304,7 @@ list.vacuum();
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -328,7 +330,7 @@ list.insert(Order::builder().with_customer_id(<span class="string">"C001"</span>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record(clear_byte = ZERO)]
-</span><span class="kw">pub struct </span>ZeroPaddedName {
+</span><span class="kw">struct </span>ZeroPaddedName {
     name: Fixed&lt;<span class="number">6</span>&gt;,
 }
 
@@ -348,7 +350,7 @@ record type accepted by <a href="io/struct.Reader.html" title="struct fixed_reco
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
@@ -385,7 +387,7 @@ layout が固定長バイト配置と完全に一致することを呼び出し�
 <div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>fixed_record::prelude::<span class="kw-2">*</span>;
 
 <span class="attr">#[fixed_record]
-</span><span class="kw">pub struct </span>Order {
+</span><span class="kw">struct </span>Order {
     customer_id: Fixed&lt;<span class="number">4</span>&gt;,
     order_no: Fixed&lt;<span class="number">6</span>&gt;,
     amount: Fixed&lt;<span class="number">8</span>&gt;,
