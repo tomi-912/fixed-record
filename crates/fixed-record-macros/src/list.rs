@@ -1119,5 +1119,13 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 Self::new()
             }
         }
+
+        impl From<Vec<#struct_name>> for #list_name {
+            #[doc = "Creates a list from a vector of records."]
+            #[doc = "レコードの vector からリストを作成します。"]
+            fn from(records: Vec<#struct_name>) -> Self {
+                Self::from_records(records)
+            }
+        }
     }
 }

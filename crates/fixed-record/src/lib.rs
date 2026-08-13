@@ -340,7 +340,7 @@
 //!     amount: Fixed<8>,
 //! }
 //!
-//! let mut list = OrderList::from_records(vec![
+//! let mut list: OrderList = vec![
 //!     Order::builder()
 //!         .with_customer_id("C001")
 //!         .with_order_no("A00002")
@@ -351,7 +351,7 @@
 //!         .with_order_no("A00001")
 //!         .with_amount_int(100)
 //!         .build(),
-//! ]);
+//! ].into();
 //! let id_first = 0;
 //! let id_second = 1;
 //!

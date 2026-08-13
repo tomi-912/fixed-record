@@ -720,7 +720,7 @@ mod tests {
     }
 
     #[test]
-    fn test_list_from_records_preserves_order_and_builds_field_indices() {
+    fn test_list_from_records_and_from_vec_preserve_order_and_build_field_indices() {
         let records = vec![
             TestRecord::builder()
                 .with_name("Alice")
@@ -770,6 +770,29 @@ mod tests {
         assert!(empty.indices.name.is_empty());
         assert!(empty.indices.code.is_empty());
         assert!(empty.indices.amount.is_empty());
+
+        let converted: TestRecordList = vec![
+            TestRecord::builder()
+                .with_name("Dave")
+                .with_code("D0001")
+                .with_amount_int(40)
+                .build(),
+        ]
+        .into();
+        assert_eq!(converted.len(), 1);
+        assert_eq!(
+            converted
+                .try_first_by(TestRecordField::Code, b"D0001")
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Dave"
+        );
+        assert_eq!(
+            converted.indices.code.get(&Fixed::from(*b"D0001")),
+            Some(&vec![0])
+        );
     }
 
     #[test]
