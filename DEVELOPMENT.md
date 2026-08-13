@@ -110,7 +110,7 @@ Important behavioral points:
 `{StructName}List` generation is controlled by the default `list` feature.
 
 - Default features generate List APIs.
-- The generated List stores records directly as `Vec<Record>`; List IDs are current vector indexes, `remove` physically removes entries, and searching is linear over stored records.
+- The generated List stores records as `Vec<Box<Record>>`; List IDs are current vector indexes, `remove` physically removes entries, and searching is linear over stored records. Sorting moves the boxes in the vector instead of moving record values themselves.
 - Depending on `fixed-record` with `default-features = false` generates only the record body and field operations.
 
 ### Reader separators

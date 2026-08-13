@@ -309,13 +309,15 @@
 //! # Searchable Lists / 検索可能な List
 //!
 //! With the default `list` feature, the macro generates the optional helper `{StructName}List`. It
-//! stores records directly in a vector and supports lookup, update, physical removal,
+//! stores boxed records in a vector and supports lookup, update, physical removal,
 //! sorting, exact searches, padded searches, prefix searches, and range searches.
+//! Sorting moves boxes in the vector, not the record values allocated behind them.
 //! List IDs are the current vector indexes, so IDs can change after removal or sorting.
 //!
 //! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
-//! これはレコードを vector に直接保持し、lookup、update、物理削除、sort、完全一致検索、
+//! これは Box 化したレコードを vector に保持し、lookup、update、物理削除、sort、完全一致検索、
 //! padding を考慮した検索、prefix 検索、range 検索を提供します。
+//! ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 //! List ID は現在の vector index なので、削除やソート後に変わる可能性があります。
 //!
 //! ```

@@ -739,6 +739,45 @@ mod tests {
         assert!(list.get(id).is_none());
         assert!(list.all_ids().is_empty());
     }
+
+    #[test]
+    fn test_list_sort_keeps_record_addresses_stable() {
+        let mut list = TestRecordList::new();
+
+        list.insert(
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("B0001")
+                .with_amount_int(20)
+                .build(),
+        );
+        list.insert(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+
+        let bob_before = list.find_by(TestRecordField::Code, *b"B0001")[0] as *const TestRecord;
+        let alice_before = list.find_by(TestRecordField::Code, *b"A0001")[0] as *const TestRecord;
+
+        list.sort_by(&[TestRecordField::Name]);
+
+        let alice_after = list.find_by(TestRecordField::Code, *b"A0001")[0] as *const TestRecord;
+        let bob_after = list.find_by(TestRecordField::Code, *b"B0001")[0] as *const TestRecord;
+
+        assert_eq!(alice_before, alice_after);
+        assert_eq!(bob_before, bob_after);
+        assert_eq!(
+            list.get(0)
+                .unwrap()
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
+    }
+
     #[test]
     fn test_list_update_replaces_record_for_id() {
         let mut list = TestRecordList::new();

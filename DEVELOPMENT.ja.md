@@ -110,7 +110,7 @@ cargo run -p fixed-record-no-list-example
 `{StructName}List` の生成は default feature の `list` で制御します。
 
 - default では List API を生成します。
-- 生成される List は `Vec<Record>` としてレコードを直接保持します。List ID は現在の vector index で、`remove` は物理削除、検索は保持レコードへの線形探索です。
+- 生成される List は `Vec<Box<Record>>` としてレコードを保持します。List ID は現在の vector index で、`remove` は物理削除、検索は保持レコードへの線形探索です。ソート時は vector 内の Box が移動し、レコード本体は移動しません。
 - `fixed-record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成します。
 
 ### Reader separators
