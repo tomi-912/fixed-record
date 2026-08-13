@@ -72,7 +72,7 @@ cargo run -p fixed-record-no-list-example
 
 確認済み:
 
-- `fixed-record` の generated API integration test: 通常 feature で 82 件成功
+- `fixed-record` の generated API integration test: 通常 feature で 83 件成功
 - `fixed-record` の doctest: 25 件成功
 
 ## うまくできている点
@@ -119,7 +119,7 @@ cargo run -p fixed-record-no-list-example
 
 ### Reader separators
 
-`Reader::new` と `Writer::new` はどちらもデフォルトで LF (`\n`) をレコード区切りにします。入力フォーマットが別の区切り、または区切りなしの場合は、呼び出し側が `Reader::with_separator` で指定します。区切りを設定した場合は、最終レコードを含むすべてのレコード後ろにその区切りが必要です。
+`Reader::new` と `Writer::new` はどちらもデフォルトで LF (`\n`) をレコード区切りにします。入力フォーマットが別の区切り、または区切りなしの場合は、呼び出し側が `Reader::with_separator` で指定します。区切りを設定した場合は、最終レコードを含むすべてのレコード後ろにその区切りが必要です。`Writer::write_all` は借用したレコードのイテレータを受け取り、各項目を `write_record` へ委譲するため、イテレータ順序、NUL 置換、区切り設定を維持します。
 
 ### test placement
 

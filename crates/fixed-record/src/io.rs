@@ -294,8 +294,7 @@ impl<R: BufRead, T: RecordWithList> Reader<R, T> {
 /// let mut writer = Writer::new(&mut output)
 ///     .with_separator(RecordSeparator::Comma);
 ///
-/// writer.write_record(&first).unwrap();
-/// writer.write_record(&second).unwrap();
+/// writer.write_all([&first, &second]).unwrap();
 /// writer.flush().unwrap();
 /// drop(writer);
 ///
@@ -341,6 +340,22 @@ impl<W: Write> Writer<W> {
 
         self.writer.write_all(&bytes)?;
         self.writer.write_all(self.separator)?;
+        Ok(())
+    }
+
+    /// Writes all borrowed records in iterator order.
+    /// 借用した全レコードをイテレータの順序で書き込みます。
+    ///
+    /// Each record uses the configured separator. Writing stops at the first I/O error.
+    /// 各レコードには設定済みの区切りを使います。最初の I/O エラーで書き込みを停止します。
+    pub fn write_all<'a, T, I>(&mut self, records: I) -> io::Result<()>
+    where
+        T: FixedRecord + 'a,
+        I: IntoIterator<Item = &'a T>,
+    {
+        for record in records {
+            self.write_record(record)?;
+        }
         Ok(())
     }
 

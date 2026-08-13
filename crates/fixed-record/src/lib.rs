@@ -262,8 +262,7 @@
 //! let mut output = Vec::new();
 //! let mut writer = Writer::new(&mut output)
 //!     .with_separator(RecordSeparator::Crlf);
-//! writer.write_record(&first).unwrap();
-//! writer.write_record(&second).unwrap();
+//! writer.write_all([&first, &second]).unwrap();
 //! writer.flush().unwrap();
 //! drop(writer);
 //!

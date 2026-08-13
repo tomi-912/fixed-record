@@ -72,7 +72,7 @@ Test layout:
 
 Verified test results:
 
-- `fixed-record` generated API integration tests: 82 tests pass with default features
+- `fixed-record` generated API integration tests: 83 tests pass with default features
 - `fixed-record` doctests: 25 tests pass
 
 ## What Works Well
@@ -122,6 +122,8 @@ Important behavioral points:
 `Reader::new` and `Writer::new` both default to LF (`\n`) record separators. If an input format
 uses a different separator or no separator, callers must configure it with `Reader::with_separator`.
 A configured separator is required after every record, including the final record.
+`Writer::write_all` accepts an iterator of borrowed records, delegates each item to `write_record`,
+and therefore preserves iterator order, NUL replacement, and separator settings.
 
 ### test placement
 

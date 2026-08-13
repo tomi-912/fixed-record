@@ -310,6 +310,38 @@ mod tests {
     }
 
     #[test]
+    fn test_writer_write_all_accepts_list_iterator() {
+        use fixed_record::{RecordSeparator, Writer};
+
+        let records = vec![
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("B0001")
+                .with_amount_int(20)
+                .build(),
+        ];
+        let list = TestRecordList::from(records);
+
+        let mut bytes = Vec::new();
+        let mut writer = Writer::new(&mut bytes).with_separator(RecordSeparator::Crlf);
+        writer.write_all(list.iter()).unwrap();
+        writer.flush().unwrap();
+        drop(writer);
+
+        let mut expected = Vec::new();
+        for record in list.iter() {
+            expected.extend_from_slice(&record.to_bytes());
+            expected.extend_from_slice(b"\r\n");
+        }
+        assert_eq!(bytes, expected);
+    }
+
+    #[test]
     fn test_reader_collect_list_builds_indices_and_returns_reader_errors() {
         use std::io::{BufReader, Cursor};
 

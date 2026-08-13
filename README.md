@@ -144,13 +144,14 @@ let mut reader = Reader::<_, User>::new(source)
 
 Sequence checks return `Error::SequenceError` when the current record is smaller than the previous record. Equal keys are allowed by default.
 
-Use `RecordSeparator::None` when records are adjacent with no separator. `Writer::new` writes `to_bytes()` output and appends LF by default.
+Use `RecordSeparator::None` when records are adjacent with no separator. `Writer::new` writes `to_bytes()` output and appends LF by default. `Writer::write_all(records)` writes borrowed records in iterator order, so a generated List can be written with `writer.write_all(list.iter())`.
 
 Use `RecordSeparator` to choose the separator written after each record.
 
 ```rust
 let mut writer = Writer::new(output)
     .with_separator(RecordSeparator::Crlf);
+writer.write_all(list.iter())?;
 
 let mut csv_like_writer = Writer::new(output)
     .with_separator(RecordSeparator::Comma);

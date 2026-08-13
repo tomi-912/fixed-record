@@ -144,13 +144,14 @@ let mut reader = Reader::<_, User>::new(source)
 
 シーケンスチェックでは、前回レコードより今回レコードが小さい場合に `Error::SequenceError` を返します。同一キーはデフォルトで許可されます。
 
-区切りなしでレコードが連続する入力には `RecordSeparator::None` を使います。`Writer::new` は `to_bytes` したレコードを書き出し、デフォルトでは LF をレコード末尾に付けます。
+区切りなしでレコードが連続する入力には `RecordSeparator::None` を使います。`Writer::new` は `to_bytes` したレコードを書き出し、デフォルトでは LF をレコード末尾に付けます。`Writer::write_all(records)` は借用したレコードをイテレータの順序で書き込むため、生成済み List は `writer.write_all(list.iter())` で書き出せます。
 
 `RecordSeparator` で、レコードごとに書き出す区切りを選べます。
 
 ```rust
 let mut writer = Writer::new(output)
     .with_separator(RecordSeparator::Crlf);
+writer.write_all(list.iter())?;
 
 let mut csv_like_writer = Writer::new(output)
     .with_separator(RecordSeparator::Comma);
