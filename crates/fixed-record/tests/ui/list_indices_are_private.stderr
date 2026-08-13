@@ -1,0 +1,12 @@
+error[E0603]: struct `UserListIndices` is private
+  --> tests/ui/list_indices_are_private.rs:14:29
+   |
+14 |     let _indices = records::UserListIndices::default();
+   |                             ^^^^^^^^^^^^^^^ private struct
+   |
+note: the struct `UserListIndices` is defined here
+  --> tests/ui/list_indices_are_private.rs:6:5
+   |
+ 6 |     #[fixed_record]
+   |     ^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `fixed_record` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -766,10 +766,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["Alice", "Carol", "Dave"]
         );
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
-        assert!(!code_index.contains_key(b"B0001".as_slice()));
-        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        let code_index: &std::collections::BTreeMap<Fixed<5>, Vec<usize>> = &list.indices.code;
+        assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0, 1]));
+        assert!(!code_index.contains_key(&Fixed::from(*b"B0001")));
+        assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(
             list.find_by(TestRecordField::Code, *b"A0001")
                 .iter()
@@ -816,9 +816,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["Alice", "Bob", "Carol"]
         );
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
-        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        let code_index = &list.indices.code;
+        assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0, 1]));
+        assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(carol_before, list.get(2).unwrap() as *const TestRecord);
 
         assert!(
@@ -833,10 +833,7 @@ mod tests {
         );
         assert_eq!(list.len(), 4);
         assert_eq!(
-            list.indices
-                .get(&TestRecordField::Code)
-                .unwrap()
-                .get(b"D0001".as_slice()),
+            list.indices.code.get(&Fixed::from(*b"D0001")),
             Some(&vec![3])
         );
 
@@ -887,9 +884,9 @@ mod tests {
         );
         assert_eq!(list.len(), 2);
 
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
-        assert!(!code_index.contains_key(b"C0001".as_slice()));
+        let code_index = &list.indices.code;
+        assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0, 1]));
+        assert!(!code_index.contains_key(&Fixed::from(*b"C0001")));
 
         let popped = list.pop().unwrap();
         assert_eq!(
@@ -897,10 +894,7 @@ mod tests {
             "Bob"
         );
         assert_eq!(
-            list.indices
-                .get(&TestRecordField::Code)
-                .unwrap()
-                .get(b"A0001".as_slice()),
+            list.indices.code.get(&Fixed::from(*b"A0001")),
             Some(&vec![0])
         );
 
@@ -912,7 +906,9 @@ mod tests {
             "Alice"
         );
         assert!(list.is_empty());
-        assert!(list.indices.is_empty());
+        assert!(list.indices.name.is_empty());
+        assert!(list.indices.code.is_empty());
+        assert!(list.indices.amount.is_empty());
         assert!(list.pop().is_none());
     }
 
@@ -1055,9 +1051,9 @@ mod tests {
                 .build(),
         );
 
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
-        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        let code_index = &list.indices.code;
+        assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0, 1]));
+        assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
         assert_eq!(
             list.find_by(TestRecordField::Code, *b"A0001")
                 .iter()
@@ -1077,23 +1073,23 @@ mod tests {
             )
         );
 
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0]));
-        assert_eq!(code_index.get(b"B0001".as_slice()), Some(&vec![1]));
+        let code_index = &list.indices.code;
+        assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![0]));
+        assert_eq!(code_index.get(&Fixed::from(*b"B0001")), Some(&vec![1]));
 
         list.sort_by(&[TestRecordField::Name]);
 
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert_eq!(code_index.get(b"B0001".as_slice()), Some(&vec![0]));
-        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![1]));
-        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        let code_index = &list.indices.code;
+        assert_eq!(code_index.get(&Fixed::from(*b"B0001")), Some(&vec![0]));
+        assert_eq!(code_index.get(&Fixed::from(*b"A0001")), Some(&vec![1]));
+        assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![2]));
 
         assert!(list.remove(1));
 
-        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
-        assert!(!code_index.contains_key(b"A0001".as_slice()));
-        assert_eq!(code_index.get(b"B0001".as_slice()), Some(&vec![0]));
-        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![1]));
+        let code_index = &list.indices.code;
+        assert!(!code_index.contains_key(&Fixed::from(*b"A0001")));
+        assert_eq!(code_index.get(&Fixed::from(*b"B0001")), Some(&vec![0]));
+        assert_eq!(code_index.get(&Fixed::from(*b"C0001")), Some(&vec![1]));
         assert!(list.find_by(TestRecordField::Code, *b"A0001").is_empty());
         assert_eq!(
             list.try_find_by_prefix(TestRecordField::Code, b"C")

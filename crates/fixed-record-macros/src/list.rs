@@ -5,7 +5,7 @@ use syn::DeriveInput;
 
 /// Generates the optional `{StructName}List` helper.
 /// optional な `{StructName}List` 補助型を生成します。
-pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> TokenStream {
+pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> TokenStream {
     if !cfg!(feature = "list") {
         return quote!();
     }
@@ -14,8 +14,115 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
     let struct_vis = &input.vis;
     let field_enum_name = format_ident!("{}Field", struct_name);
     let list_name = format_ident!("{}List", struct_name);
+    let indices_name = format_ident!("{}ListIndices", struct_name);
+
+    let index_fields = metas.iter().map(|meta| {
+        let name = meta.name;
+        let size = meta.size;
+        quote! {
+            #name: std::collections::BTreeMap<::fixed_record::Fixed<#size>, Vec<usize>>
+        }
+    });
+    let index_record_fields = metas.iter().map(|meta| {
+        let name = meta.name;
+        quote! {
+            Self::index_value(&mut indices.#name, id, record.#name);
+        }
+    });
+    let unindex_record_fields = metas.iter().map(|meta| {
+        let name = meta.name;
+        quote! {
+            Self::unindex_value(&mut indices.#name, id, record.#name);
+        }
+    });
+    let increment_index_fields = metas.iter().map(|meta| {
+        let name = meta.name;
+        quote! {
+            Self::increment_value_ids_at_or_after(&mut self.indices.#name, index);
+        }
+    });
+    let decrement_index_fields = metas.iter().map(|meta| {
+        let name = meta.name;
+        quote! {
+            Self::decrement_value_ids_after(&mut self.indices.#name, index);
+        }
+    });
+    let indexed_prefix_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => {
+                Self::indexed_prefix_ids_for(&self.indices.#name, prefix, padding_only)
+            }
+        }
+    });
+    let first_indexed_prefix_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => {
+                Self::first_indexed_prefix_id_for(&self.indices.#name, prefix, padding_only)
+            }
+        }
+    });
+    let find_by_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let size = meta.size;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => {
+                if N != #size {
+                    return Vec::new();
+                }
+                let Ok(key) = ::fixed_record::Fixed::<#size>::from_slice(value.as_bytes()) else {
+                    return Vec::new();
+                };
+                self.indices.#name.get(&key)
+            }
+        }
+    });
+    let find_range_by_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let size = meta.size;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => {
+                Self::range_ids_for::<#size, N, R>(&self.indices.#name, &range)
+            }
+        }
+    });
+    let iter_sorted_by_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => {
+                for ids in self.indices.#name.values() {
+                    records.extend(ids.iter().filter_map(|id| self.get(*id)));
+                }
+            }
+        }
+    });
+    let first_sorted_by_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => self
+                .indices
+                .#name
+                .first_key_value()?
+                .1
+                .first()
+                .copied()
+        }
+    });
 
     quote! {
+        #[doc(hidden)]
+        #[derive(Default)]
+        struct #indices_name {
+            #( #index_fields ),*
+        }
+
         #[doc = "Stores boxed records in a vector and maintains field indexes for search and sorting."]
         #[doc = "Box 化したレコードを vector に保持し、検索・ソート用のフィールド索引を管理します。"]
         #[doc = "Each field index maps actual field bytes to the current vector indexes of matching records."]
@@ -26,10 +133,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
         #[doc = "レコード ID は現在の vector index です。そのため削除やソート後に ID は変わる可能性があります。"]
         #struct_vis struct #list_name {
             records: Vec<Box<#struct_name>>,
-            indices: std::collections::HashMap<
-                #field_enum_name,
-                std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
-            >,
+            indices: #indices_name,
         }
 
         impl #list_name {
@@ -38,7 +142,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             pub fn new() -> Self {
                 Self {
                     records: Vec::new(),
-                    indices: std::collections::HashMap::new(),
+                    indices: #indices_name::default(),
                 }
             }
 
@@ -62,67 +166,60 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
 
             #[doc = "Adds one record to every field index."]
             #[doc = "1件のレコードを全フィールド索引へ追加します。"]
-            fn index_record(
-                indices: &mut std::collections::HashMap<
-                    #field_enum_name,
-                    std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
+            fn index_record(indices: &mut #indices_name, id: usize, record: &#struct_name) {
+                #( #index_record_fields )*
+            }
+
+            #[doc = "Adds one record ID to a typed field-value index."]
+            #[doc = "型付きフィールド値索引へレコード ID を1件追加します。"]
+            fn index_value<const N: usize>(
+                field_index: &mut std::collections::BTreeMap<
+                    ::fixed_record::Fixed<N>,
+                    Vec<usize>,
                 >,
                 id: usize,
-                record: &#struct_name,
+                value: ::fixed_record::Fixed<N>,
             ) {
-                for &field in #struct_name::all_fields() {
-                    let ids = indices
-                        .entry(field)
-                        .or_default()
-                        .entry(record.field_bytes(field).to_vec())
-                        .or_default();
-
-                    if let Err(position) = ids.binary_search(&id) {
-                        ids.insert(position, id);
-                    }
+                let ids = field_index.entry(value).or_default();
+                if let Err(position) = ids.binary_search(&id) {
+                    ids.insert(position, id);
                 }
             }
 
             #[doc = "Removes one record from every field index."]
             #[doc = "1件のレコードを全フィールド索引から削除します。"]
-            fn unindex_record(
-                indices: &mut std::collections::HashMap<
-                    #field_enum_name,
-                    std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
+            fn unindex_record(indices: &mut #indices_name, id: usize, record: &#struct_name) {
+                #( #unindex_record_fields )*
+            }
+
+            #[doc = "Removes one record ID from a typed field-value index."]
+            #[doc = "型付きフィールド値索引からレコード ID を1件削除します。"]
+            fn unindex_value<const N: usize>(
+                field_index: &mut std::collections::BTreeMap<
+                    ::fixed_record::Fixed<N>,
+                    Vec<usize>,
                 >,
                 id: usize,
-                record: &#struct_name,
+                value: ::fixed_record::Fixed<N>,
             ) {
-                for &field in #struct_name::all_fields() {
-                    let value = record.field_bytes(field);
-                    let remove_field = if let Some(field_index) = indices.get_mut(&field) {
-                        let remove_value = if let Some(ids) = field_index.get_mut(value) {
-                            if let Ok(position) = ids.binary_search(&id) {
-                                ids.remove(position);
-                            }
-                            ids.is_empty()
-                        } else {
-                            false
-                        };
-
-                        if remove_value {
-                            field_index.remove(value);
-                        }
-                        field_index.is_empty()
-                    } else {
-                        false
-                    };
-
-                    if remove_field {
-                        indices.remove(&field);
+                let remove_value = if let Some(ids) = field_index.get_mut(&value) {
+                    if let Ok(position) = ids.binary_search(&id) {
+                        ids.remove(position);
                     }
+                    ids.is_empty()
+                } else {
+                    false
+                };
+
+                if remove_value {
+                    field_index.remove(&value);
                 }
             }
 
             #[doc = "Rebuilds all field indexes from the current vector order."]
             #[doc = "現在の vector 順序から全フィールド索引を再構築します。"]
             fn rebuild_indices(&mut self) {
-                let mut indices = std::collections::HashMap::new();
+                let mut indices = #indices_name::default();
                 for (id, record) in self.records.iter().enumerate() {
                     Self::index_record(&mut indices, id, record.as_ref());
                 }
@@ -132,12 +229,22 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             #[doc = "Increments indexed record IDs at or after an insertion position."]
             #[doc = "挿入位置以降の索引内レコード ID を1つ繰り上げます。"]
             fn increment_index_ids_at_or_after(&mut self, index: usize) {
-                for field_index in self.indices.values_mut() {
-                    for ids in field_index.values_mut() {
-                        let first_shifted = ids.partition_point(|id| *id < index);
-                        for id in &mut ids[first_shifted..] {
-                            *id += 1;
-                        }
+                #( #increment_index_fields )*
+            }
+
+            #[doc = "Increments record IDs in one field index at or after an insertion position."]
+            #[doc = "1つのフィールド索引で挿入位置以降のレコード ID を繰り上げます。"]
+            fn increment_value_ids_at_or_after<const N: usize>(
+                field_index: &mut std::collections::BTreeMap<
+                    ::fixed_record::Fixed<N>,
+                    Vec<usize>,
+                >,
+                index: usize,
+            ) {
+                for ids in field_index.values_mut() {
+                    let first_shifted = ids.partition_point(|id| *id < index);
+                    for id in &mut ids[first_shifted..] {
+                        *id += 1;
                     }
                 }
             }
@@ -145,12 +252,22 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             #[doc = "Decrements indexed record IDs after a removal position."]
             #[doc = "削除位置より後ろの索引内レコード ID を1つ繰り下げます。"]
             fn decrement_index_ids_after(&mut self, index: usize) {
-                for field_index in self.indices.values_mut() {
-                    for ids in field_index.values_mut() {
-                        let first_shifted = ids.partition_point(|id| *id <= index);
-                        for id in &mut ids[first_shifted..] {
-                            *id -= 1;
-                        }
+                #( #decrement_index_fields )*
+            }
+
+            #[doc = "Decrements record IDs in one field index after a removal position."]
+            #[doc = "1つのフィールド索引で削除位置より後ろのレコード ID を繰り下げます。"]
+            fn decrement_value_ids_after<const N: usize>(
+                field_index: &mut std::collections::BTreeMap<
+                    ::fixed_record::Fixed<N>,
+                    Vec<usize>,
+                >,
+                index: usize,
+            ) {
+                for ids in field_index.values_mut() {
+                    let first_shifted = ids.partition_point(|id| *id <= index);
+                    for id in &mut ids[first_shifted..] {
+                        *id -= 1;
                     }
                 }
             }
@@ -177,21 +294,39 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 prefix: &[u8],
                 padding_only: bool,
             ) -> Vec<usize> {
+                match field {
+                    #( #indexed_prefix_arms ),*
+                }
+            }
+
+            #[doc = "Returns record IDs in one typed field index whose keys share a prefix."]
+            #[doc = "1つの型付きフィールド索引からキーが prefix を共有するレコード ID を返します。"]
+            fn indexed_prefix_ids_for<const N: usize>(
+                field_index: &std::collections::BTreeMap<
+                    ::fixed_record::Fixed<N>,
+                    Vec<usize>,
+                >,
+                prefix: &[u8],
+                padding_only: bool,
+            ) -> Vec<usize> {
                 use std::ops::Bound::{Excluded, Included, Unbounded};
 
-                let Some(field_index) = self.indices.get(&field) else {
-                    return Vec::new();
-                };
+                let mut lower = ::fixed_record::Fixed::<N>::zeroed();
+                lower.write_bytes(prefix);
                 let upper = Self::prefix_upper_bound(prefix);
-                let bounds = match upper.as_deref() {
-                    Some(upper) => (Included(prefix), Excluded(upper)),
-                    None => (Included(prefix), Unbounded),
+                let bounds = match upper {
+                    Some(upper) => {
+                        let mut value = ::fixed_record::Fixed::<N>::zeroed();
+                        value.write_bytes(&upper);
+                        (Included(lower), Excluded(value))
+                    }
+                    None => (Included(lower), Unbounded),
                 };
                 let mut ids = Vec::new();
 
-                for (value, indexed_ids) in field_index.range::<[u8], _>(bounds) {
+                for (value, indexed_ids) in field_index.range(bounds) {
                     if !padding_only
-                        || value[prefix.len()..]
+                        || value.as_bytes()[prefix.len()..]
                             .iter()
                             .all(|byte| *byte == 0x00 || *byte == b' ')
                     {
@@ -210,18 +345,38 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 prefix: &[u8],
                 padding_only: bool,
             ) -> Option<usize> {
+                match field {
+                    #( #first_indexed_prefix_arms ),*
+                }
+            }
+
+            #[doc = "Returns the first record ID in one typed field index whose key shares a prefix."]
+            #[doc = "1つの型付きフィールド索引からキーが prefix を共有する最初のレコード ID を返します。"]
+            fn first_indexed_prefix_id_for<const N: usize>(
+                field_index: &std::collections::BTreeMap<
+                    ::fixed_record::Fixed<N>,
+                    Vec<usize>,
+                >,
+                prefix: &[u8],
+                padding_only: bool,
+            ) -> Option<usize> {
                 use std::ops::Bound::{Excluded, Included, Unbounded};
 
-                let field_index = self.indices.get(&field)?;
+                let mut lower = ::fixed_record::Fixed::<N>::zeroed();
+                lower.write_bytes(prefix);
                 let upper = Self::prefix_upper_bound(prefix);
-                let bounds = match upper.as_deref() {
-                    Some(upper) => (Included(prefix), Excluded(upper)),
-                    None => (Included(prefix), Unbounded),
+                let bounds = match upper {
+                    Some(upper) => {
+                        let mut value = ::fixed_record::Fixed::<N>::zeroed();
+                        value.write_bytes(&upper);
+                        (Included(lower), Excluded(value))
+                    }
+                    None => (Included(lower), Unbounded),
                 };
 
-                for (value, indexed_ids) in field_index.range::<[u8], _>(bounds) {
+                for (value, indexed_ids) in field_index.range(bounds) {
                     if (!padding_only
-                        || value[prefix.len()..]
+                        || value.as_bytes()[prefix.len()..]
                             .iter()
                             .all(|byte| *byte == 0x00 || *byte == b' '))
                         && let Some(id) = indexed_ids.first()
@@ -334,11 +489,10 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 value: impl Into<::fixed_record::Fixed<N>>,
             ) -> Vec<&#struct_name> {
                 let value = value.into();
-                let Some(ids) = self
-                    .indices
-                    .get(&field)
-                    .and_then(|field_index| field_index.get(value.as_bytes()))
-                else {
+                let ids = match field {
+                    #( #find_by_arms ),*
+                };
+                let Some(ids) = ids else {
                     return Vec::new();
                 };
                 ids.iter().filter_map(|id| self.get(*id)).collect()
@@ -388,22 +542,60 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             where
                 R: std::ops::RangeBounds<::fixed_record::Fixed<N>>,
             {
-                use std::ops::Bound::{Excluded, Included, Unbounded};
-
                 if N != #struct_name::size_of(field) {
                     return Vec::new();
                 }
-                let Some(field_index) = self.indices.get(&field) else {
-                    return Vec::new();
+                let ids = match field {
+                    #( #find_range_by_arms ),*
                 };
+                self.records_for_ids(ids)
+            }
+
+            #[doc = "Returns record IDs within a range from one typed field index."]
+            #[doc = "1つの型付きフィールド索引から範囲内のレコード ID を返します。"]
+            fn range_ids_for<const M: usize, const N: usize, R>(
+                field_index: &std::collections::BTreeMap<
+                    ::fixed_record::Fixed<M>,
+                    Vec<usize>,
+                >,
+                range: &R,
+            ) -> Vec<usize>
+            where
+                R: std::ops::RangeBounds<::fixed_record::Fixed<N>>,
+            {
+                use std::ops::Bound::{Excluded, Included, Unbounded};
+
+                if M != N {
+                    return Vec::new();
+                }
                 let start = match range.start_bound() {
-                    Included(value) => Included(value.as_bytes().to_vec()),
-                    Excluded(value) => Excluded(value.as_bytes().to_vec()),
+                    Included(value) => {
+                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
+                            return Vec::new();
+                        };
+                        Included(value)
+                    }
+                    Excluded(value) => {
+                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
+                            return Vec::new();
+                        };
+                        Excluded(value)
+                    }
                     Unbounded => Unbounded,
                 };
                 let end = match range.end_bound() {
-                    Included(value) => Included(value.as_bytes().to_vec()),
-                    Excluded(value) => Excluded(value.as_bytes().to_vec()),
+                    Included(value) => {
+                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
+                            return Vec::new();
+                        };
+                        Included(value)
+                    }
+                    Excluded(value) => {
+                        let Ok(value) = ::fixed_record::Fixed::<M>::from_slice(value.as_bytes()) else {
+                            return Vec::new();
+                        };
+                        Excluded(value)
+                    }
                     Unbounded => Unbounded,
                 };
                 let start_is_excluded = matches!(&start, Excluded(_));
@@ -428,7 +620,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 for indexed_ids in field_index.range((start, end)).map(|(_, ids)| ids) {
                     ids.extend_from_slice(indexed_ids);
                 }
-                self.records_for_ids(ids)
+                ids
             }
 
             #[doc = "Returns an iterator over records in indexed ascending order by the specified field."]
@@ -438,10 +630,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 field: #field_enum_name,
             ) -> impl Iterator<Item = &'a #struct_name> + 'a {
                 let mut records = Vec::with_capacity(self.records.len());
-                if let Some(field_index) = self.indices.get(&field) {
-                    for ids in field_index.values() {
-                        records.extend(ids.iter().filter_map(|id| self.get(*id)));
-                    }
+                match field {
+                    #( #iter_sorted_by_arms ),*
                 }
                 records.into_iter()
             }
@@ -481,13 +671,10 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             #[doc = "Unlike `first_by`, callers do not need to specify the field width."]
             #[doc = "`first_by` と違い、呼び出し側でフィールド幅を指定する必要はありません。"]
             pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                let id = self
-                    .indices
-                    .get(&field)?
-                    .first_key_value()?
-                    .1
-                    .first()?;
-                self.get(*id)
+                let id = match field {
+                    #( #first_sorted_by_arms ),*
+                }?;
+                self.get(id)
             }
 
             #[doc = "Returns the first indexed record whose specified field matches the value."]
