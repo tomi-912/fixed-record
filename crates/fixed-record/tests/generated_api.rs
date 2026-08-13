@@ -922,6 +922,166 @@ mod tests {
     }
 
     #[test]
+    fn test_list_clear_removes_records_and_field_indices() {
+        let mut list = TestRecordList::new();
+
+        list.push(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+        list.push(
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("B0001")
+                .with_amount_int(20)
+                .build(),
+        );
+
+        list.clear();
+
+        assert_eq!(list.len(), 0);
+        assert!(list.is_empty());
+        assert!(list.indices.name.is_empty());
+        assert!(list.indices.code.is_empty());
+        assert!(list.indices.amount.is_empty());
+        assert!(
+            list.try_find_by(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            list.try_find_by(TestRecordField::Code, b"B0001")
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_list_predicate_find_and_find_all_scan_in_current_order() {
+        let mut list = TestRecordList::new();
+
+        for (name, code, amount) in [
+            ("Alice", "A0001", 10),
+            ("Bob", "B0001", 20),
+            ("Carol", "A0001", 30),
+        ] {
+            list.push(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code(code)
+                    .with_amount_int(amount)
+                    .build(),
+            );
+        }
+
+        let first = list.find(|record| record.code() == b"A0001").unwrap();
+        assert_eq!(
+            first.get_field_trimmed(TestRecordField::Name).unwrap(),
+            "Alice"
+        );
+
+        let mut calls = 0;
+        let found = list.find_all(|record| {
+            calls += 1;
+            record.code() == b"A0001"
+        });
+        assert_eq!(calls, 3);
+        assert_eq!(
+            found
+                .iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Carol"]
+        );
+        assert!(list.find(|record| record.code() == b"X0001").is_none());
+        assert!(list.find_all(|record| record.code() == b"X0001").is_empty());
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_list_retain_preserves_order_and_rebuilds_field_indices() {
+        let mut list = TestRecordList::new();
+
+        for (name, code) in [
+            ("Alice", "A0001"),
+            ("Bob", "B0001"),
+            ("Carol", "A0001"),
+            ("Dave", "C0001"),
+        ] {
+            list.push(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code(code)
+                    .build(),
+            );
+        }
+
+        list.retain(|record| record.code() == b"A0001");
+
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Carol"]
+        );
+        assert_eq!(
+            list.indices.code.get(&Fixed::from(*b"A0001")),
+            Some(&vec![0, 1])
+        );
+        assert!(!list.indices.code.contains_key(&Fixed::from(*b"B0001")));
+        assert!(!list.indices.code.contains_key(&Fixed::from(*b"C0001")));
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_list_retain_repairs_field_indices_after_panic() {
+        let mut list = TestRecordList::new();
+
+        for (name, code) in [("Alice", "A0001"), ("Bob", "B0001"), ("Carol", "C0001")] {
+            list.push(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code(code)
+                    .build(),
+            );
+        }
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            list.retain(|record| {
+                if record.code() == b"C0001" {
+                    panic!("stop retaining");
+                }
+                record.code() != b"B0001"
+            });
+        }));
+        assert!(result.is_err());
+
+        for (id, record) in list.iter().enumerate() {
+            assert!(
+                list.indices
+                    .code
+                    .get(&Fixed::<5>::from_slice(record.code()).unwrap())
+                    .unwrap()
+                    .contains(&id)
+            );
+        }
+        assert_eq!(
+            list.indices.code.values().map(Vec::len).sum::<usize>(),
+            list.len()
+        );
+    }
+
+    #[test]
     fn test_list_sort_keeps_record_addresses_stable() {
         let mut list = TestRecordList::new();
 

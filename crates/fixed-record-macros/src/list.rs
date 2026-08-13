@@ -199,10 +199,63 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.records.is_empty()
             }
 
+            #[doc = "Removes all records and clears all field indexes."]
+            #[doc = "全レコードを削除し、全フィールド索引を空にします。"]
+            pub fn clear(&mut self) {
+                self.records.clear();
+                self.indices = #indices_name::default();
+            }
+
+            #[doc = "Retains only records for which the predicate returns `true` and rebuilds all field indexes."]
+            #[doc = "predicate が `true` を返すレコードだけを残し、全フィールド索引を再構築します。"]
+            #[doc = "Indexes are rebuilt by a drop guard even if the predicate unwinds."]
+            #[doc = "predicate が unwind した場合も drop guard により索引を再構築します。"]
+            #[deprecated(
+                note = "performs a linear scan and rebuilds all field indexes; prefer indexed operations"
+            )]
+            pub fn retain(&mut self, mut keep: impl FnMut(&#struct_name) -> bool) {
+                let mut guard = #rebuild_guard_name { list: self };
+                guard
+                    .list
+                    .records
+                    .retain(|record| keep(record.as_ref()));
+            }
+
             #[doc = "Returns an iterator over records in the current order."]
             #[doc = "現在の順序でレコードを返すイテレータです。"]
             pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a #struct_name> + 'a {
                 self.records.iter().map(|record| record.as_ref())
+            }
+
+            #[doc = "Returns the first record matching the predicate by scanning in the current order."]
+            #[doc = "現在の順序で走査し、predicate に一致する最初のレコードを返します。"]
+            #[deprecated(
+                note = "performs a linear scan; use try_first_by*, first_sorted_by, or another indexed lookup"
+            )]
+            pub fn find(
+                &self,
+                mut predicate: impl FnMut(&#struct_name) -> bool,
+            ) -> Option<&#struct_name> {
+                self.records
+                    .iter()
+                    .map(|record| record.as_ref())
+                    .find(|record| predicate(*record))
+            }
+
+            #[doc = "Returns all records matching the predicate by scanning in the current order."]
+            #[doc = "現在の順序で走査し、predicate に一致する全レコードを返します。"]
+            #[deprecated(
+                note = "performs a linear scan; use try_find_by*, try_find_range_by, or another indexed lookup"
+            )]
+            pub fn find_all(
+                &self,
+                mut predicate: impl FnMut(&#struct_name) -> bool,
+            ) -> Vec<&#struct_name> {
+                self.records
+                    .iter()
+                    .map(|record| record.as_ref())
+                    .filter(|record| predicate(*record))
+                    .collect()
             }
 
             #[doc = "Mutates every record in the current order and rebuilds all field indexes afterward."]
