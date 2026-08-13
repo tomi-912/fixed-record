@@ -1,9 +1,9 @@
 use fixed_record::{Fixed, FixedRecord, fixed_record};
 
 #[fixed_record]
-pub struct Customer {
-    pub id: Fixed<6>,
-    pub name: Fixed<12>,
+struct Customer {
+    id: Fixed<6>,
+    name: Fixed<12>,
 }
 
 /// Calls the generated `FixedRecord` implementation through a trait bound.

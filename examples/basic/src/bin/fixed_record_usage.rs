@@ -2,10 +2,10 @@ use fixed_record::prelude::*;
 use std::io::{BufReader, Cursor};
 
 #[fixed_record]
-pub struct Payment {
-    pub bank_code: Fixed<4>,
-    pub account_no: Fixed<7>,
-    pub amount: Fixed<8>,
+struct Payment {
+    bank_code: Fixed<4>,
+    account_no: Fixed<7>,
+    amount: Fixed<8>,
 }
 
 /// Runs a user-facing example that imports `fixed_record::prelude`.

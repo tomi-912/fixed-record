@@ -30,10 +30,10 @@ fixed-record = "0.1"
 use fixed_record::prelude::*;
 
 #[fixed_record]
-pub struct User {
-    pub id: Fixed<8>,
-    pub name: Fixed<16>,
-    pub age: Fixed<3>,
+struct User {
+    id: Fixed<8>,
+    name: Fixed<16>,
+    age: Fixed<3>,
 }
 
 let user = User::builder()
@@ -53,7 +53,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 Applying `#[fixed_record]` to a struct mainly generates:
 
 - the record struct with basic derives
-- a `{StructName}Field` enum
+- a `{StructName}Field` enum with the same visibility as the record struct
 - metadata such as `TOTAL_LEN`, field lengths, and offsets
 - `builder`, `with_*`, `try_with_*_int`, and `with_*_int_truncated`
 - `parse` / `parse_str` / `to_bytes`
@@ -61,7 +61,7 @@ Applying `#[fixed_record]` to a struct mainly generates:
 - bulk application helpers such as `apply_*`
 - a `FixedRecord` trait implementation
 - `Reader` / `Writer` interoperability
-- `{StructName}List` insertion, lookup, range search, removal, `vacuum`, and sorting
+- `{StructName}List` insertion, lookup, range search, removal, `vacuum`, and sorting, with the same visibility as the record struct
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 ## Field Initialization
@@ -70,8 +70,8 @@ Applying `#[fixed_record]` to a struct mainly generates:
 
 ```rust
 #[fixed_record(clear_byte = ZERO)]
-pub struct User {
-    pub id: Fixed<8>,
+struct User {
+    id: Fixed<8>,
 }
 ```
 

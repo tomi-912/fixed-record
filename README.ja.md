@@ -30,10 +30,10 @@ fixed-record = "0.1"
 use fixed_record::prelude::*;
 
 #[fixed_record]
-pub struct User {
-    pub id: Fixed<8>,
-    pub name: Fixed<16>,
-    pub age: Fixed<3>,
+struct User {
+    id: Fixed<8>,
+    name: Fixed<16>,
+    age: Fixed<3>,
 }
 
 let user = User::builder()
@@ -53,7 +53,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 `#[fixed_record]` を付けた struct から、主に次の API を生成します。
 
 - 基本 derive を付けたレコード struct
-- `{StructName}Field` enum
+- レコード struct と同じ可視性の `{StructName}Field` enum
 - `TOTAL_LEN`、フィールド長、オフセットなどのメタ情報
 - `builder`、`with_*`、`try_with_*_int`、`with_*_int_truncated`
 - `parse` / `parse_str` / `to_bytes`
@@ -61,7 +61,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 - `apply_*` 系の一括流し込み
 - `FixedRecord` trait 実装
 - `Reader` / `Writer` との連携
-- `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
+- レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 ## フィールド初期化
@@ -70,8 +70,8 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 ```rust
 #[fixed_record(clear_byte = ZERO)]
-pub struct User {
-    pub id: Fixed<8>,
+struct User {
+    id: Fixed<8>,
 }
 ```
 

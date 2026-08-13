@@ -46,10 +46,10 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
-//!     pub customer_id: Fixed<4>,
-//!     pub order_no: Fixed<6>,
-//!     pub amount: Fixed<8>,
+//! struct Order {
+//!     customer_id: Fixed<4>,
+//!     order_no: Fixed<6>,
+//!     amount: Fixed<8>,
 //! }
 //!
 //! assert_eq!(Order::TOTAL_LEN, 18);
@@ -63,6 +63,8 @@
 //! Generated names follow the input struct:
 //!
 //! 生成名は入力 struct から決まります。
+//! `OrderField` and `OrderList` use the same visibility as `Order`.
+//! `OrderField` と `OrderList` は `Order` と同じ可視性で生成されます。
 //!
 //! - `Order`: the record type / レコード型
 //! - `OrderField`: the field enum / フィールド enum
@@ -81,7 +83,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -109,7 +111,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Balance {
+//! struct Balance {
 //!     account: Fixed<4>,
 //!     signed_amount: Fixed<6>,
 //! }
@@ -140,7 +142,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -169,7 +171,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -203,7 +205,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -238,7 +240,7 @@
 //! use std::io::{BufReader, Cursor};
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -278,7 +280,7 @@
 //! use std::io::{BufReader, Cursor};
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -315,7 +317,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -370,7 +372,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -402,7 +404,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record(clear_byte = ZERO)]
-//! pub struct ZeroPaddedName {
+//! struct ZeroPaddedName {
 //!     name: Fixed<6>,
 //! }
 //!
@@ -428,7 +430,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,
@@ -475,7 +477,7 @@
 //! use fixed_record::prelude::*;
 //!
 //! #[fixed_record]
-//! pub struct Order {
+//! struct Order {
 //!     customer_id: Fixed<4>,
 //!     order_no: Fixed<6>,
 //!     amount: Fixed<8>,

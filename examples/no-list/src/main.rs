@@ -1,9 +1,9 @@
 use fixed_record::prelude::*;
 
 #[fixed_record]
-pub struct Header {
-    pub code: Fixed<4>,
-    pub name: Fixed<8>,
+struct Header {
+    code: Fixed<4>,
+    name: Fixed<8>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,18 +1,18 @@
 use fixed_record::prelude::*;
 
 #[fixed_record]
-pub struct User {
+struct User {
     /// Unique user ID, stored as 8 bytes.
     /// ユーザーの固有 ID を8バイトで保持します。
-    pub id: Fixed<8>,
+    id: Fixed<8>,
 
     /// User name, stored as 16 bytes.
     /// ユーザー名を16バイトで保持します。
-    pub name: Fixed<16>,
+    name: Fixed<16>,
 
     /// User age, stored as 3 bytes.
     /// 年齢を3バイトで保持します。
-    pub age: Fixed<3>,
+    age: Fixed<3>,
 }
 
 /// Runs the main fixed-record APIs as a compact example application.

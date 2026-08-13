@@ -1,0 +1,27 @@
+error[E0603]: enum `UserField` is private
+  --> tests/ui/private_record_generated_types_are_private.rs:13:27
+   |
+13 |     let _field = records::UserField::Id;
+   |                           ^^^^^^^^^  -- unit variant `Id` is not publicly re-exported
+   |                           |
+   |                           private enum
+   |
+note: the enum `UserField` is defined here
+  --> tests/ui/private_record_generated_types_are_private.rs:6:5
+   |
+ 6 |     #[fixed_record]
+   |     ^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `fixed_record` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0603]: struct `UserList` is private
+  --> tests/ui/private_record_generated_types_are_private.rs:14:26
+   |
+14 |     let _list = records::UserList::new();
+   |                          ^^^^^^^^ private struct
+   |
+note: the struct `UserList` is defined here
+  --> tests/ui/private_record_generated_types_are_private.rs:6:5
+   |
+ 6 |     #[fixed_record]
+   |     ^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `fixed_record` (in Nightly builds, run with -Z macro-backtrace for more info)

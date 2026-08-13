@@ -75,6 +75,7 @@ fn collect_field_meta(input: &DeriveInput) -> syn::Result<Vec<FieldMeta<'_>>> {
 /// フィールド識別用列挙型 `{StructName}Field` を生成します。
 pub fn gen_field_enum(input: &DeriveInput) -> syn::Result<TokenStream> {
     let struct_name = &input.ident;
+    let struct_vis = &input.vis;
     let field_enum_name = format_ident!("{}Field", struct_name);
     let metas = collect_field_meta(input)?;
 
@@ -90,7 +91,7 @@ pub fn gen_field_enum(input: &DeriveInput) -> syn::Result<TokenStream> {
         #[doc = "Field identifier enum for the generated record."]
         #[doc = "生成レコード用のフィールド識別列挙型です。"]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub enum #field_enum_name {
+        #struct_vis enum #field_enum_name {
             #( #variants ),*
         }
     })
@@ -149,6 +150,7 @@ pub fn impl_fixed_record_core(
     options: MacroOptions,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let struct_name = &input.ident;
+    let struct_vis = &input.vis;
     let field_enum_name = format_ident!("{}Field", struct_name);
     let entry_name = format_ident!("{}Entry", struct_name);
     let list_name = format_ident!("{}List", struct_name);
@@ -811,7 +813,7 @@ pub fn impl_fixed_record_core(
 
             #[doc = "Stores a collection of records and manages indexes for search, removal, and sorting."]
             #[doc = "レコードのコレクションを保持し、検索・削除・ソート用インデックスを管理します。"]
-            pub struct #list_name {
+            #struct_vis struct #list_name {
                 records: std::collections::BTreeMap<usize, #entry_name>,
                 next_id: usize,
                 indices: std::collections::HashMap<#field_enum_name, Box<dyn std::any::Any>>,
