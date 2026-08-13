@@ -107,15 +107,16 @@ let mut list = UserList::new();
 let id = list.push(user);
 
 let exact = list.find_by(UserField::Id, b"00000001")?;
+let first_exact = list.first_by(UserField::Id, b"00000001")?;
 let padded = list.try_find_by(UserField::Id, b"00000001")?;
 let ages_in_20s_and_30s = list.find_range_by(UserField::Age, b"02"..=b"03")?;
-let first = list.try_first_by(UserField::Id, b"00000001")?;
+let first_padded = list.try_first_by(UserField::Id, b"00000001")?;
 let by_id = list.get(id);
 ```
 
-Use `try_find_by` when shorter input should match records whose remaining field bytes are spaces or `0x00`. The compatibility API `first_by<const N: usize>` is still available for retrieving the lowest indexed value, though `try_first_sorted_by` does not require a width argument.
+`find_by` / `first_by` require the exact field width. `try_find_by` / `try_first_by` accept shorter input when the remaining field bytes are spaces or `0x00`. The fixed-width `first_by_prefix` is equivalent to `first_by`; `try_first_by_prefix` accepts a shorter prefix. Use `first_sorted_by(field)` to retrieve the lowest indexed field value.
 
-Use `try_find_by_prefix` / `try_first_by_prefix` for prefix searches.
+Use `try_find_by_prefix` / `try_first_by_prefix` for shorter prefix searches.
 
 ## Reader / Writer
 

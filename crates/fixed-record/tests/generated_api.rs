@@ -693,7 +693,7 @@ mod tests {
             .collect();
         assert_eq!(names, vec!["Alice".to_string(), "Bob".to_string()]);
 
-        let first_by_code = list.try_first_sorted_by(TestRecordField::Code).unwrap();
+        let first_by_code = list.first_sorted_by(TestRecordField::Code).unwrap();
         assert_eq!(
             first_by_code
                 .get_field_trimmed(TestRecordField::Code)
@@ -1165,7 +1165,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            list.first_by::<8>(TestRecordField::Amount)
+            list.first_sorted_by(TestRecordField::Amount)
                 .unwrap()
                 .get_field_trimmed(TestRecordField::Name)
                 .unwrap(),
@@ -1295,6 +1295,80 @@ mod tests {
             list.find_by(TestRecordField::Code, b"A0001")
                 .unwrap()
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn test_first_by_requires_exact_field_width() {
+        let mut list = TestRecordList::new();
+        list.push(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .build(),
+        );
+        list.push(
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("A0001")
+                .build(),
+        );
+
+        assert_eq!(
+            list.first_by(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
+        assert!(
+            list.first_by(TestRecordField::Code, b"X0001")
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            list.first_by(TestRecordField::Code, b"A000").unwrap_err(),
+            Error::TooShort
+        );
+        assert_eq!(
+            list.first_by(TestRecordField::Code, b"A00001").unwrap_err(),
+            Error::FieldOverflow {
+                field: "code",
+                size: TestRecord::FIELD_SIZE_CODE,
+                actual: 6,
+            }
+        );
+    }
+
+    #[test]
+    fn test_first_by_prefix_requires_exact_field_width() {
+        let mut list = TestRecordList::new();
+        list.push(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .build(),
+        );
+
+        assert!(
+            list.first_by_prefix(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(
+            list.first_by_prefix(TestRecordField::Code, b"A00")
+                .unwrap_err(),
+            Error::TooShort
+        );
+        assert_eq!(
+            list.first_by_prefix(TestRecordField::Code, b"A00001")
+                .unwrap_err(),
+            Error::FieldOverflow {
+                field: "code",
+                size: TestRecord::FIELD_SIZE_CODE,
+                actual: 6,
+            }
         );
     }
 

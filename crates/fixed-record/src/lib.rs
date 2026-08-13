@@ -352,13 +352,16 @@
 //! let exact = list.find_by(OrderField::CustomerId, b"C001").unwrap();
 //! assert_eq!(exact.len(), 2);
 //!
+//! let first_exact = list.first_by(OrderField::OrderNo, b"A00001").unwrap().unwrap();
+//! assert_eq!(first_exact.amount(), b"00000100");
+//!
 //! let padded = list.try_find_by(OrderField::OrderNo, b"A00001").unwrap();
 //! assert_eq!(padded[0].amount(), b"00000100");
 //!
 //! let prefix = list.try_find_by_prefix(OrderField::OrderNo, b"A000").unwrap();
 //! assert_eq!(prefix.len(), 2);
 //!
-//! let first_by_order_no = list.try_first_sorted_by(OrderField::OrderNo).unwrap();
+//! let first_by_order_no = list.first_sorted_by(OrderField::OrderNo).unwrap();
 //! assert_eq!(first_by_order_no.order_no(), b"A00001");
 //!
 //! list.update(id_first, Order::builder()

@@ -107,15 +107,16 @@ let mut list = UserList::new();
 let id = list.push(user);
 
 let exact = list.find_by(UserField::Id, b"00000001")?;
+let first_exact = list.first_by(UserField::Id, b"00000001")?;
 let padded = list.try_find_by(UserField::Id, b"00000001")?;
 let ages_in_20s_and_30s = list.find_range_by(UserField::Age, b"02"..=b"03")?;
-let first = list.try_first_by(UserField::Id, b"00000001")?;
+let first_padded = list.try_first_by(UserField::Id, b"00000001")?;
 let by_id = list.get(id);
 ```
 
-短い入力で、残りのフィールドバイトがスペースまたは `0x00` のレコードにも一致させたい場合は `try_find_by` を使います。索引上で最小の値を取得する互換 API として `first_by<const N: usize>` も残っていますが、`try_first_sorted_by` なら幅指定は不要です。
+`find_by` / `first_by` はフィールドと同じ幅を要求します。`try_find_by` / `try_first_by` は、残りのフィールドバイトがスペースまたは `0x00` なら短い入力を受け付けます。固定幅の `first_by_prefix` は `first_by` と同じ結果になり、`try_first_by_prefix` は短いprefixを受け付けます。索引上で最小のフィールド値を取得する場合は `first_sorted_by(field)` を使います。
 
-先頭一致で検索したい場合は `try_find_by_prefix` / `try_first_by_prefix` を使います。
+短い先頭一致で検索したい場合は `try_find_by_prefix` / `try_first_by_prefix` を使います。
 
 ## Reader / Writer
 

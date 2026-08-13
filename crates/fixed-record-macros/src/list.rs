@@ -76,6 +76,17 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             }
         }
     });
+    let first_exact_by_arms = metas.iter().map(|meta| {
+        let name = meta.name;
+        let size = meta.size;
+        let variant = &meta.variant;
+        quote! {
+            #field_enum_name::#variant => {
+                let key = ::fixed_record::Fixed::<#size>::from_slice(raw_value)?;
+                self.indices.#name.get(&key).and_then(|ids| ids.first()).copied()
+            }
+        }
+    });
     let find_range_by_arms = metas.iter().map(|meta| {
         let name = meta.name;
         let size = meta.size;
@@ -407,6 +418,19 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 Ok(())
             }
 
+            #[doc = "Validates that a search value exactly matches the selected field width."]
+            #[doc = "検索値が選択フィールドの幅と完全に一致することを検証します。"]
+            fn validate_exact_search_width(
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<(), ::fixed_record::error::Error> {
+                let size = #struct_name::size_of(field);
+                if value.len() < size {
+                    return Err(::fixed_record::error::Error::TooShort);
+                }
+                Self::validate_search_width(field, value)
+            }
+
             #[doc = "Appends a record and returns its current index as the ID."]
             #[doc = "レコードを末尾へ追加し、現在の index を ID として返します。"]
             pub fn push(&mut self, record: #struct_name) -> usize {
@@ -488,11 +512,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 value: impl AsRef<[u8]>,
             ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
                 let raw_value = value.as_ref();
-                let size = #struct_name::size_of(field);
-                if raw_value.len() < size {
-                    return Err(::fixed_record::error::Error::TooShort);
-                }
-                Self::validate_search_width(field, raw_value)?;
+                Self::validate_exact_search_width(field, raw_value)?;
 
                 let ids = match field {
                     #( #find_by_arms ),*
@@ -689,21 +709,52 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.records.first().map(|record| record.as_ref())
             }
 
-            #[doc = "Returns the first record in indexed ascending order by the specified field."]
-            #[doc = "指定フィールドの索引上の昇順で最初のレコードを返します。"]
-            pub fn first_by<const N: usize>(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                self.try_first_sorted_by(field)
+            #[doc = "Returns the first record whose specified field exactly matches the value."]
+            #[doc = "指定フィールドが値と完全一致する最初のレコードを返します。"]
+            #[doc = "Returns `Error::TooShort` when the search value is shorter than the field."]
+            #[doc = "検索値がフィールド幅より短い場合は `Error::TooShort` を返します。"]
+            #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
+            #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
+            pub fn first_by(
+                &self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+            ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
+                let raw_value = value.as_ref();
+                Self::validate_exact_search_width(field, raw_value)?;
+                let id = match field {
+                    #( #first_exact_by_arms ),*
+                };
+                Ok(id.and_then(|id| self.get(id)))
             }
 
             #[doc = "Returns the first record in indexed ascending order by the specified field."]
             #[doc = "指定フィールドの索引上の昇順で最初のレコードを返します。"]
-            #[doc = "Unlike `first_by`, callers do not need to specify the field width."]
-            #[doc = "`first_by` と違い、呼び出し側でフィールド幅を指定する必要はありません。"]
-            pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
+            pub fn first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
                 let id = match field {
                     #( #first_sorted_by_arms ),*
                 }?;
                 self.get(id)
+            }
+
+            #[doc = "Compatibility alias for `first_sorted_by`."]
+            #[doc = "`first_sorted_by` の互換 alias です。"]
+            pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
+                self.first_sorted_by(field)
+            }
+
+            #[doc = "Returns the first full-width prefix match for the specified field."]
+            #[doc = "指定フィールドに対する固定幅の prefix 完全一致のうち最初のレコードを返します。"]
+            #[doc = "A full-width prefix has the same matching behavior as `first_by`."]
+            #[doc = "固定幅の prefix は `first_by` と同じ一致結果になります。"]
+            #[doc = "Returns `Error::TooShort` or `Error::FieldOverflow` when the width differs."]
+            #[doc = "幅が異なる場合は `Error::TooShort` または `Error::FieldOverflow` を返します。"]
+            pub fn first_by_prefix(
+                &self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+            ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
+                self.first_by(field, value)
             }
 
             #[doc = "Returns the first indexed record whose specified field matches the value."]
