@@ -362,6 +362,49 @@ mod tests {
     }
 
     #[test]
+    fn test_list_read_from_uses_reader_configuration_and_builds_indices() {
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Alice")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Bob")
+            .with_code("B0001")
+            .with_amount_int(20)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.extend_from_slice(b"\r\n");
+        bytes.extend_from_slice(&second.to_bytes());
+        bytes.extend_from_slice(b"\r\n");
+
+        let reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::Crlf)
+            .with_sequence_check([TestRecordField::Code]);
+        let list = TestRecordList::read_from(reader).unwrap();
+
+        assert_eq!(list.len(), 2);
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Bob"]
+        );
+        assert_eq!(
+            list.indices.code.get(&Fixed::from(*b"A0001")),
+            Some(&vec![0])
+        );
+        assert_eq!(
+            list.indices.code.get(&Fixed::from(*b"B0001")),
+            Some(&vec![1])
+        );
+    }
+
+    #[test]
     fn test_reader_writer_round_trip_file_with_lf_separator() {
         use fixed_record::{Reader, RecordSeparator, Writer};
         use std::fs::File;

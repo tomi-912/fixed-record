@@ -72,7 +72,7 @@ cargo run -p fixed-record-no-list-example
 
 確認済み:
 
-- `fixed-record` の generated API integration test: 通常 feature で 81 件成功
+- `fixed-record` の generated API integration test: 通常 feature で 82 件成功
 - `fixed-record` の doctest: 25 件成功
 
 ## うまくできている点
@@ -114,7 +114,7 @@ cargo run -p fixed-record-no-list-example
 - 読み取り API と変更 API は非公開の `Vec<usize>` / `Option<usize>` 検索 helper を共有するため、`try_edit_by*`、`try_edit_range_by`、`try_edit_first_by*` は現在 index を外部へ公開しません。条件付き変更は一致レコードだけを退避し、drop guard で影響する索引項目を修復します。`for_each_mut` は mutable 参照を callback 内に限定し、全レコードが変更され得るため rebuild guard を使います。どちらの guard も unwind 中の索引整合性を維持します。
 - 選択フィールドの異なる値が `u` 件、一致件数が `k` 件の場合、完全一致検索は全 `n` レコードの走査ではなく `O(log u + k)` です。prefix・range 検索は `O(log u + m + k log k)` で、`m` は走査した異なる索引キー数、`k log k` は現在の List 順序を維持するための ID ソートです。代わりに、フィールドバイト列のコピーと、レコードごと・フィールドごとに1つの `usize` を索引用メモリとして使います。
 - predicate ベースの `find`、`find_all`、`retain` は互換性のため残しますが非推奨です。いずれも `O(n)` の線形走査が必要で、`retain` はさらに全フィールド索引を再構築します。利用者向けには索引を使う `try_first_by*`、`try_find_by*`、`try_find_range_by` を案内します。
-- `RecordWithList` trait は生成レコードと生成済み List 型を関連付けます。`list` feature が有効な場合、`Reader::collect_list` は残りの全レコードを `Vec<Record>` へ収集し、途中までの List を返さず最初の Reader エラーを返し、`From<Vec<Record>>` で索引付き List を構築します。
+- `RecordWithList` trait は生成レコードと生成済み List 型を関連付けます。`list` feature が有効な場合、`Reader::collect_list` は残りの全レコードを `Vec<Record>` へ収集し、途中までの List を返さず最初の Reader エラーを返し、`From<Vec<Record>>` で索引付き List を構築します。生成される `List::read_from` は設定済みの `Reader<R, Record>` を消費して `collect_list` へ委譲し、separator と sequence check の設定を維持します。
 - `fixed-record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成します。
 
 ### Reader separators

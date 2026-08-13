@@ -96,7 +96,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 `{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持します。マクロは、`BTreeMap<Fixed<8>, Vec<usize>>` や `BTreeMap<Fixed<16>, Vec<usize>>` のような型付き索引をフィールドごとに持つ、非公開の `{StructName}ListIndices` 型も生成します。この内部型は定義モジュールの外から名前を指定できません。キーはレコードのフィールドから直接コピーされ、`Vec<u8>` の割り当ては行いません。値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 
-失敗する可能性がある検索メソッドには一貫して `try_` prefix を付け、付かない検索メソッドは `Option`、`Vec`、または iterator を直接返します。完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。`try_find_by` は選択フィールドと同じ幅の入力だけを受け付け、短い場合は `Error::TooShort`、長い場合は `Error::FieldOverflow` を返します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`try_find_range_by` は境界が `AsRef<[u8]>` を実装する標準 Rust range を受け取ります。短い開始境界は末尾を `0x00`、短い終了境界は末尾を `0xFF` で補うため、後続バイトは任意になります。いずれかの境界が長すぎる場合は `FieldOverflow`、開始が終了より大きい場合は `InvalidRange` を返します。`from_records(records)` は `Vec<Record>` を消費し、順序を維持したままレコードをBox化して全フィールド索引を一度構築します。生成される `From<Vec<Record>>` 実装も同じ構築処理へ委譲するため、`let list: UserList = records.into()` と書けます。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。レコードの index が変わる可能性がある `sort` と `sort_by` は索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。`clear` は全レコードを削除し、全索引を空にします。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
+失敗する可能性がある検索メソッドには一貫して `try_` prefix を付け、付かない検索メソッドは `Option`、`Vec`、または iterator を直接返します。完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。`try_find_by` は選択フィールドと同じ幅の入力だけを受け付け、短い場合は `Error::TooShort`、長い場合は `Error::FieldOverflow` を返します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`try_find_range_by` は境界が `AsRef<[u8]>` を実装する標準 Rust range を受け取ります。短い開始境界は末尾を `0x00`、短い終了境界は末尾を `0xFF` で補うため、後続バイトは任意になります。いずれかの境界が長すぎる場合は `FieldOverflow`、開始が終了より大きい場合は `InvalidRange` を返します。`from_records(records)` は `Vec<Record>` を消費し、順序を維持したままレコードをBox化して全フィールド索引を一度構築します。生成される `From<Vec<Record>>` 実装も同じ構築処理へ委譲するため、`let list: UserList = records.into()` と書けます。`read_from(reader)` は設定済みの `Reader<R, Record>` を消費し、残りのレコードを索引付き List へ収集します。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。レコードの index が変わる可能性がある `sort` と `sort_by` は索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。`clear` は全レコードを削除し、全索引を空にします。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
 
 `find(predicate)`、`find_all(predicate)`、`retain(predicate)` は全レコードを線形走査するため非推奨です。`retain` はさらに全フィールド索引を再構築します。代わりに索引を使う `try_first_by*`、`try_find_by*`、`try_find_range_by` を使用してください。
 
@@ -130,12 +130,12 @@ list.for_each_mut(|user| user.set_field_str(UserField::Age, "026"));
 
 ## Reader / Writer
 
-`Reader` は固定長レコードを順に読み込みます。`Reader::new` は `Writer::new` と同じく、レコード後ろに LF (`\n`) がある入力を想定します。別の区切り、または区切りなしの入力を読む場合は明示的に指定します。区切りを設定した場合は、最終レコードの後ろにもその区切りが必要です。default の `list` feature が有効な場合、`collect_list()` は残りの全レコードを読み込み、フィールド索引を持つ生成済み List を返します。Reader の最初のエラーを返し、途中までの List は返しません。
+`Reader` は固定長レコードを順に読み込みます。`Reader::new` は `Writer::new` と同じく、レコード後ろに LF (`\n`) がある入力を想定します。別の区切り、または区切りなしの場合は明示的に指定します。区切りを設定した場合は、最終レコードの後ろにもその区切りが必要です。default の `list` feature が有効な場合、`Reader::collect_list()` と `UserList::read_from(reader)` はどちらもReaderの設定を適用し、残りの全レコードを収集します。どちらもReaderの最初のエラーを返し、途中までの List は返しません。
 
 ```rust
-let list = Reader::<_, User>::new(source)
-    .with_sequence_check([UserField::Id])
-    .collect_list()?;
+let reader = Reader::<_, User>::new(source)
+    .with_sequence_check([UserField::Id]);
+let list = UserList::read_from(reader)?;
 
 let mut reader = Reader::<_, User>::new(source)
     .with_separator(RecordSeparator::None)

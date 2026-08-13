@@ -202,6 +202,14 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 Self { records, indices }
             }
 
+            #[doc = "Reads all remaining records from a configured Reader and builds their field indexes."]
+            #[doc = "設定済み Reader から残りの全レコードを読み込み、フィールド索引を構築します。"]
+            pub fn read_from<R: std::io::BufRead>(
+                reader: ::fixed_record::Reader<R, #struct_name>,
+            ) -> Result<Self, ::fixed_record::error::Error> {
+                reader.collect_list()
+            }
+
             #[doc = "Returns the number of records."]
             #[doc = "レコード数を返します。"]
             pub fn len(&self) -> usize {

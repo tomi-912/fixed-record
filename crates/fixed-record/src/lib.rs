@@ -314,6 +314,7 @@
 //! a record vector, appending, position-based insertion, lookup, update, physical removal, popping
 //! the last record, sorting, exact searches, padded searches, prefix searches, range searches, and
 //! index-aware callback edits.
+//! `read_from` consumes a configured [`Reader`] and collects its remaining records into the List.
 //! Exact searches use the index directly instead of scanning every record.
 //! Search-based edits select private current indexes internally and repair affected index entries
 //! after the callback, without returning indexes or mutable references to the caller.
@@ -325,6 +326,7 @@
 //! レコード vector からの構築、末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの
 //! pop、sort、完全一致検索、padding を考慮した検索、prefix 検索、range 検索、索引対応の
 //! callback 変更を提供します。
+//! `read_from` は設定済みの [`Reader`] を消費し、残りのレコードを List へ収集します。
 //! 完全一致検索は全レコードを走査せず、索引を直接参照します。
 //! 検索条件付き変更は非公開の現在 index を内部で選択し、index や mutable 参照を呼び出し側へ返さず、
 //! callback 後に影響する索引項目を修復します。

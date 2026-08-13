@@ -72,7 +72,7 @@ Test layout:
 
 Verified test results:
 
-- `fixed-record` generated API integration tests: 81 tests pass with default features
+- `fixed-record` generated API integration tests: 82 tests pass with default features
 - `fixed-record` doctests: 25 tests pass
 
 ## What Works Well
@@ -114,7 +114,7 @@ Important behavioral points:
 - Read and edit APIs share private `Vec<usize>` / `Option<usize>` lookup helpers, so `try_edit_by*`, `try_edit_range_by`, and `try_edit_first_by*` never expose current indexes. Filtered edits snapshot only matching records and repair affected index entries through a drop guard. `for_each_mut` confines mutable references to its callback and uses a rebuild guard because every record may change. Both guards preserve index consistency during unwinding.
 - For `u` distinct values in a selected field and `k` matches, exact lookup is `O(log u + k)` instead of scanning all `n` records. Prefix and range lookup are `O(log u + m + k log k)`, where `m` is the number of distinct indexed keys visited; matching IDs are sorted to preserve current List order. The tradeoff is index memory for copied field bytes and one `usize` per record per field.
 - Predicate-based `find`, `find_all`, and `retain` remain available for compatibility but are deprecated. They require an `O(n)` scan; `retain` additionally rebuilds every field index. Public guidance should lead users to the indexed `try_first_by*`, `try_find_by*`, and `try_find_range_by` APIs.
-- The `RecordWithList` trait associates each generated record with its generated List type. With the `list` feature, `Reader::collect_list` collects all remaining records into a `Vec<Record>`, returns the first Reader error without a partial List, and uses `From<Vec<Record>>` to build the indexed List.
+- The `RecordWithList` trait associates each generated record with its generated List type. With the `list` feature, `Reader::collect_list` collects all remaining records into a `Vec<Record>`, returns the first Reader error without a partial List, and uses `From<Vec<Record>>` to build the indexed List. Generated `List::read_from` consumes a configured `Reader<R, Record>` and delegates to `collect_list`, preserving separator and sequence-check settings.
 - Depending on `fixed-record` with `default-features = false` generates only the record body and field operations.
 
 ### Reader separators
