@@ -262,48 +262,48 @@
 <a href=#262 id=262 data-nosnippet>262</a>//! let mut output = Vec::new();
 <a href=#263 id=263 data-nosnippet>263</a>//! let mut writer = Writer::new(&amp;mut output)
 <a href=#264 id=264 data-nosnippet>264</a>//!     .with_separator(RecordSeparator::Crlf);
-<a href=#265 id=265 data-nosnippet>265</a>//! writer.write_record(&amp;first).unwrap();
-<a href=#266 id=266 data-nosnippet>266</a>//! writer.write_record(&amp;second).unwrap();
-<a href=#267 id=267 data-nosnippet>267</a>//! writer.flush().unwrap();
-<a href=#268 id=268 data-nosnippet>268</a>//! drop(writer);
-<a href=#269 id=269 data-nosnippet>269</a>//!
-<a href=#270 id=270 data-nosnippet>270</a>//! let mut reader = Reader::&lt;_, Order&gt;::new(BufReader::new(Cursor::new(output)))
-<a href=#271 id=271 data-nosnippet>271</a>//!     .with_separator(RecordSeparator::Crlf);
-<a href=#272 id=272 data-nosnippet>272</a>//! assert_eq!(reader.next().unwrap().unwrap().order_no(), b"A00001");
-<a href=#273 id=273 data-nosnippet>273</a>//! assert_eq!(reader.next().unwrap().unwrap().order_no(), b"A00002");
-<a href=#274 id=274 data-nosnippet>274</a>//! assert!(reader.next().is_none());
-<a href=#275 id=275 data-nosnippet>275</a>//! ```
-<a href=#276 id=276 data-nosnippet>276</a>//!
-<a href=#277 id=277 data-nosnippet>277</a>//! Sequence checks can validate that input is sorted by selected fields.
-<a href=#278 id=278 data-nosnippet>278</a>//!
-<a href=#279 id=279 data-nosnippet>279</a>//! シーケンスチェックを使うと、入力が指定フィールド順に昇順であることを検証できます。
-<a href=#280 id=280 data-nosnippet>280</a>//!
-<a href=#281 id=281 data-nosnippet>281</a>//! ```
-<a href=#282 id=282 data-nosnippet>282</a>//! use fixed_record::prelude::*;
-<a href=#283 id=283 data-nosnippet>283</a>//! use std::io::{BufReader, Cursor};
-<a href=#284 id=284 data-nosnippet>284</a>//!
-<a href=#285 id=285 data-nosnippet>285</a>//! #[fixed_record]
-<a href=#286 id=286 data-nosnippet>286</a>//! struct Order {
-<a href=#287 id=287 data-nosnippet>287</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#288 id=288 data-nosnippet>288</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#289 id=289 data-nosnippet>289</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#290 id=290 data-nosnippet>290</a>//! }
-<a href=#291 id=291 data-nosnippet>291</a>//!
-<a href=#292 id=292 data-nosnippet>292</a>//! let first = Order::builder().with_customer_id("C001").with_order_no("A00001").with_amount_int(100).build();
-<a href=#293 id=293 data-nosnippet>293</a>//! let second = Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build();
-<a href=#294 id=294 data-nosnippet>294</a>//!
-<a href=#295 id=295 data-nosnippet>295</a>//! let mut input = Vec::new();
-<a href=#296 id=296 data-nosnippet>296</a>//! input.extend_from_slice(&amp;first.to_bytes());
-<a href=#297 id=297 data-nosnippet>297</a>//! input.push(b'\n');
-<a href=#298 id=298 data-nosnippet>298</a>//! input.extend_from_slice(&amp;second.to_bytes());
-<a href=#299 id=299 data-nosnippet>299</a>//! input.push(b'\n');
-<a href=#300 id=300 data-nosnippet>300</a>//!
-<a href=#301 id=301 data-nosnippet>301</a>//! let mut reader = Reader::&lt;_, Order&gt;::new(BufReader::new(Cursor::new(input)))
-<a href=#302 id=302 data-nosnippet>302</a>//!     .with_sequence_check([OrderField::CustomerId, OrderField::OrderNo]);
-<a href=#303 id=303 data-nosnippet>303</a>//!
-<a href=#304 id=304 data-nosnippet>304</a>//! assert!(reader.next().unwrap().is_ok());
-<a href=#305 id=305 data-nosnippet>305</a>//! assert!(reader.next().unwrap().is_ok());
-<a href=#306 id=306 data-nosnippet>306</a>//! assert!(reader.next().is_none());
+<a href=#265 id=265 data-nosnippet>265</a>//! writer.write_all([&amp;first, &amp;second]).unwrap();
+<a href=#266 id=266 data-nosnippet>266</a>//! writer.flush().unwrap();
+<a href=#267 id=267 data-nosnippet>267</a>//! drop(writer);
+<a href=#268 id=268 data-nosnippet>268</a>//!
+<a href=#269 id=269 data-nosnippet>269</a>//! let mut reader = Reader::&lt;_, Order&gt;::new(BufReader::new(Cursor::new(output)))
+<a href=#270 id=270 data-nosnippet>270</a>//!     .with_separator(RecordSeparator::Crlf);
+<a href=#271 id=271 data-nosnippet>271</a>//! assert_eq!(reader.next().unwrap().unwrap().order_no(), b"A00001");
+<a href=#272 id=272 data-nosnippet>272</a>//! assert_eq!(reader.next().unwrap().unwrap().order_no(), b"A00002");
+<a href=#273 id=273 data-nosnippet>273</a>//! assert!(reader.next().is_none());
+<a href=#274 id=274 data-nosnippet>274</a>//! ```
+<a href=#275 id=275 data-nosnippet>275</a>//!
+<a href=#276 id=276 data-nosnippet>276</a>//! Sequence checks can validate that input is sorted by selected fields.
+<a href=#277 id=277 data-nosnippet>277</a>//!
+<a href=#278 id=278 data-nosnippet>278</a>//! シーケンスチェックを使うと、入力が指定フィールド順に昇順であることを検証できます。
+<a href=#279 id=279 data-nosnippet>279</a>//!
+<a href=#280 id=280 data-nosnippet>280</a>//! ```
+<a href=#281 id=281 data-nosnippet>281</a>//! use fixed_record::prelude::*;
+<a href=#282 id=282 data-nosnippet>282</a>//! use std::io::{BufReader, Cursor};
+<a href=#283 id=283 data-nosnippet>283</a>//!
+<a href=#284 id=284 data-nosnippet>284</a>//! #[fixed_record]
+<a href=#285 id=285 data-nosnippet>285</a>//! struct Order {
+<a href=#286 id=286 data-nosnippet>286</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#287 id=287 data-nosnippet>287</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#288 id=288 data-nosnippet>288</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#289 id=289 data-nosnippet>289</a>//! }
+<a href=#290 id=290 data-nosnippet>290</a>//!
+<a href=#291 id=291 data-nosnippet>291</a>//! let first = Order::builder().with_customer_id("C001").with_order_no("A00001").with_amount_int(100).build();
+<a href=#292 id=292 data-nosnippet>292</a>//! let second = Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build();
+<a href=#293 id=293 data-nosnippet>293</a>//!
+<a href=#294 id=294 data-nosnippet>294</a>//! let mut input = Vec::new();
+<a href=#295 id=295 data-nosnippet>295</a>//! input.extend_from_slice(&amp;first.to_bytes());
+<a href=#296 id=296 data-nosnippet>296</a>//! input.push(b'\n');
+<a href=#297 id=297 data-nosnippet>297</a>//! input.extend_from_slice(&amp;second.to_bytes());
+<a href=#298 id=298 data-nosnippet>298</a>//! input.push(b'\n');
+<a href=#299 id=299 data-nosnippet>299</a>//!
+<a href=#300 id=300 data-nosnippet>300</a>//! let list = Reader::&lt;_, Order&gt;::new(BufReader::new(Cursor::new(input)))
+<a href=#301 id=301 data-nosnippet>301</a>//!     .with_sequence_check([OrderField::CustomerId, OrderField::OrderNo])
+<a href=#302 id=302 data-nosnippet>302</a>//!     .collect_list()
+<a href=#303 id=303 data-nosnippet>303</a>//!     .unwrap();
+<a href=#304 id=304 data-nosnippet>304</a>//!
+<a href=#305 id=305 data-nosnippet>305</a>//! assert_eq!(list.len(), 2);
+<a href=#306 id=306 data-nosnippet>306</a>//! assert_eq!(list.try_find_by(OrderField::CustomerId, b"C001").unwrap().len(), 2);
 <a href=#307 id=307 data-nosnippet>307</a>//! ```
 <a href=#308 id=308 data-nosnippet>308</a>//!
 <a href=#309 id=309 data-nosnippet>309</a>//! # Searchable Lists / 検索可能な List
@@ -313,296 +313,302 @@
 <a href=#313 id=313 data-nosnippet>313</a>//! a record vector, appending, position-based insertion, lookup, update, physical removal, popping
 <a href=#314 id=314 data-nosnippet>314</a>//! the last record, sorting, exact searches, padded searches, prefix searches, range searches, and
 <a href=#315 id=315 data-nosnippet>315</a>//! index-aware callback edits.
-<a href=#316 id=316 data-nosnippet>316</a>//! Exact searches use the index directly instead of scanning every record.
-<a href=#317 id=317 data-nosnippet>317</a>//! Search-based edits select private current indexes internally and repair affected index entries
-<a href=#318 id=318 data-nosnippet>318</a>//! after the callback, without returning indexes or mutable references to the caller.
-<a href=#319 id=319 data-nosnippet>319</a>//! Sorting moves boxes in the vector, not the record values allocated behind them.
-<a href=#320 id=320 data-nosnippet>320</a>//! List IDs are the current vector indexes, so IDs can change after removal or sorting.
-<a href=#321 id=321 data-nosnippet>321</a>//!
-<a href=#322 id=322 data-nosnippet>322</a>//! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
-<a href=#323 id=323 data-nosnippet>323</a>//! これは Box 化したレコードを vector に保持し、フィールドの実バイト列による順序付き索引を管理して、
-<a href=#324 id=324 data-nosnippet>324</a>//! レコード vector からの構築、末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの
-<a href=#325 id=325 data-nosnippet>325</a>//! pop、sort、完全一致検索、padding を考慮した検索、prefix 検索、range 検索、索引対応の
-<a href=#326 id=326 data-nosnippet>326</a>//! callback 変更を提供します。
-<a href=#327 id=327 data-nosnippet>327</a>//! 完全一致検索は全レコードを走査せず、索引を直接参照します。
-<a href=#328 id=328 data-nosnippet>328</a>//! 検索条件付き変更は非公開の現在 index を内部で選択し、index や mutable 参照を呼び出し側へ返さず、
-<a href=#329 id=329 data-nosnippet>329</a>//! callback 後に影響する索引項目を修復します。
-<a href=#330 id=330 data-nosnippet>330</a>//! ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
-<a href=#331 id=331 data-nosnippet>331</a>//! List ID は現在の vector index なので、削除やソート後に変わる可能性があります。
-<a href=#332 id=332 data-nosnippet>332</a>//!
-<a href=#333 id=333 data-nosnippet>333</a>//! ```
-<a href=#334 id=334 data-nosnippet>334</a>//! use fixed_record::prelude::*;
-<a href=#335 id=335 data-nosnippet>335</a>//!
-<a href=#336 id=336 data-nosnippet>336</a>//! #[fixed_record]
-<a href=#337 id=337 data-nosnippet>337</a>//! struct Order {
-<a href=#338 id=338 data-nosnippet>338</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#339 id=339 data-nosnippet>339</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#340 id=340 data-nosnippet>340</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#341 id=341 data-nosnippet>341</a>//! }
-<a href=#342 id=342 data-nosnippet>342</a>//!
-<a href=#343 id=343 data-nosnippet>343</a>//! let mut list: OrderList = vec![
-<a href=#344 id=344 data-nosnippet>344</a>//!     Order::builder()
-<a href=#345 id=345 data-nosnippet>345</a>//!         .with_customer_id("C001")
-<a href=#346 id=346 data-nosnippet>346</a>//!         .with_order_no("A00002")
-<a href=#347 id=347 data-nosnippet>347</a>//!         .with_amount_int(200)
-<a href=#348 id=348 data-nosnippet>348</a>//!         .build(),
-<a href=#349 id=349 data-nosnippet>349</a>//!     Order::builder()
-<a href=#350 id=350 data-nosnippet>350</a>//!         .with_customer_id("C001")
-<a href=#351 id=351 data-nosnippet>351</a>//!         .with_order_no("A00001")
-<a href=#352 id=352 data-nosnippet>352</a>//!         .with_amount_int(100)
-<a href=#353 id=353 data-nosnippet>353</a>//!         .build(),
-<a href=#354 id=354 data-nosnippet>354</a>//! ].into();
-<a href=#355 id=355 data-nosnippet>355</a>//! let id_first = 0;
-<a href=#356 id=356 data-nosnippet>356</a>//! let id_second = 1;
-<a href=#357 id=357 data-nosnippet>357</a>//!
-<a href=#358 id=358 data-nosnippet>358</a>//! assert_eq!(list.len(), 2);
-<a href=#359 id=359 data-nosnippet>359</a>//! assert_eq!(list.get(id_first).unwrap().amount(), b"00000200");
-<a href=#360 id=360 data-nosnippet>360</a>//!
-<a href=#361 id=361 data-nosnippet>361</a>//! let exact = list.try_find_by(OrderField::CustomerId, b"C001").unwrap();
-<a href=#362 id=362 data-nosnippet>362</a>//! assert_eq!(exact.len(), 2);
-<a href=#363 id=363 data-nosnippet>363</a>//!
-<a href=#364 id=364 data-nosnippet>364</a>//! let first_exact = list.try_first_by(OrderField::OrderNo, b"A00001").unwrap().unwrap();
-<a href=#365 id=365 data-nosnippet>365</a>//! assert_eq!(first_exact.amount(), b"00000100");
-<a href=#366 id=366 data-nosnippet>366</a>//!
-<a href=#367 id=367 data-nosnippet>367</a>//! let padded = list.try_find_by_padded(OrderField::OrderNo, b"A00001").unwrap();
-<a href=#368 id=368 data-nosnippet>368</a>//! assert_eq!(padded[0].amount(), b"00000100");
-<a href=#369 id=369 data-nosnippet>369</a>//!
-<a href=#370 id=370 data-nosnippet>370</a>//! let prefix = list.try_find_by_prefix(OrderField::OrderNo, b"A000").unwrap();
-<a href=#371 id=371 data-nosnippet>371</a>//! assert_eq!(prefix.len(), 2);
-<a href=#372 id=372 data-nosnippet>372</a>//!
-<a href=#373 id=373 data-nosnippet>373</a>//! let first_by_order_no = list.first_sorted_by(OrderField::OrderNo).unwrap();
-<a href=#374 id=374 data-nosnippet>374</a>//! assert_eq!(first_by_order_no.order_no(), b"A00001");
-<a href=#375 id=375 data-nosnippet>375</a>//!
-<a href=#376 id=376 data-nosnippet>376</a>//! assert!(list.try_edit_first_by(OrderField::OrderNo, b"A00001", |order| {
-<a href=#377 id=377 data-nosnippet>377</a>//!     order.set_field_str(OrderField::Amount, "00000150");
-<a href=#378 id=378 data-nosnippet>378</a>//! }).unwrap());
-<a href=#379 id=379 data-nosnippet>379</a>//! assert_eq!(list.try_find_by(OrderField::Amount, b"00000150").unwrap().len(), 1);
-<a href=#380 id=380 data-nosnippet>380</a>//!
-<a href=#381 id=381 data-nosnippet>381</a>//! list.update(id_first, Order::builder()
-<a href=#382 id=382 data-nosnippet>382</a>//!     .with_customer_id("C002")
-<a href=#383 id=383 data-nosnippet>383</a>//!     .with_order_no("B00001")
-<a href=#384 id=384 data-nosnippet>384</a>//!     .with_amount_int(300)
-<a href=#385 id=385 data-nosnippet>385</a>//!     .build());
-<a href=#386 id=386 data-nosnippet>386</a>//! assert!(list.try_find_by_padded(OrderField::CustomerId, b"C001").unwrap().len() == 1);
-<a href=#387 id=387 data-nosnippet>387</a>//!
-<a href=#388 id=388 data-nosnippet>388</a>//! list.for_each_mut(|order| order.set_field_str(OrderField::CustomerId, "C003"));
-<a href=#389 id=389 data-nosnippet>389</a>//! assert_eq!(list.try_find_by(OrderField::CustomerId, b"C003").unwrap().len(), 2);
-<a href=#390 id=390 data-nosnippet>390</a>//!
-<a href=#391 id=391 data-nosnippet>391</a>//! assert!(list.remove(id_second));
-<a href=#392 id=392 data-nosnippet>392</a>//! assert_eq!(list.len(), 1);
-<a href=#393 id=393 data-nosnippet>393</a>//! assert_eq!(list.all_ids(), vec![id_first]);
-<a href=#394 id=394 data-nosnippet>394</a>//! ```
-<a href=#395 id=395 data-nosnippet>395</a>//!
-<a href=#396 id=396 data-nosnippet>396</a>//! Fallible search methods use the `try_` prefix. Range searches accept byte-like bounds through
-<a href=#397 id=397 data-nosnippet>397</a>//! [`ByteRangeBounds`](traits::ByteRangeBounds).
-<a href=#398 id=398 data-nosnippet>398</a>//!
-<a href=#399 id=399 data-nosnippet>399</a>//! 失敗する可能性がある検索メソッドは `try_` prefix を使います。range 検索は
-<a href=#400 id=400 data-nosnippet>400</a>//! [`ByteRangeBounds`](traits::ByteRangeBounds) を通して byte 列として扱える境界値を受け取ります。
-<a href=#401 id=401 data-nosnippet>401</a>//!
-<a href=#402 id=402 data-nosnippet>402</a>//! ```
-<a href=#403 id=403 data-nosnippet>403</a>//! use fixed_record::prelude::*;
-<a href=#404 id=404 data-nosnippet>404</a>//!
-<a href=#405 id=405 data-nosnippet>405</a>//! #[fixed_record]
-<a href=#406 id=406 data-nosnippet>406</a>//! struct Order {
-<a href=#407 id=407 data-nosnippet>407</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#408 id=408 data-nosnippet>408</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#409 id=409 data-nosnippet>409</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#410 id=410 data-nosnippet>410</a>//! }
-<a href=#411 id=411 data-nosnippet>411</a>//!
-<a href=#412 id=412 data-nosnippet>412</a>//! let mut list = OrderList::new();
-<a href=#413 id=413 data-nosnippet>413</a>//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00001").with_amount_int(100).build());
-<a href=#414 id=414 data-nosnippet>414</a>//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build());
-<a href=#415 id=415 data-nosnippet>415</a>//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00003").with_amount_int(300).build());
-<a href=#416 id=416 data-nosnippet>416</a>//!
-<a href=#417 id=417 data-nosnippet>417</a>//! let found = list
-<a href=#418 id=418 data-nosnippet>418</a>//!     .try_find_range_by(OrderField::Amount, b"00000150"..=b"00000300")
-<a href=#419 id=419 data-nosnippet>419</a>//!     .unwrap();
-<a href=#420 id=420 data-nosnippet>420</a>//!
-<a href=#421 id=421 data-nosnippet>421</a>//! assert_eq!(found.len(), 2);
-<a href=#422 id=422 data-nosnippet>422</a>//! assert_eq!(found[0].amount(), b"00000200");
-<a href=#423 id=423 data-nosnippet>423</a>//! assert_eq!(found[1].amount(), b"00000300");
-<a href=#424 id=424 data-nosnippet>424</a>//! ```
-<a href=#425 id=425 data-nosnippet>425</a>//!
-<a href=#426 id=426 data-nosnippet>426</a>//! # Clear Byte and Initialization / clear_byte と初期化
+<a href=#316 id=316 data-nosnippet>316</a>//! `read_from` consumes a configured [`Reader`] and collects its remaining records into the List.
+<a href=#317 id=317 data-nosnippet>317</a>//! Exact searches use the index directly instead of scanning every record.
+<a href=#318 id=318 data-nosnippet>318</a>//! Search-based edits select private current indexes internally and repair affected index entries
+<a href=#319 id=319 data-nosnippet>319</a>//! after the callback, without returning indexes or mutable references to the caller.
+<a href=#320 id=320 data-nosnippet>320</a>//! Sorting moves boxes in the vector, not the record values allocated behind them.
+<a href=#321 id=321 data-nosnippet>321</a>//! List IDs are the current vector indexes, so IDs can change after removal or sorting.
+<a href=#322 id=322 data-nosnippet>322</a>//!
+<a href=#323 id=323 data-nosnippet>323</a>//! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
+<a href=#324 id=324 data-nosnippet>324</a>//! これは Box 化したレコードを vector に保持し、フィールドの実バイト列による順序付き索引を管理して、
+<a href=#325 id=325 data-nosnippet>325</a>//! レコード vector からの構築、末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの
+<a href=#326 id=326 data-nosnippet>326</a>//! pop、sort、完全一致検索、padding を考慮した検索、prefix 検索、range 検索、索引対応の
+<a href=#327 id=327 data-nosnippet>327</a>//! callback 変更を提供します。
+<a href=#328 id=328 data-nosnippet>328</a>//! `read_from` は設定済みの [`Reader`] を消費し、残りのレコードを List へ収集します。
+<a href=#329 id=329 data-nosnippet>329</a>//! 完全一致検索は全レコードを走査せず、索引を直接参照します。
+<a href=#330 id=330 data-nosnippet>330</a>//! 検索条件付き変更は非公開の現在 index を内部で選択し、index や mutable 参照を呼び出し側へ返さず、
+<a href=#331 id=331 data-nosnippet>331</a>//! callback 後に影響する索引項目を修復します。
+<a href=#332 id=332 data-nosnippet>332</a>//! ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
+<a href=#333 id=333 data-nosnippet>333</a>//! List ID は現在の vector index なので、削除やソート後に変わる可能性があります。
+<a href=#334 id=334 data-nosnippet>334</a>//!
+<a href=#335 id=335 data-nosnippet>335</a>//! ```
+<a href=#336 id=336 data-nosnippet>336</a>//! use fixed_record::prelude::*;
+<a href=#337 id=337 data-nosnippet>337</a>//!
+<a href=#338 id=338 data-nosnippet>338</a>//! #[fixed_record]
+<a href=#339 id=339 data-nosnippet>339</a>//! struct Order {
+<a href=#340 id=340 data-nosnippet>340</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#341 id=341 data-nosnippet>341</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#342 id=342 data-nosnippet>342</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#343 id=343 data-nosnippet>343</a>//! }
+<a href=#344 id=344 data-nosnippet>344</a>//!
+<a href=#345 id=345 data-nosnippet>345</a>//! let mut list: OrderList = vec![
+<a href=#346 id=346 data-nosnippet>346</a>//!     Order::builder()
+<a href=#347 id=347 data-nosnippet>347</a>//!         .with_customer_id("C001")
+<a href=#348 id=348 data-nosnippet>348</a>//!         .with_order_no("A00002")
+<a href=#349 id=349 data-nosnippet>349</a>//!         .with_amount_int(200)
+<a href=#350 id=350 data-nosnippet>350</a>//!         .build(),
+<a href=#351 id=351 data-nosnippet>351</a>//!     Order::builder()
+<a href=#352 id=352 data-nosnippet>352</a>//!         .with_customer_id("C001")
+<a href=#353 id=353 data-nosnippet>353</a>//!         .with_order_no("A00001")
+<a href=#354 id=354 data-nosnippet>354</a>//!         .with_amount_int(100)
+<a href=#355 id=355 data-nosnippet>355</a>//!         .build(),
+<a href=#356 id=356 data-nosnippet>356</a>//! ].into();
+<a href=#357 id=357 data-nosnippet>357</a>//! let id_first = 0;
+<a href=#358 id=358 data-nosnippet>358</a>//! let id_second = 1;
+<a href=#359 id=359 data-nosnippet>359</a>//!
+<a href=#360 id=360 data-nosnippet>360</a>//! assert_eq!(list.len(), 2);
+<a href=#361 id=361 data-nosnippet>361</a>//! assert_eq!(list.get(id_first).unwrap().amount(), b"00000200");
+<a href=#362 id=362 data-nosnippet>362</a>//!
+<a href=#363 id=363 data-nosnippet>363</a>//! let exact = list.try_find_by(OrderField::CustomerId, b"C001").unwrap();
+<a href=#364 id=364 data-nosnippet>364</a>//! assert_eq!(exact.len(), 2);
+<a href=#365 id=365 data-nosnippet>365</a>//!
+<a href=#366 id=366 data-nosnippet>366</a>//! let first_exact = list.try_first_by(OrderField::OrderNo, b"A00001").unwrap().unwrap();
+<a href=#367 id=367 data-nosnippet>367</a>//! assert_eq!(first_exact.amount(), b"00000100");
+<a href=#368 id=368 data-nosnippet>368</a>//!
+<a href=#369 id=369 data-nosnippet>369</a>//! let padded = list.try_find_by_padded(OrderField::OrderNo, b"A00001").unwrap();
+<a href=#370 id=370 data-nosnippet>370</a>//! assert_eq!(padded[0].amount(), b"00000100");
+<a href=#371 id=371 data-nosnippet>371</a>//!
+<a href=#372 id=372 data-nosnippet>372</a>//! let prefix = list.try_find_by_prefix(OrderField::OrderNo, b"A000").unwrap();
+<a href=#373 id=373 data-nosnippet>373</a>//! assert_eq!(prefix.len(), 2);
+<a href=#374 id=374 data-nosnippet>374</a>//!
+<a href=#375 id=375 data-nosnippet>375</a>//! let first_by_order_no = list.first_sorted_by(OrderField::OrderNo).unwrap();
+<a href=#376 id=376 data-nosnippet>376</a>//! assert_eq!(first_by_order_no.order_no(), b"A00001");
+<a href=#377 id=377 data-nosnippet>377</a>//!
+<a href=#378 id=378 data-nosnippet>378</a>//! assert!(list.try_edit_first_by(OrderField::OrderNo, b"A00001", |order| {
+<a href=#379 id=379 data-nosnippet>379</a>//!     order.set_field_str(OrderField::Amount, "00000150");
+<a href=#380 id=380 data-nosnippet>380</a>//! }).unwrap());
+<a href=#381 id=381 data-nosnippet>381</a>//! assert_eq!(list.try_find_by(OrderField::Amount, b"00000150").unwrap().len(), 1);
+<a href=#382 id=382 data-nosnippet>382</a>//!
+<a href=#383 id=383 data-nosnippet>383</a>//! list.update(id_first, Order::builder()
+<a href=#384 id=384 data-nosnippet>384</a>//!     .with_customer_id("C002")
+<a href=#385 id=385 data-nosnippet>385</a>//!     .with_order_no("B00001")
+<a href=#386 id=386 data-nosnippet>386</a>//!     .with_amount_int(300)
+<a href=#387 id=387 data-nosnippet>387</a>//!     .build());
+<a href=#388 id=388 data-nosnippet>388</a>//! assert!(list.try_find_by_padded(OrderField::CustomerId, b"C001").unwrap().len() == 1);
+<a href=#389 id=389 data-nosnippet>389</a>//!
+<a href=#390 id=390 data-nosnippet>390</a>//! list.for_each_mut(|order| order.set_field_str(OrderField::CustomerId, "C003"));
+<a href=#391 id=391 data-nosnippet>391</a>//! assert_eq!(list.try_find_by(OrderField::CustomerId, b"C003").unwrap().len(), 2);
+<a href=#392 id=392 data-nosnippet>392</a>//!
+<a href=#393 id=393 data-nosnippet>393</a>//! assert!(list.remove(id_second));
+<a href=#394 id=394 data-nosnippet>394</a>//! assert_eq!(list.len(), 1);
+<a href=#395 id=395 data-nosnippet>395</a>//! assert_eq!(list.all_ids(), vec![id_first]);
+<a href=#396 id=396 data-nosnippet>396</a>//! ```
+<a href=#397 id=397 data-nosnippet>397</a>//!
+<a href=#398 id=398 data-nosnippet>398</a>//! Fallible search methods use the `try_` prefix. Range searches accept byte-like bounds through
+<a href=#399 id=399 data-nosnippet>399</a>//! [`ByteRangeBounds`](traits::ByteRangeBounds).
+<a href=#400 id=400 data-nosnippet>400</a>//!
+<a href=#401 id=401 data-nosnippet>401</a>//! 失敗する可能性がある検索メソッドは `try_` prefix を使います。range 検索は
+<a href=#402 id=402 data-nosnippet>402</a>//! [`ByteRangeBounds`](traits::ByteRangeBounds) を通して byte 列として扱える境界値を受け取ります。
+<a href=#403 id=403 data-nosnippet>403</a>//!
+<a href=#404 id=404 data-nosnippet>404</a>//! ```
+<a href=#405 id=405 data-nosnippet>405</a>//! use fixed_record::prelude::*;
+<a href=#406 id=406 data-nosnippet>406</a>//!
+<a href=#407 id=407 data-nosnippet>407</a>//! #[fixed_record]
+<a href=#408 id=408 data-nosnippet>408</a>//! struct Order {
+<a href=#409 id=409 data-nosnippet>409</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#410 id=410 data-nosnippet>410</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#411 id=411 data-nosnippet>411</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#412 id=412 data-nosnippet>412</a>//! }
+<a href=#413 id=413 data-nosnippet>413</a>//!
+<a href=#414 id=414 data-nosnippet>414</a>//! let mut list = OrderList::new();
+<a href=#415 id=415 data-nosnippet>415</a>//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00001").with_amount_int(100).build());
+<a href=#416 id=416 data-nosnippet>416</a>//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00002").with_amount_int(200).build());
+<a href=#417 id=417 data-nosnippet>417</a>//! list.push(Order::builder().with_customer_id("C001").with_order_no("A00003").with_amount_int(300).build());
+<a href=#418 id=418 data-nosnippet>418</a>//!
+<a href=#419 id=419 data-nosnippet>419</a>//! let found = list
+<a href=#420 id=420 data-nosnippet>420</a>//!     .try_find_range_by(OrderField::Amount, b"00000150"..=b"00000300")
+<a href=#421 id=421 data-nosnippet>421</a>//!     .unwrap();
+<a href=#422 id=422 data-nosnippet>422</a>//!
+<a href=#423 id=423 data-nosnippet>423</a>//! assert_eq!(found.len(), 2);
+<a href=#424 id=424 data-nosnippet>424</a>//! assert_eq!(found[0].amount(), b"00000200");
+<a href=#425 id=425 data-nosnippet>425</a>//! assert_eq!(found[1].amount(), b"00000300");
+<a href=#426 id=426 data-nosnippet>426</a>//! ```
 <a href=#427 id=427 data-nosnippet>427</a>//!
-<a href=#428 id=428 data-nosnippet>428</a>//! By default, [`macro@fixed_record`] uses spaces (`0x20`) as `CLEAR_BYTE`. You can change this with
-<a href=#429 id=429 data-nosnippet>429</a>//! `clear_byte = ZERO`, `clear_byte = SPACE`, a byte literal, or an integer from `0` to `255`.
-<a href=#430 id=430 data-nosnippet>430</a>//!
-<a href=#431 id=431 data-nosnippet>431</a>//! 標準では [`macro@fixed_record`] は半角スペース (`0x20`) を `CLEAR_BYTE` として使います。
-<a href=#432 id=432 data-nosnippet>432</a>//! `clear_byte = ZERO`、`clear_byte = SPACE`、byte literal、`0` から `255` の整数で変更できます。
-<a href=#433 id=433 data-nosnippet>433</a>//!
-<a href=#434 id=434 data-nosnippet>434</a>//! ```
-<a href=#435 id=435 data-nosnippet>435</a>//! use fixed_record::prelude::*;
-<a href=#436 id=436 data-nosnippet>436</a>//!
-<a href=#437 id=437 data-nosnippet>437</a>//! #[fixed_record(clear_byte = ZERO)]
-<a href=#438 id=438 data-nosnippet>438</a>//! struct ZeroPaddedName {
-<a href=#439 id=439 data-nosnippet>439</a>//!     name: Fixed&lt;6&gt;,
-<a href=#440 id=440 data-nosnippet>440</a>//! }
-<a href=#441 id=441 data-nosnippet>441</a>//!
-<a href=#442 id=442 data-nosnippet>442</a>//! let mut record = ZeroPaddedName::builder().with_name("Alice").build();
-<a href=#443 id=443 data-nosnippet>443</a>//! record.set_field_str(ZeroPaddedNameField::Name, "Bo");
-<a href=#444 id=444 data-nosnippet>444</a>//!
-<a href=#445 id=445 data-nosnippet>445</a>//! assert_eq!(ZeroPaddedName::CLEAR_BYTE, 0x00);
-<a href=#446 id=446 data-nosnippet>446</a>//! assert_eq!(record.name(), b"Bo\0\0\0\0");
-<a href=#447 id=447 data-nosnippet>447</a>//! assert_eq!(ZeroPaddedName::zeroed().name(), b"\0\0\0\0\0\0");
-<a href=#448 id=448 data-nosnippet>448</a>//! assert_eq!(ZeroPaddedName::spaced().name(), b"      ");
-<a href=#449 id=449 data-nosnippet>449</a>//! assert_eq!(ZeroPaddedName::cleared().name(), b"\0\0\0\0\0\0");
-<a href=#450 id=450 data-nosnippet>450</a>//! ```
-<a href=#451 id=451 data-nosnippet>451</a>//!
-<a href=#452 id=452 data-nosnippet>452</a>//! # FixedRecord Trait / FixedRecord trait
+<a href=#428 id=428 data-nosnippet>428</a>//! # Clear Byte and Initialization / clear_byte と初期化
+<a href=#429 id=429 data-nosnippet>429</a>//!
+<a href=#430 id=430 data-nosnippet>430</a>//! By default, [`macro@fixed_record`] uses spaces (`0x20`) as `CLEAR_BYTE`. You can change this with
+<a href=#431 id=431 data-nosnippet>431</a>//! `clear_byte = ZERO`, `clear_byte = SPACE`, a byte literal, or an integer from `0` to `255`.
+<a href=#432 id=432 data-nosnippet>432</a>//!
+<a href=#433 id=433 data-nosnippet>433</a>//! 標準では [`macro@fixed_record`] は半角スペース (`0x20`) を `CLEAR_BYTE` として使います。
+<a href=#434 id=434 data-nosnippet>434</a>//! `clear_byte = ZERO`、`clear_byte = SPACE`、byte literal、`0` から `255` の整数で変更できます。
+<a href=#435 id=435 data-nosnippet>435</a>//!
+<a href=#436 id=436 data-nosnippet>436</a>//! ```
+<a href=#437 id=437 data-nosnippet>437</a>//! use fixed_record::prelude::*;
+<a href=#438 id=438 data-nosnippet>438</a>//!
+<a href=#439 id=439 data-nosnippet>439</a>//! #[fixed_record(clear_byte = ZERO)]
+<a href=#440 id=440 data-nosnippet>440</a>//! struct ZeroPaddedName {
+<a href=#441 id=441 data-nosnippet>441</a>//!     name: Fixed&lt;6&gt;,
+<a href=#442 id=442 data-nosnippet>442</a>//! }
+<a href=#443 id=443 data-nosnippet>443</a>//!
+<a href=#444 id=444 data-nosnippet>444</a>//! let mut record = ZeroPaddedName::builder().with_name("Alice").build();
+<a href=#445 id=445 data-nosnippet>445</a>//! record.set_field_str(ZeroPaddedNameField::Name, "Bo");
+<a href=#446 id=446 data-nosnippet>446</a>//!
+<a href=#447 id=447 data-nosnippet>447</a>//! assert_eq!(ZeroPaddedName::CLEAR_BYTE, 0x00);
+<a href=#448 id=448 data-nosnippet>448</a>//! assert_eq!(record.name(), b"Bo\0\0\0\0");
+<a href=#449 id=449 data-nosnippet>449</a>//! assert_eq!(ZeroPaddedName::zeroed().name(), b"\0\0\0\0\0\0");
+<a href=#450 id=450 data-nosnippet>450</a>//! assert_eq!(ZeroPaddedName::spaced().name(), b"      ");
+<a href=#451 id=451 data-nosnippet>451</a>//! assert_eq!(ZeroPaddedName::cleared().name(), b"\0\0\0\0\0\0");
+<a href=#452 id=452 data-nosnippet>452</a>//! ```
 <a href=#453 id=453 data-nosnippet>453</a>//!
-<a href=#454 id=454 data-nosnippet>454</a>//! Generated records implement [`FixedRecord`], so generic code can parse or serialize any generated
-<a href=#455 id=455 data-nosnippet>455</a>//! record type accepted by [`Reader`] and [`Writer`].
-<a href=#456 id=456 data-nosnippet>456</a>//!
-<a href=#457 id=457 data-nosnippet>457</a>//! 生成されたレコードは [`FixedRecord`] を実装します。そのため [`Reader`] / [`Writer`] が扱える
-<a href=#458 id=458 data-nosnippet>458</a>//! 任意の生成レコードに対して generic な parse / serialize 処理を書けます。
-<a href=#459 id=459 data-nosnippet>459</a>//!
-<a href=#460 id=460 data-nosnippet>460</a>//! ```
-<a href=#461 id=461 data-nosnippet>461</a>//! use fixed_record::prelude::*;
-<a href=#462 id=462 data-nosnippet>462</a>//!
-<a href=#463 id=463 data-nosnippet>463</a>//! #[fixed_record]
-<a href=#464 id=464 data-nosnippet>464</a>//! struct Order {
-<a href=#465 id=465 data-nosnippet>465</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#466 id=466 data-nosnippet>466</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#467 id=467 data-nosnippet>467</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#468 id=468 data-nosnippet>468</a>//! }
-<a href=#469 id=469 data-nosnippet>469</a>//!
-<a href=#470 id=470 data-nosnippet>470</a>//! fn serialize&lt;T: FixedRecord&gt;(record: &amp;T) -&gt; Vec&lt;u8&gt; {
-<a href=#471 id=471 data-nosnippet>471</a>//!     record.to_bytes()
-<a href=#472 id=472 data-nosnippet>472</a>//! }
-<a href=#473 id=473 data-nosnippet>473</a>//!
-<a href=#474 id=474 data-nosnippet>474</a>//! let order = Order::builder()
-<a href=#475 id=475 data-nosnippet>475</a>//!     .with_customer_id("C001")
-<a href=#476 id=476 data-nosnippet>476</a>//!     .with_order_no("A00042")
-<a href=#477 id=477 data-nosnippet>477</a>//!     .with_amount_int(1250)
-<a href=#478 id=478 data-nosnippet>478</a>//!     .build();
-<a href=#479 id=479 data-nosnippet>479</a>//!
-<a href=#480 id=480 data-nosnippet>480</a>//! assert_eq!(serialize(&amp;order), b"C001A0004200001250");
-<a href=#481 id=481 data-nosnippet>481</a>//! ```
-<a href=#482 id=482 data-nosnippet>482</a>//!
-<a href=#483 id=483 data-nosnippet>483</a>//! # Feature Flags / feature flag
+<a href=#454 id=454 data-nosnippet>454</a>//! # FixedRecord Trait / FixedRecord trait
+<a href=#455 id=455 data-nosnippet>455</a>//!
+<a href=#456 id=456 data-nosnippet>456</a>//! Generated records implement [`FixedRecord`], so generic code can parse or serialize any generated
+<a href=#457 id=457 data-nosnippet>457</a>//! record type accepted by [`Reader`] and [`Writer`].
+<a href=#458 id=458 data-nosnippet>458</a>//!
+<a href=#459 id=459 data-nosnippet>459</a>//! 生成されたレコードは [`FixedRecord`] を実装します。そのため [`Reader`] / [`Writer`] が扱える
+<a href=#460 id=460 data-nosnippet>460</a>//! 任意の生成レコードに対して generic な parse / serialize 処理を書けます。
+<a href=#461 id=461 data-nosnippet>461</a>//!
+<a href=#462 id=462 data-nosnippet>462</a>//! ```
+<a href=#463 id=463 data-nosnippet>463</a>//! use fixed_record::prelude::*;
+<a href=#464 id=464 data-nosnippet>464</a>//!
+<a href=#465 id=465 data-nosnippet>465</a>//! #[fixed_record]
+<a href=#466 id=466 data-nosnippet>466</a>//! struct Order {
+<a href=#467 id=467 data-nosnippet>467</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#468 id=468 data-nosnippet>468</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#469 id=469 data-nosnippet>469</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#470 id=470 data-nosnippet>470</a>//! }
+<a href=#471 id=471 data-nosnippet>471</a>//!
+<a href=#472 id=472 data-nosnippet>472</a>//! fn serialize&lt;T: FixedRecord&gt;(record: &amp;T) -&gt; Vec&lt;u8&gt; {
+<a href=#473 id=473 data-nosnippet>473</a>//!     record.to_bytes()
+<a href=#474 id=474 data-nosnippet>474</a>//! }
+<a href=#475 id=475 data-nosnippet>475</a>//!
+<a href=#476 id=476 data-nosnippet>476</a>//! let order = Order::builder()
+<a href=#477 id=477 data-nosnippet>477</a>//!     .with_customer_id("C001")
+<a href=#478 id=478 data-nosnippet>478</a>//!     .with_order_no("A00042")
+<a href=#479 id=479 data-nosnippet>479</a>//!     .with_amount_int(1250)
+<a href=#480 id=480 data-nosnippet>480</a>//!     .build();
+<a href=#481 id=481 data-nosnippet>481</a>//!
+<a href=#482 id=482 data-nosnippet>482</a>//! assert_eq!(serialize(&amp;order), b"C001A0004200001250");
+<a href=#483 id=483 data-nosnippet>483</a>//! ```
 <a href=#484 id=484 data-nosnippet>484</a>//!
-<a href=#485 id=485 data-nosnippet>485</a>//! - `list`: enabled by default. Generates the optional `{StructName}List` helper.
-<a href=#486 id=486 data-nosnippet>486</a>//! - `list`: default で有効です。補助機能の `{StructName}List` を生成します。
-<a href=#487 id=487 data-nosnippet>487</a>//!
-<a href=#488 id=488 data-nosnippet>488</a>//! Disable default features when you only need records, field operations, parsing, `Reader`, and
-<a href=#489 id=489 data-nosnippet>489</a>//! `Writer`:
-<a href=#490 id=490 data-nosnippet>490</a>//!
-<a href=#491 id=491 data-nosnippet>491</a>//! レコード本体、フィールド操作、parse、`Reader`、`Writer` だけを使う場合:
+<a href=#485 id=485 data-nosnippet>485</a>//! # Feature Flags / feature flag
+<a href=#486 id=486 data-nosnippet>486</a>//!
+<a href=#487 id=487 data-nosnippet>487</a>//! - `list`: enabled by default. Generates the optional `{StructName}List` helper.
+<a href=#488 id=488 data-nosnippet>488</a>//! - `list`: default で有効です。補助機能の `{StructName}List` を生成します。
+<a href=#489 id=489 data-nosnippet>489</a>//!
+<a href=#490 id=490 data-nosnippet>490</a>//! Disable default features when you only need records, field operations, parsing, `Reader`, and
+<a href=#491 id=491 data-nosnippet>491</a>//! `Writer`:
 <a href=#492 id=492 data-nosnippet>492</a>//!
-<a href=#493 id=493 data-nosnippet>493</a>//! ```toml
-<a href=#494 id=494 data-nosnippet>494</a>//! [dependencies]
-<a href=#495 id=495 data-nosnippet>495</a>//! fixed-record = { version = "0.1", default-features = false }
-<a href=#496 id=496 data-nosnippet>496</a>//! ```
-<a href=#497 id=497 data-nosnippet>497</a>//!
-<a href=#498 id=498 data-nosnippet>498</a>//! # Zerocopy Support / zerocopy 対応
+<a href=#493 id=493 data-nosnippet>493</a>//! レコード本体、フィールド操作、parse、`Reader`、`Writer` だけを使う場合:
+<a href=#494 id=494 data-nosnippet>494</a>//!
+<a href=#495 id=495 data-nosnippet>495</a>//! ```toml
+<a href=#496 id=496 data-nosnippet>496</a>//! [dependencies]
+<a href=#497 id=497 data-nosnippet>497</a>//! fixed-record = { version = "0.1", default-features = false }
+<a href=#498 id=498 data-nosnippet>498</a>//! ```
 <a href=#499 id=499 data-nosnippet>499</a>//!
-<a href=#500 id=500 data-nosnippet>500</a>//! Generated records always use `#[repr(C)]` and derive `zerocopy::FromBytes`,
-<a href=#501 id=501 data-nosnippet>501</a>//! `zerocopy::IntoBytes`, `zerocopy::Immutable`, and `zerocopy::KnownLayout`.
-<a href=#502 id=502 data-nosnippet>502</a>//! The zerocopy traits are re-exported from [`prelude`].
-<a href=#503 id=503 data-nosnippet>503</a>//!
-<a href=#504 id=504 data-nosnippet>504</a>//! 生成レコードには常に `#[repr(C)]` が付き、`zerocopy::FromBytes`、
-<a href=#505 id=505 data-nosnippet>505</a>//! `zerocopy::IntoBytes`、`zerocopy::Immutable`、`zerocopy::KnownLayout` を derive します。
-<a href=#506 id=506 data-nosnippet>506</a>//! zerocopy traits は [`prelude`] から再エクスポートされます。
-<a href=#507 id=507 data-nosnippet>507</a>//!
-<a href=#508 id=508 data-nosnippet>508</a>//! ```
-<a href=#509 id=509 data-nosnippet>509</a>//! use fixed_record::prelude::*;
-<a href=#510 id=510 data-nosnippet>510</a>//!
-<a href=#511 id=511 data-nosnippet>511</a>//! #[fixed_record]
-<a href=#512 id=512 data-nosnippet>512</a>//! struct Order {
-<a href=#513 id=513 data-nosnippet>513</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#514 id=514 data-nosnippet>514</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#515 id=515 data-nosnippet>515</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#516 id=516 data-nosnippet>516</a>//! }
-<a href=#517 id=517 data-nosnippet>517</a>//!
-<a href=#518 id=518 data-nosnippet>518</a>//! let raw = b"C001A0004200001250";
+<a href=#500 id=500 data-nosnippet>500</a>//! # Zerocopy Support / zerocopy 対応
+<a href=#501 id=501 data-nosnippet>501</a>//!
+<a href=#502 id=502 data-nosnippet>502</a>//! Generated records always use `#[repr(C)]` and derive `zerocopy::FromBytes`,
+<a href=#503 id=503 data-nosnippet>503</a>//! `zerocopy::IntoBytes`, `zerocopy::Immutable`, and `zerocopy::KnownLayout`.
+<a href=#504 id=504 data-nosnippet>504</a>//! The zerocopy traits are re-exported from [`prelude`].
+<a href=#505 id=505 data-nosnippet>505</a>//!
+<a href=#506 id=506 data-nosnippet>506</a>//! 生成レコードには常に `#[repr(C)]` が付き、`zerocopy::FromBytes`、
+<a href=#507 id=507 data-nosnippet>507</a>//! `zerocopy::IntoBytes`、`zerocopy::Immutable`、`zerocopy::KnownLayout` を derive します。
+<a href=#508 id=508 data-nosnippet>508</a>//! zerocopy traits は [`prelude`] から再エクスポートされます。
+<a href=#509 id=509 data-nosnippet>509</a>//!
+<a href=#510 id=510 data-nosnippet>510</a>//! ```
+<a href=#511 id=511 data-nosnippet>511</a>//! use fixed_record::prelude::*;
+<a href=#512 id=512 data-nosnippet>512</a>//!
+<a href=#513 id=513 data-nosnippet>513</a>//! #[fixed_record]
+<a href=#514 id=514 data-nosnippet>514</a>//! struct Order {
+<a href=#515 id=515 data-nosnippet>515</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#516 id=516 data-nosnippet>516</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#517 id=517 data-nosnippet>517</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#518 id=518 data-nosnippet>518</a>//! }
 <a href=#519 id=519 data-nosnippet>519</a>//!
-<a href=#520 id=520 data-nosnippet>520</a>//! let order = Order::ref_from_bytes(raw).unwrap();
-<a href=#521 id=521 data-nosnippet>521</a>//! assert_eq!(order.customer_id(), b"C001");
-<a href=#522 id=522 data-nosnippet>522</a>//! assert_eq!(order.as_bytes(), raw);
-<a href=#523 id=523 data-nosnippet>523</a>//! assert_eq!(order.as_str().unwrap(), "C001A0004200001250");
-<a href=#524 id=524 data-nosnippet>524</a>//! ```
-<a href=#525 id=525 data-nosnippet>525</a>//!
-<a href=#526 id=526 data-nosnippet>526</a>//! Use `ref_from_bytes_prefix` when the input may contain trailing bytes after the first record.
+<a href=#520 id=520 data-nosnippet>520</a>//! let raw = b"C001A0004200001250";
+<a href=#521 id=521 data-nosnippet>521</a>//!
+<a href=#522 id=522 data-nosnippet>522</a>//! let order = Order::ref_from_bytes(raw).unwrap();
+<a href=#523 id=523 data-nosnippet>523</a>//! assert_eq!(order.customer_id(), b"C001");
+<a href=#524 id=524 data-nosnippet>524</a>//! assert_eq!(order.as_bytes(), raw);
+<a href=#525 id=525 data-nosnippet>525</a>//! assert_eq!(order.as_str().unwrap(), "C001A0004200001250");
+<a href=#526 id=526 data-nosnippet>526</a>//! ```
 <a href=#527 id=527 data-nosnippet>527</a>//!
-<a href=#528 id=528 data-nosnippet>528</a>//! 先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
+<a href=#528 id=528 data-nosnippet>528</a>//! Use `ref_from_bytes_prefix` when the input may contain trailing bytes after the first record.
 <a href=#529 id=529 data-nosnippet>529</a>//!
-<a href=#530 id=530 data-nosnippet>530</a>//! ```
-<a href=#531 id=531 data-nosnippet>531</a>//! use fixed_record::prelude::*;
-<a href=#532 id=532 data-nosnippet>532</a>//!
-<a href=#533 id=533 data-nosnippet>533</a>//! #[fixed_record]
-<a href=#534 id=534 data-nosnippet>534</a>//! struct Order {
-<a href=#535 id=535 data-nosnippet>535</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#536 id=536 data-nosnippet>536</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#537 id=537 data-nosnippet>537</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#538 id=538 data-nosnippet>538</a>//! }
-<a href=#539 id=539 data-nosnippet>539</a>//!
-<a href=#540 id=540 data-nosnippet>540</a>//! let raw = b"C001A0004200001250rest";
-<a href=#541 id=541 data-nosnippet>541</a>//! let order = Order::ref_from_bytes_prefix(raw).unwrap();
-<a href=#542 id=542 data-nosnippet>542</a>//! assert_eq!(order.customer_id(), b"C001");
-<a href=#543 id=543 data-nosnippet>543</a>//! ```
-<a href=#544 id=544 data-nosnippet>544</a>//!
-<a href=#545 id=545 data-nosnippet>545</a>//! String inputs can use `ref_from_str` or `ref_from_str_prefix`.
+<a href=#530 id=530 data-nosnippet>530</a>//! 先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
+<a href=#531 id=531 data-nosnippet>531</a>//!
+<a href=#532 id=532 data-nosnippet>532</a>//! ```
+<a href=#533 id=533 data-nosnippet>533</a>//! use fixed_record::prelude::*;
+<a href=#534 id=534 data-nosnippet>534</a>//!
+<a href=#535 id=535 data-nosnippet>535</a>//! #[fixed_record]
+<a href=#536 id=536 data-nosnippet>536</a>//! struct Order {
+<a href=#537 id=537 data-nosnippet>537</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#538 id=538 data-nosnippet>538</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#539 id=539 data-nosnippet>539</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#540 id=540 data-nosnippet>540</a>//! }
+<a href=#541 id=541 data-nosnippet>541</a>//!
+<a href=#542 id=542 data-nosnippet>542</a>//! let raw = b"C001A0004200001250rest";
+<a href=#543 id=543 data-nosnippet>543</a>//! let order = Order::ref_from_bytes_prefix(raw).unwrap();
+<a href=#544 id=544 data-nosnippet>544</a>//! assert_eq!(order.customer_id(), b"C001");
+<a href=#545 id=545 data-nosnippet>545</a>//! ```
 <a href=#546 id=546 data-nosnippet>546</a>//!
-<a href=#547 id=547 data-nosnippet>547</a>//! 文字列入力では `ref_from_str` または `ref_from_str_prefix` を使えます。
+<a href=#547 id=547 data-nosnippet>547</a>//! String inputs can use `ref_from_str` or `ref_from_str_prefix`.
 <a href=#548 id=548 data-nosnippet>548</a>//!
-<a href=#549 id=549 data-nosnippet>549</a>//! ```
-<a href=#550 id=550 data-nosnippet>550</a>//! use fixed_record::prelude::*;
-<a href=#551 id=551 data-nosnippet>551</a>//!
-<a href=#552 id=552 data-nosnippet>552</a>//! #[fixed_record]
-<a href=#553 id=553 data-nosnippet>553</a>//! struct Order {
-<a href=#554 id=554 data-nosnippet>554</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#555 id=555 data-nosnippet>555</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#556 id=556 data-nosnippet>556</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#557 id=557 data-nosnippet>557</a>//! }
-<a href=#558 id=558 data-nosnippet>558</a>//!
-<a href=#559 id=559 data-nosnippet>559</a>//! let order = Order::ref_from_str_prefix("C001A0004200001250rest").unwrap();
-<a href=#560 id=560 data-nosnippet>560</a>//! assert_eq!(order.order_no_str().unwrap(), "A00042");
-<a href=#561 id=561 data-nosnippet>561</a>//! ```
-<a href=#562 id=562 data-nosnippet>562</a>//!
-<a href=#563 id=563 data-nosnippet>563</a></span><span class="kw">extern crate </span><span class="self">self </span><span class="kw">as </span>fixed_record;
-<a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a><span class="kw">pub mod </span>error;
-<a href=#566 id=566 data-nosnippet>566</a><span class="kw">pub mod </span>io;
-<a href=#567 id=567 data-nosnippet>567</a><span class="kw">pub mod </span>traits;
-<a href=#568 id=568 data-nosnippet>568</a><span class="kw">pub mod </span>types;
-<a href=#569 id=569 data-nosnippet>569</a>
-<a href=#570 id=570 data-nosnippet>570</a><span class="kw">pub use </span>fixed_record_macros::fixed_record;
-<a href=#571 id=571 data-nosnippet>571</a><span class="kw">pub use </span>zerocopy;
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a><span class="kw">pub use </span>error::Error;
-<a href=#574 id=574 data-nosnippet>574</a><span class="kw">pub use </span>io::{Reader, RecordSeparator, Writer};
-<a href=#575 id=575 data-nosnippet>575</a><span class="kw">pub use </span>traits::{ByteRangeBounds, FixedRecord};
-<a href=#576 id=576 data-nosnippet>576</a><span class="kw">pub use </span>types::Fixed;
-<a href=#577 id=577 data-nosnippet>577</a><span class="kw">pub use </span>zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
-<a href=#578 id=578 data-nosnippet>578</a>
-<a href=#579 id=579 data-nosnippet>579</a><span class="kw">pub mod </span>prelude {
-<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">pub use </span><span class="kw">crate</span>::fixed_record;
-<a href=#581 id=581 data-nosnippet>581</a>    <span class="kw">pub use crate</span>::{
-<a href=#582 id=582 data-nosnippet>582</a>        ByteRangeBounds, Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout,
-<a href=#583 id=583 data-nosnippet>583</a>        Reader, RecordSeparator, Writer,
-<a href=#584 id=584 data-nosnippet>584</a>    };
-<a href=#585 id=585 data-nosnippet>585</a>}
-<a href=#586 id=586 data-nosnippet>586</a>
-<a href=#587 id=587 data-nosnippet>587</a><span class="doccomment">/// Documentation examples for APIs generated by [`macro@fixed_record`].
-<a href=#588 id=588 data-nosnippet>588</a>/// [`macro@fixed_record`] が生成する API を rustdoc で確認するためのサンプルです。
-<a href=#589 id=589 data-nosnippet>589</a></span><span class="attr">#[cfg(doc)]
-<a href=#590 id=590 data-nosnippet>590</a></span><span class="kw">pub mod </span>doc_examples {
-<a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">use </span><span class="kw">crate</span>::prelude::<span class="kw-2">*</span>;
+<a href=#549 id=549 data-nosnippet>549</a>//! 文字列入力では `ref_from_str` または `ref_from_str_prefix` を使えます。
+<a href=#550 id=550 data-nosnippet>550</a>//!
+<a href=#551 id=551 data-nosnippet>551</a>//! ```
+<a href=#552 id=552 data-nosnippet>552</a>//! use fixed_record::prelude::*;
+<a href=#553 id=553 data-nosnippet>553</a>//!
+<a href=#554 id=554 data-nosnippet>554</a>//! #[fixed_record]
+<a href=#555 id=555 data-nosnippet>555</a>//! struct Order {
+<a href=#556 id=556 data-nosnippet>556</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#557 id=557 data-nosnippet>557</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#558 id=558 data-nosnippet>558</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#559 id=559 data-nosnippet>559</a>//! }
+<a href=#560 id=560 data-nosnippet>560</a>//!
+<a href=#561 id=561 data-nosnippet>561</a>//! let order = Order::ref_from_str_prefix("C001A0004200001250rest").unwrap();
+<a href=#562 id=562 data-nosnippet>562</a>//! assert_eq!(order.order_no_str().unwrap(), "A00042");
+<a href=#563 id=563 data-nosnippet>563</a>//! ```
+<a href=#564 id=564 data-nosnippet>564</a>//!
+<a href=#565 id=565 data-nosnippet>565</a></span><span class="kw">extern crate </span><span class="self">self </span><span class="kw">as </span>fixed_record;
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a><span class="kw">pub mod </span>error;
+<a href=#568 id=568 data-nosnippet>568</a><span class="kw">pub mod </span>io;
+<a href=#569 id=569 data-nosnippet>569</a><span class="kw">pub mod </span>traits;
+<a href=#570 id=570 data-nosnippet>570</a><span class="kw">pub mod </span>types;
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a><span class="kw">pub use </span>fixed_record_macros::fixed_record;
+<a href=#573 id=573 data-nosnippet>573</a><span class="kw">pub use </span>zerocopy;
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a><span class="kw">pub use </span>error::Error;
+<a href=#576 id=576 data-nosnippet>576</a><span class="kw">pub use </span>io::{Reader, RecordSeparator, Writer};
+<a href=#577 id=577 data-nosnippet>577</a><span class="attr">#[cfg(feature = <span class="string">"list"</span>)]
+<a href=#578 id=578 data-nosnippet>578</a></span><span class="kw">pub use </span>traits::RecordWithList;
+<a href=#579 id=579 data-nosnippet>579</a><span class="kw">pub use </span>traits::{ByteRangeBounds, FixedRecord};
+<a href=#580 id=580 data-nosnippet>580</a><span class="kw">pub use </span>types::Fixed;
+<a href=#581 id=581 data-nosnippet>581</a><span class="kw">pub use </span>zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+<a href=#582 id=582 data-nosnippet>582</a>
+<a href=#583 id=583 data-nosnippet>583</a><span class="kw">pub mod </span>prelude {
+<a href=#584 id=584 data-nosnippet>584</a>    <span class="attr">#[cfg(feature = <span class="string">"list"</span>)]
+<a href=#585 id=585 data-nosnippet>585</a>    </span><span class="kw">pub use </span><span class="kw">crate</span>::RecordWithList;
+<a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">pub use </span><span class="kw">crate</span>::fixed_record;
+<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">pub use crate</span>::{
+<a href=#588 id=588 data-nosnippet>588</a>        ByteRangeBounds, Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout,
+<a href=#589 id=589 data-nosnippet>589</a>        Reader, RecordSeparator, Writer,
+<a href=#590 id=590 data-nosnippet>590</a>    };
+<a href=#591 id=591 data-nosnippet>591</a>}
 <a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="doccomment">/// Test record used to document the generated fixed-record API.
-<a href=#594 id=594 data-nosnippet>594</a>    /// 生成される fixed-record API のドキュメント用テストレコードです。
-<a href=#595 id=595 data-nosnippet>595</a>    </span><span class="attr">#[fixed_record]
-<a href=#596 id=596 data-nosnippet>596</a>    </span><span class="kw">pub struct </span>TestRecord {
-<a href=#597 id=597 data-nosnippet>597</a>        <span class="doccomment">/// Name field used by generated API tests.
-<a href=#598 id=598 data-nosnippet>598</a>        /// 生成 API テストで使う名前フィールドです。
-<a href=#599 id=599 data-nosnippet>599</a>        </span>name: Fixed&lt;<span class="number">10</span>&gt;,
-<a href=#600 id=600 data-nosnippet>600</a>        <span class="doccomment">/// Code field used by generated API tests.
-<a href=#601 id=601 data-nosnippet>601</a>        /// 生成 API テストで使うコードフィールドです。
-<a href=#602 id=602 data-nosnippet>602</a>        </span>code: Fixed&lt;<span class="number">5</span>&gt;,
-<a href=#603 id=603 data-nosnippet>603</a>        <span class="doccomment">/// Amount field used by generated API tests.
-<a href=#604 id=604 data-nosnippet>604</a>        /// 生成 API テストで使う金額フィールドです。
-<a href=#605 id=605 data-nosnippet>605</a>        </span>amount: Fixed&lt;<span class="number">8</span>&gt;,
-<a href=#606 id=606 data-nosnippet>606</a>    }
-<a href=#607 id=607 data-nosnippet>607</a>}
+<a href=#593 id=593 data-nosnippet>593</a><span class="doccomment">/// Documentation examples for APIs generated by [`macro@fixed_record`].
+<a href=#594 id=594 data-nosnippet>594</a>/// [`macro@fixed_record`] が生成する API を rustdoc で確認するためのサンプルです。
+<a href=#595 id=595 data-nosnippet>595</a></span><span class="attr">#[cfg(doc)]
+<a href=#596 id=596 data-nosnippet>596</a></span><span class="kw">pub mod </span>doc_examples {
+<a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">use </span><span class="kw">crate</span>::prelude::<span class="kw-2">*</span>;
+<a href=#598 id=598 data-nosnippet>598</a>
+<a href=#599 id=599 data-nosnippet>599</a>    <span class="doccomment">/// Test record used to document the generated fixed-record API.
+<a href=#600 id=600 data-nosnippet>600</a>    /// 生成される fixed-record API のドキュメント用テストレコードです。
+<a href=#601 id=601 data-nosnippet>601</a>    </span><span class="attr">#[fixed_record]
+<a href=#602 id=602 data-nosnippet>602</a>    </span><span class="kw">pub struct </span>TestRecord {
+<a href=#603 id=603 data-nosnippet>603</a>        <span class="doccomment">/// Name field used by generated API tests.
+<a href=#604 id=604 data-nosnippet>604</a>        /// 生成 API テストで使う名前フィールドです。
+<a href=#605 id=605 data-nosnippet>605</a>        </span>name: Fixed&lt;<span class="number">10</span>&gt;,
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="doccomment">/// Code field used by generated API tests.
+<a href=#607 id=607 data-nosnippet>607</a>        /// 生成 API テストで使うコードフィールドです。
+<a href=#608 id=608 data-nosnippet>608</a>        </span>code: Fixed&lt;<span class="number">5</span>&gt;,
+<a href=#609 id=609 data-nosnippet>609</a>        <span class="doccomment">/// Amount field used by generated API tests.
+<a href=#610 id=610 data-nosnippet>610</a>        /// 生成 API テストで使う金額フィールドです。
+<a href=#611 id=611 data-nosnippet>611</a>        </span>amount: Fixed&lt;<span class="number">8</span>&gt;,
+<a href=#612 id=612 data-nosnippet>612</a>    }
+<a href=#613 id=613 data-nosnippet>613</a>}
 </code></pre></div></section></main></body></html>
