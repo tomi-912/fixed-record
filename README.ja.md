@@ -94,7 +94,7 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 ## List 検索
 
-`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持し、`BTreeMap<Field, BTreeMap<Vec<u8>, Vec<usize>>>` という形の順序付き索引を管理します。内側のキーは各フィールドに格納された実際のバイト列で、値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
+`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持し、`HashMap<Field, BTreeMap<Vec<u8>, Vec<usize>>>` という形の索引を管理します。外側の HashMap は順序を必要とせずフィールドを選択します。内側の順序付き Map では各フィールドに格納された実際のバイト列をキーとし、値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 
 完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。全体の順序が変わる `sort` と `sort_by` だけが索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
 

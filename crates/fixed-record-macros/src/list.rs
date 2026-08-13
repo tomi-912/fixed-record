@@ -26,7 +26,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
         #[doc = "レコード ID は現在の vector index です。そのため削除やソート後に ID は変わる可能性があります。"]
         #struct_vis struct #list_name {
             records: Vec<Box<#struct_name>>,
-            indices: std::collections::BTreeMap<
+            indices: std::collections::HashMap<
                 #field_enum_name,
                 std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
             >,
@@ -38,7 +38,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             pub fn new() -> Self {
                 Self {
                     records: Vec::new(),
-                    indices: std::collections::BTreeMap::new(),
+                    indices: std::collections::HashMap::new(),
                 }
             }
 
@@ -63,7 +63,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             #[doc = "Adds one record to every field index."]
             #[doc = "1件のレコードを全フィールド索引へ追加します。"]
             fn index_record(
-                indices: &mut std::collections::BTreeMap<
+                indices: &mut std::collections::HashMap<
                     #field_enum_name,
                     std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
                 >,
@@ -86,7 +86,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             #[doc = "Removes one record from every field index."]
             #[doc = "1件のレコードを全フィールド索引から削除します。"]
             fn unindex_record(
-                indices: &mut std::collections::BTreeMap<
+                indices: &mut std::collections::HashMap<
                     #field_enum_name,
                     std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
                 >,
@@ -122,7 +122,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
             #[doc = "Rebuilds all field indexes from the current vector order."]
             #[doc = "現在の vector 順序から全フィールド索引を再構築します。"]
             fn rebuild_indices(&mut self) {
-                let mut indices = std::collections::BTreeMap::new();
+                let mut indices = std::collections::HashMap::new();
                 for (id, record) in self.records.iter().enumerate() {
                     Self::index_record(&mut indices, id, record.as_ref());
                 }
