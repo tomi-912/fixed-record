@@ -152,29 +152,35 @@ struct User {
     age: Fixed<3>,
 }
 
-let raw = b"00000001Tanaka          025";
-let user = User::ref_from_bytes(raw)?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let raw = b"00000001Tanaka          025";
+    let user = User::ref_from_bytes(raw)?;
 
-assert_eq!(user.id(), b"00000001");
-assert_eq!(user.as_bytes(), raw);
-# Ok::<(), Box<dyn std::error::Error>>(())
+    assert_eq!(user.id(), b"00000001");
+    assert_eq!(user.as_bytes(), raw);
+    Ok(())
+}
 ```
 
 `ref_from_bytes` は入力長がちょうど1レコード分である必要があります。先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
 
 ```rust
-# use fixed_record::prelude::*;
-# #[fixed_record]
-# struct User {
-#     id: Fixed<8>,
-#     name: Fixed<16>,
-#     age: Fixed<3>,
-# }
-let raw = b"00000001Tanaka          025rest";
-let user = User::ref_from_bytes_prefix(raw)?;
+use fixed_record::prelude::*;
 
-assert_eq!(user.id(), b"00000001");
-# Ok::<(), Box<dyn std::error::Error>>(())
+#[fixed_record]
+struct User {
+    id: Fixed<8>,
+    name: Fixed<16>,
+    age: Fixed<3>,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let raw = b"00000001Tanaka          025rest";
+    let user = User::ref_from_bytes_prefix(raw)?;
+
+    assert_eq!(user.id(), b"00000001");
+    Ok(())
+}
 ```
 
 ## Examples
