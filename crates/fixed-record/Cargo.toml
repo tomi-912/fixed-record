@@ -7,12 +7,12 @@ license = "MIT-0"
 [features]
 default = ["list"]
 list = ["fixed-record-macros/list"]
-unchecked = ["fixed-record-macros/unchecked"]
 
 [dependencies]
 # Use the local proc macro crate while developing the workspace.
 # workspace 開発中はローカルパスの proc macro crate を使います。
 fixed-record-macros = { path = "../fixed-record-macros", default-features = false }
+zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]
 trybuild = "1.0"

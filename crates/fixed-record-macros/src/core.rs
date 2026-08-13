@@ -124,15 +124,20 @@ pub fn expand_fixed_record(input: &DeriveInput, options: MacroOptions) -> syn::R
             }
         }
     });
-    let repr_attr = if cfg!(feature = "unchecked") {
-        quote!(#[repr(C)])
-    } else {
-        quote!()
-    };
-
     Ok(quote! {
-        #repr_attr
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[repr(C)]
+        #[derive(
+            Debug,
+            Clone,
+            Copy,
+            PartialEq,
+            Eq,
+            ::fixed_record::zerocopy::FromBytes,
+            ::fixed_record::zerocopy::IntoBytes,
+            ::fixed_record::zerocopy::Immutable,
+            ::fixed_record::zerocopy::KnownLayout
+        )]
+        #[zerocopy(crate = "fixed_record::zerocopy")]
         #input
 
         #field_enum
@@ -182,72 +187,6 @@ pub fn impl_fixed_record_core(
             #field_enum_name::#variant => self.#name.as_bytes()
         }
     });
-    let unchecked_methods = if cfg!(feature = "unchecked") {
-        quote! {
-            #[doc = "Reinterprets the struct memory layout directly as fixed-width bytes."]
-            #[doc = "構造体のメモリ配置を固定長バイト配列参照として直接読み替えます。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "This function is safe only when the struct memory layout exactly matches the fixed-width record byte layout."]
-            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
-            #[doc = "Prefer `to_bytes` because padding and alignment can affect the layout."]
-            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `to_bytes` を使ってください。"]
-            pub unsafe fn as_bytes_unchecked(&self) -> &[u8; Self::TOTAL_LEN] {
-                unsafe { &*(self as *const Self as *const [u8; Self::TOTAL_LEN]) }
-            }
-
-            #[doc = "Copies bytes directly into struct memory and creates an owned record value."]
-            #[doc = "バイト列を構造体のメモリへ直接コピーして、構造体の新しいインスタンスを作成します。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "This function is safe only when the struct memory layout exactly matches the fixed-width record byte layout."]
-            #[doc = "この関数は構造体のメモリレイアウトが固定長レコードのバイト配置と完全に一致する場合にのみ安全です。"]
-            #[doc = "Prefer `parse` because padding and alignment can affect the layout."]
-            #[doc = "padding や alignment の影響を受ける可能性があるため、通常は `parse` を使ってください。"]
-            pub unsafe fn parse_unchecked(src: &[u8]) -> Result<Self, ::fixed_record::error::Error> {
-                if src.len() < Self::TOTAL_LEN {
-                    return Err(::fixed_record::error::Error::TooShort);
-                }
-                let mut inst = Self::zeroed();
-                unsafe {
-                    std::ptr::copy_nonoverlapping(src.as_ptr(), &mut inst as *mut Self as *mut u8, Self::TOTAL_LEN);
-                }
-                Ok(inst)
-            }
-
-            #[doc = "Reads the input bytes directly as a struct reference without copying."]
-            #[doc = "入力されたバイト列をコピーせず、構造体の参照として直接読み取ります。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "This function is safe only when the input address, length, lifetime, and struct layout are all valid for `Self`."]
-            #[doc = "この関数は入力バイト列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
-            #[doc = "Prefer `parse`, which returns an owned value."]
-            #[doc = "通常は所有値を返す `parse` を使ってください。"]
-            pub unsafe fn from_bytes_unchecked(src: &[u8]) -> Result<&Self, ::fixed_record::error::Error> {
-                if src.len() < Self::TOTAL_LEN {
-                    return Err(::fixed_record::error::Error::TooShort);
-                }
-                if src.as_ptr() as usize % std::mem::align_of::<Self>() != 0 {
-                    return Err(::fixed_record::error::Error::AlignmentError);
-                }
-                unsafe { Ok(&*(src.as_ptr() as *const Self)) }
-            }
-
-            #[doc = "Reads the input string directly as a struct reference without copying."]
-            #[doc = "入力された文字列をコピーせず、構造体の参照として直接読み取ります。"]
-            #[doc = ""]
-            #[doc = "# Safety"]
-            #[doc = "This function is safe only when the input address, length, lifetime, and struct layout are all valid for `Self`."]
-            #[doc = "この関数は入力文字列のアドレス、長さ、ライフタイム、構造体のメモリレイアウトがすべて `Self` として有効な場合にのみ安全です。"]
-            #[doc = "Prefer `parse_str`, which returns an owned value."]
-            #[doc = "通常は所有値を返す `parse_str` を使ってください。"]
-            pub unsafe fn from_str_unchecked(src: &str) -> Result<&Self, ::fixed_record::error::Error> {
-                unsafe { Self::from_bytes_unchecked(src.as_bytes()) }
-            }
-        }
-    } else {
-        quote!()
-    };
     let index_insert_blocks = metas.iter().map(|m| {
         let name = m.name;
         let variant = &m.variant;
@@ -1287,8 +1226,6 @@ pub fn impl_fixed_record_core(
             pub fn parse_str(src: &str) -> Result<Self, ::fixed_record::error::Error> {
                 Self::parse(src.as_bytes())
             }
-
-            #unchecked_methods
 
             // Dynamic field operations.
             // フィールド操作（動的アクセス）です。

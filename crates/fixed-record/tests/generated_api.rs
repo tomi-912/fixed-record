@@ -1286,18 +1286,20 @@ mod tests {
         assert_eq!(read_back.code(), b"JP002");
         assert_eq!(read_back.amount(), b"00000300");
     }
-    #[cfg(feature = "unchecked")]
     #[test]
-    fn test_unchecked_feature_methods_are_available() {
+    fn test_zerocopy_traits_are_available() {
         let data = b"HelloWorldABCDE12345678";
 
-        let rec = unsafe { TestRecord::parse_unchecked(data).unwrap() };
-        assert_eq!(rec.to_bytes(), *data);
+        let rec = TestRecord::ref_from_bytes(data).unwrap();
+        assert_eq!(rec.name(), b"HelloWorld");
+        assert_eq!(rec.as_bytes(), data);
 
-        let rec_ref = unsafe { TestRecord::from_bytes_unchecked(data).unwrap() };
-        assert_eq!(rec_ref.name(), b"HelloWorld");
+        let owned = TestRecord::read_from_bytes(data).unwrap();
+        assert_eq!(owned.to_bytes(), *data);
 
-        let raw = unsafe { rec.as_bytes_unchecked() };
-        assert_eq!(raw, data);
+        let mut writable = *data;
+        let rec_mut = TestRecord::mut_from_bytes(&mut writable).unwrap();
+        rec_mut.set_field_str(TestRecordField::Code, "ZZ999");
+        assert_eq!(&writable[10..15], b"ZZ999");
     }
 }

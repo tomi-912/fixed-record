@@ -28,7 +28,19 @@ use std::fmt;
 /// assert_eq!(name.as_str().unwrap(), "Rust      ");
 /// ```
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    zerocopy::FromBytes,
+    zerocopy::IntoBytes,
+    zerocopy::Immutable,
+    zerocopy::KnownLayout,
+)]
 pub struct Fixed<const N: usize> {
     /// The fixed-size array that stores the raw bytes.
     /// 内部データを保持する固定長配列です。

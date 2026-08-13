@@ -10,7 +10,6 @@ proc-macro = true
 [features]
 default = ["list"]
 list = []
-unchecked = []
 
 [dependencies]
 syn = { version = "2.0", features = ["full"] }

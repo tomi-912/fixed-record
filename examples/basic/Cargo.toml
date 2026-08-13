@@ -4,8 +4,5 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT-0"
 
-[features]
-unchecked = ["fixed-record/unchecked"]
-
 [dependencies]
 fixed-record = { path = "../../crates/fixed-record" }

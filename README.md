@@ -130,7 +130,6 @@ let mut cr_writer = Writer::new(output)
 ## Feature Flags
 
 - `list`: enabled by default. Generates `{StructName}List` and search index APIs.
-- `unchecked`: generates unsafe zero-copy APIs.
 
 Disable default features when you only want the record type and field operations.
 
@@ -139,21 +138,27 @@ Disable default features when you only want the record type and field operations
 fixed-record = { version = "0.1", default-features = false }
 ```
 
-Enable `unchecked` when you also want unsafe zero-copy APIs. The default `list` feature remains enabled in this form.
+## Zerocopy Support
 
-```toml
-[dependencies]
-fixed-record = { version = "0.1", features = ["unchecked"] }
+`#[fixed_record]` records are always generated with `#[repr(C)]` and derive `zerocopy::FromBytes`, `zerocopy::IntoBytes`, `zerocopy::Immutable`, and `zerocopy::KnownLayout`. The zerocopy traits are re-exported from `fixed_record::prelude`, so applications can use safe zerocopy APIs without adding a direct `zerocopy` dependency.
+
+```rust
+use fixed_record::prelude::*;
+
+#[fixed_record]
+struct User {
+    id: Fixed<8>,
+    name: Fixed<16>,
+    age: Fixed<3>,
+}
+
+let raw = b"00000001Tanaka          025";
+let user = User::ref_from_bytes(raw)?;
+
+assert_eq!(user.id(), b"00000001");
+assert_eq!(user.as_bytes(), raw);
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
-
-If you want `unchecked` without List generation, disable default features and enable only `unchecked`.
-
-```toml
-[dependencies]
-fixed-record = { version = "0.1", default-features = false, features = ["unchecked"] }
-```
-
-The `unchecked` feature generates `as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked`. Callers must guarantee that the struct memory layout exactly matches the fixed-width record byte layout.
 
 ## Examples
 

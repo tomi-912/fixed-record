@@ -130,7 +130,6 @@ let mut cr_writer = Writer::new(output)
 ## Feature Flags
 
 - `list`: default feature。`{StructName}List` と検索インデックス API を生成します。
-- `unchecked`: unsafe なゼロコピー系 API を追加生成します。
 
 レコード本体とフィールド操作だけを生成したい場合は、default feature を外します。
 
@@ -139,21 +138,27 @@ let mut cr_writer = Writer::new(output)
 fixed-record = { version = "0.1", default-features = false }
 ```
 
-unsafe なゼロコピー系 API も使いたい場合は、`unchecked` を有効にします。この書き方では default feature の `list` も有効なままです。
+## Zerocopy Support
 
-```toml
-[dependencies]
-fixed-record = { version = "0.1", features = ["unchecked"] }
+`#[fixed_record]` のレコードは常に `#[repr(C)]` が付き、`zerocopy::FromBytes`、`zerocopy::IntoBytes`、`zerocopy::Immutable`、`zerocopy::KnownLayout` を derive します。zerocopy traits は `fixed_record::prelude` から再エクスポートされるため、利用側で `zerocopy` を直接 dependency に追加しなくても安全な zerocopy API を使えます。
+
+```rust
+use fixed_record::prelude::*;
+
+#[fixed_record]
+struct User {
+    id: Fixed<8>,
+    name: Fixed<16>,
+    age: Fixed<3>,
+}
+
+let raw = b"00000001Tanaka          025";
+let user = User::ref_from_bytes(raw)?;
+
+assert_eq!(user.id(), b"00000001");
+assert_eq!(user.as_bytes(), raw);
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
-
-List 生成なしで `unchecked` だけを使いたい場合は、default feature を外して `unchecked` だけを有効にします。
-
-```toml
-[dependencies]
-fixed-record = { version = "0.1", default-features = false, features = ["unchecked"] }
-```
-
-`unchecked` feature では、`as_bytes_unchecked` / `parse_unchecked` / `from_bytes_unchecked` / `from_str_unchecked` が生成されます。これらは構造体のメモリレイアウトが固定長レコードのバイト配置と一致していることを呼び出し側が保証する必要があります。
 
 ## Examples
 
