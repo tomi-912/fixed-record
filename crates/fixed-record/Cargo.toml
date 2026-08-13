@@ -3,6 +3,12 @@ name = "fixed-record"
 version = "0.1.0"
 edition = "2024"
 license = "MIT-0"
+description = "Generate fixed-width record parsers, builders, stream I/O, and indexed List APIs"
+repository = "https://github.com/tomi-912/fixed-record"
+documentation = "https://tomi-912.github.io/fixed-record/"
+readme = "../../README.md"
+keywords = ["fixed-width", "record", "parser", "serialization", "legacy"]
+categories = ["parsing", "encoding", "data-structures"]
 
 [features]
 default = ["list"]
@@ -11,7 +17,7 @@ list = ["fixed-record-macros/list"]
 [dependencies]
 # Use the local proc macro crate while developing the workspace.
 # workspace 開発中はローカルパスの proc macro crate を使います。
-fixed-record-macros = { path = "../fixed-record-macros", default-features = false }
+fixed-record-macros = { version = "0.1.0", path = "../fixed-record-macros", default-features = false }
 zerocopy = { version = "0.8", features = ["derive"] }
 
 [dev-dependencies]

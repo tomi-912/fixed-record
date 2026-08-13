@@ -14,7 +14,7 @@ README は利用者向けの導入と使い方に絞ります。内部設計、�
 - コード上の crate 名: `fixed_record`
 - proc macro crate: `fixed-record-macros`
 - attribute macro: `#[fixed_record]`
-- repository name: `fixed-record` へ変更予定
+- repository: <https://github.com/tomi-912/fixed-record>
 - license: MIT No Attribution License (`MIT-0`)
 
 利用者は `fixed-record` だけを `[dependencies]` に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用 crate として扱います。
@@ -50,7 +50,7 @@ examples/
 
 ## Current Status
 
-2026-08-13 時点の確認メモです。
+2026-08-14 時点の確認メモです。
 
 成功確認済み:
 
@@ -129,16 +129,21 @@ cargo run -p fixed-record-no-list-example
 
 ## Publish Checklist
 
+完了済みの公開準備:
+
+- GitHub repository と manifest の `repository` URL は `tomi-912/fixed-record` に統一済みです。
+- 公開対象の両 package manifest に description、documentation、README、keywords、categories を設定済みです。
+- 両 package は SPDX の `MIT-0` metadata を維持し、repository root と同じ本文の LICENSE をpackage内へ収録します。
+- `fixed-record` は `fixed-record-macros` を version 付きpath dependencyとして参照するため、ローカルbuildではworkspace crate、公開後はcrates.io版を使います。
+- READMEのインストール手順はcrates.ioのversion dependencyを使います。
+- 両package archiveの内容を確認済みで、`cargo publish --dry-run -p fixed-record-macros` はmetadata warningなしで成功します。
+
 crates.io 公開前にやること:
 
-1. GitHub repository を `fixed-record` にリネームする。
-2. `Cargo.toml` の package metadata を埋める。
-3. `MIT-0` の license metadata と LICENSE 本文を確認する。
-4. README の install 文言を実際の公開 version に合わせる。
-5. README と rustdoc の zerocopy API 表現を最終確認する。
-6. `cargo package --dry-run -p fixed-record-macros` を通す。
-7. `cargo package --dry-run -p fixed-record` を通す。
-8. CI で次を必須にする。
+1. README と rustdoc のzerocopy API表現を最終確認する。
+2. `fixed-record-macros` を公開し、version `0.1.0` がcrates.io indexへ反映されるまで待つ。
+3. `cargo publish --dry-run -p fixed-record` を通してから、`fixed-record` を公開する。
+4. CI で次を必須にする。
 
 ```bash
 cargo fmt --all --check
@@ -147,21 +152,9 @@ cargo test --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-metadata 候補:
-
-- `description`
-- `license` または `license-file`
-- `repository`
-- `readme`
-- `keywords`
-- `categories`
-- `exclude` / `include`
-
-`fixed-record-macros` の description には、利用者が直接依存する crate ではなく `fixed-record` から使われる proc macro 実装用 crate であることを明記します。
+両manifestは `readme = "../../README.md"` でrepository rootのREADMEを参照し、Cargoは各package archiveへ `README.md` としてコピーします。proc-macro側のdescriptionには、利用者向けdependencyではなく `fixed-record` の実装用crateであることを明記しています。
 
 ## Next Recommended Work
 
-1. `Cargo.toml` の残りの公開 metadata を追加する。
-2. GitHub repository 名を `fixed-record` に変える。
-3. `crates/fixed-record/tests/generated_api.rs` を挙動別ファイルへ分割する。
-4. `cargo package --dry-run` で公開パッケージ内容を確認する。
+1. `fixed-record-macros` を公開し、続けて `fixed-record` のdry-runと公開を完了する。
+2. `crates/fixed-record/tests/generated_api.rs` を挙動別ファイルへ分割する。

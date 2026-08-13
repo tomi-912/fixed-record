@@ -14,7 +14,7 @@ Public-facing names are standardized as follows.
 - Rust crate name: `fixed_record`
 - Proc macro crate: `fixed-record-macros`
 - Attribute macro: `#[fixed_record]`
-- Repository name: planned rename to `fixed-record`
+- Repository: <https://github.com/tomi-912/fixed-record>
 - License: MIT No Attribution License (`MIT-0`)
 
 Users add only `fixed-record` to `[dependencies]`. `fixed-record-macros` is treated as an internal implementation crate re-exported by `fixed-record`.
@@ -50,7 +50,7 @@ examples/
 
 ## Current Status
 
-Status note as of 2026-08-13.
+Status note as of 2026-08-14.
 
 Verified commands:
 
@@ -133,16 +133,21 @@ The `default-features = false` compile-fail test remains in the dedicated `examp
 
 ## Publish Checklist
 
+Release setup already completed:
+
+- The GitHub repository and manifest `repository` URLs use `tomi-912/fixed-record`.
+- Both package manifests intended for publication define descriptions, documentation, README, keywords, and categories.
+- Both packages retain the SPDX `MIT-0` metadata and include a package-local LICENSE copy matching the repository root.
+- `fixed-record` uses a versioned path dependency on `fixed-record-macros`, so local builds use the workspace crate and published builds use the crates.io release.
+- README installation instructions use the crates.io version dependency.
+- Both package archives have been inspected, and `cargo publish --dry-run -p fixed-record-macros` passes without metadata warnings.
+
 Before publishing to crates.io:
 
-1. Rename the GitHub repository to `fixed-record`.
-2. Fill package metadata in `Cargo.toml`.
-3. Verify the `MIT-0` license metadata and LICENSE text.
-4. Align README installation text with the actual published version.
-5. Confirm the public zerocopy API wording in README and rustdoc.
-6. Run `cargo package --dry-run -p fixed-record-macros`.
-7. Run `cargo package --dry-run -p fixed-record`.
-8. Require the following checks in CI.
+1. Confirm the public zerocopy API wording in README and rustdoc.
+2. Publish `fixed-record-macros` and wait for version `0.1.0` to appear in the crates.io index.
+3. Run `cargo publish --dry-run -p fixed-record`, then publish `fixed-record`.
+4. Require the following checks in CI.
 
 ```bash
 cargo fmt --all --check
@@ -151,21 +156,9 @@ cargo test --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-Metadata candidates:
-
-- `description`
-- `license` or `license-file`
-- `repository`
-- `readme`
-- `keywords`
-- `categories`
-- `exclude` / `include`
-
-The `fixed-record-macros` description should state that it is the proc macro implementation crate used through `fixed-record`, not the crate users normally depend on directly.
+Both manifests use the repository root README through `readme = "../../README.md"`; Cargo copies it into each package archive as `README.md`. The proc-macro description identifies it as the implementation crate for `fixed-record`, rather than a user-facing dependency.
 
 ## Next Recommended Work
 
-1. Add remaining public package metadata.
-2. Rename the GitHub repository to `fixed-record`.
-3. Split `crates/fixed-record/tests/generated_api.rs` into behavior-focused files.
-4. Run `cargo package --dry-run` and inspect the package contents.
+1. Publish `fixed-record-macros`, then complete the `fixed-record` dry-run and publish sequence.
+2. Split `crates/fixed-record/tests/generated_api.rs` into behavior-focused files.

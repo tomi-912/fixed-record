@@ -38,14 +38,7 @@ Non-`Fixed<N>` fields, tuple structs, zero-width fields, negative widths, and no
 
 ## Installation
 
-Before the crate is published to crates.io, depend on the Git repository.
-
-```toml
-[dependencies]
-fixed-record = { git = "https://github.com/tomi-912/fixed-record.git" }
-```
-
-After publishing to crates.io, use the versioned dependency.
+Add the versioned crate from crates.io.
 
 ```toml
 [dependencies]

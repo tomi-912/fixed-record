@@ -38,14 +38,7 @@ struct Payment {
 
 ## インストール
 
-crates.io に公開する前は、Git repository 依存として追加します。
-
-```toml
-[dependencies]
-fixed-record = { git = "https://github.com/tomi-912/fixed-record.git" }
-```
-
-crates.io 公開後は、version 指定の依存として追加できます。
+crates.io から version 指定で追加します。
 
 ```toml
 [dependencies]
