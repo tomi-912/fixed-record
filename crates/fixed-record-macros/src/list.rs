@@ -142,6 +142,19 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 }
             }
 
+            #[doc = "Decrements indexed record IDs after a removal position."]
+            #[doc = "削除位置より後ろの索引内レコード ID を1つ繰り下げます。"]
+            fn decrement_index_ids_after(&mut self, index: usize) {
+                for field_index in self.indices.values_mut() {
+                    for ids in field_index.values_mut() {
+                        let first_shifted = ids.partition_point(|id| *id <= index);
+                        for id in &mut ids[first_shifted..] {
+                            *id -= 1;
+                        }
+                    }
+                }
+            }
+
             #[doc = "Returns the exclusive upper bound for byte keys that share a prefix."]
             #[doc = "同じ prefix を持つバイトキーを範囲検索するための排他的上限を返します。"]
             fn prefix_upper_bound(prefix: &[u8]) -> Option<Vec<u8>> {
@@ -291,15 +304,16 @@ pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> To
                 true
             }
 
-            #[doc = "Removes the record at the specified current index and rebuilds all field indexes."]
-            #[doc = "指定された現在の index にあるレコードを削除し、全フィールド索引を再構築します。"]
+            #[doc = "Removes the record at the specified current index and updates shifted field indexes."]
+            #[doc = "指定された現在の index にあるレコードを削除し、移動したフィールド索引を更新します。"]
             pub fn remove(&mut self, id: usize) -> bool {
                 if id >= self.records.len() {
                     return false;
                 }
 
-                self.records.remove(id);
-                self.rebuild_indices();
+                let record = self.records.remove(id);
+                Self::unindex_record(&mut self.indices, id, record.as_ref());
+                self.decrement_index_ids_after(id);
                 true
             }
 

@@ -741,6 +741,45 @@ mod tests {
     }
 
     #[test]
+    fn test_list_remove_shifts_duplicate_field_index_ids() {
+        let mut list = TestRecordList::new();
+
+        for (name, code) in [
+            ("Alice", "A0001"),
+            ("Bob", "B0001"),
+            ("Carol", "A0001"),
+            ("Dave", "C0001"),
+        ] {
+            list.push(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code(code)
+                    .build(),
+            );
+        }
+
+        assert!(list.remove(1));
+
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Carol", "Dave"]
+        );
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
+        assert!(!code_index.contains_key(b"B0001".as_slice()));
+        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        assert_eq!(
+            list.find_by(TestRecordField::Code, *b"A0001")
+                .iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Carol"]
+        );
+    }
+
+    #[test]
     fn test_list_insert_at_index_shifts_records_and_field_indices() {
         let mut list = TestRecordList::new();
 
