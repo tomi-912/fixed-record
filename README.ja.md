@@ -94,7 +94,9 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 ## List 検索
 
-`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持し、メモリ上のレコード集合に対して lookup、prefix search、range search、sort、物理削除を使いたい場合に向いています。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
+`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持し、`BTreeMap<Field, BTreeMap<Vec<u8>, Vec<usize>>>` という形の順序付き索引を管理します。内側のキーは各フィールドに格納された実際のバイト列で、値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
+
+完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`insert` と `update` は対象の索引項目を更新し、`remove`、`sort`、`sort_by` は現在の vector index が変化するため索引を再構築します。フィールドキーのコピーとレコードindexを保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
 
 List の ID は現在の vector index です。補助機能としては素直ですが、`remove`、`sort`、`sort_by` の後は index が変わる可能性があります。
 

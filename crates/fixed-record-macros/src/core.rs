@@ -90,7 +90,7 @@ pub fn gen_field_enum(input: &DeriveInput) -> syn::Result<TokenStream> {
     Ok(quote! {
         #[doc = "Field identifier enum for the generated record."]
         #[doc = "生成レコード用のフィールド識別列挙型です。"]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #struct_vis enum #field_enum_name {
             #( #variants ),*
         }

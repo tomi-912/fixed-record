@@ -5,7 +5,7 @@ use syn::DeriveInput;
 
 /// Generates the optional `{StructName}List` helper.
 /// optional な `{StructName}List` 補助型を生成します。
-pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> TokenStream {
+pub(super) fn gen_list_impl(input: &DeriveInput, _metas: &[FieldMeta<'_>]) -> TokenStream {
     if !cfg!(feature = "list") {
         return quote!();
     }
@@ -15,149 +15,21 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
     let field_enum_name = format_ident!("{}Field", struct_name);
     let list_name = format_ident!("{}List", struct_name);
 
-    let try_find_by_arms = metas.iter().map(|m| {
-        let variant = &m.variant;
-        let size = m.size;
-        quote! {
-            #field_enum_name::#variant => {
-                if raw_value.len() > #size {
-                    return Err(::fixed_record::error::Error::FieldOverflow {
-                        field: #struct_name::name_of(field),
-                        size: #size,
-                        actual: raw_value.len(),
-                    });
-                }
-
-                Ok(self.records
-                    .iter()
-                    .filter_map(|record| {
-                        let record = record.as_ref();
-                        let bytes = record.field_bytes(field);
-                        let is_match = if raw_value.len() == #size {
-                            bytes == raw_value
-                        } else {
-                            bytes.starts_with(raw_value)
-                                && bytes[raw_value.len()..]
-                                    .iter()
-                                    .all(|byte| *byte == 0x00 || *byte == b' ')
-                        };
-
-                        if is_match {
-                            Some(record)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect())
-            }
-        }
-    });
-    let try_find_by_prefix_arms = metas.iter().map(|m| {
-        let variant = &m.variant;
-        let size = m.size;
-        quote! {
-            #field_enum_name::#variant => {
-                if raw_value.len() > #size {
-                    return Err(::fixed_record::error::Error::FieldOverflow {
-                        field: #struct_name::name_of(field),
-                        size: #size,
-                        actual: raw_value.len(),
-                    });
-                }
-
-                Ok(self.records
-                    .iter()
-                    .filter_map(|record| {
-                        let record = record.as_ref();
-                        if record.field_bytes(field).starts_with(raw_value) {
-                            Some(record)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect())
-            }
-        }
-    });
-    let try_first_sorted_by_arms = metas.iter().map(|m| {
-        let variant = &m.variant;
-        quote! {
-            #field_enum_name::#variant => {
-                self.records
-                    .iter()
-                    .min_by(|left, right| {
-                        left.field_bytes(field).cmp(right.field_bytes(field))
-                    })
-                    .map(|record| record.as_ref())
-            }
-        }
-    });
-    let try_first_by_arms = metas.iter().map(|m| {
-        let variant = &m.variant;
-        let size = m.size;
-        quote! {
-            #field_enum_name::#variant => {
-                if raw_value.len() > #size {
-                    return Err(::fixed_record::error::Error::FieldOverflow {
-                        field: #struct_name::name_of(field),
-                        size: #size,
-                        actual: raw_value.len(),
-                    });
-                }
-
-                Ok(self.records
-                    .iter()
-                    .filter(|record| {
-                        let bytes = record.field_bytes(field);
-                        if raw_value.len() == #size {
-                            bytes == raw_value
-                        } else {
-                            bytes.starts_with(raw_value)
-                                && bytes[raw_value.len()..]
-                                    .iter()
-                                    .all(|byte| *byte == 0x00 || *byte == b' ')
-                        }
-                    })
-                    .min_by(|left, right| {
-                        left.field_bytes(field).cmp(right.field_bytes(field))
-                    })
-                    .map(|record| record.as_ref()))
-            }
-        }
-    });
-    let try_first_by_prefix_arms = metas.iter().map(|m| {
-        let variant = &m.variant;
-        let size = m.size;
-        quote! {
-            #field_enum_name::#variant => {
-                if raw_value.len() > #size {
-                    return Err(::fixed_record::error::Error::FieldOverflow {
-                        field: #struct_name::name_of(field),
-                        size: #size,
-                        actual: raw_value.len(),
-                    });
-                }
-
-                Ok(self.records
-                    .iter()
-                    .filter(|record| record.field_bytes(field).starts_with(raw_value))
-                    .min_by(|left, right| {
-                        left.field_bytes(field).cmp(right.field_bytes(field))
-                    })
-                    .map(|record| record.as_ref()))
-            }
-        }
-    });
-
     quote! {
-        #[doc = "Stores boxed records in a vector and provides collection helpers for search, removal, and sorting."]
-        #[doc = "Box 化したレコードを vector に保持し、検索・削除・ソート用の補助 API を提供します。"]
+        #[doc = "Stores boxed records in a vector and maintains field indexes for search and sorting."]
+        #[doc = "Box 化したレコードを vector に保持し、検索・ソート用のフィールド索引を管理します。"]
+        #[doc = "Each field index maps actual field bytes to the current vector indexes of matching records."]
+        #[doc = "各フィールド索引は、実際のフィールドバイト列から、一致するレコードの現在の vector index へ対応付けます。"]
         #[doc = "Sorting moves boxes in the vector, not the record values allocated behind them."]
         #[doc = "ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。"]
         #[doc = "Record IDs are the current vector indexes, so IDs can change after removal or sorting."]
         #[doc = "レコード ID は現在の vector index です。そのため削除やソート後に ID は変わる可能性があります。"]
         #struct_vis struct #list_name {
             records: Vec<Box<#struct_name>>,
+            indices: std::collections::BTreeMap<
+                #field_enum_name,
+                std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
+            >,
         }
 
         impl #list_name {
@@ -166,6 +38,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             pub fn new() -> Self {
                 Self {
                     records: Vec::new(),
+                    indices: std::collections::BTreeMap::new(),
                 }
             }
 
@@ -187,11 +60,183 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.records.iter().map(|record| record.as_ref())
             }
 
+            #[doc = "Adds one record to every field index."]
+            #[doc = "1件のレコードを全フィールド索引へ追加します。"]
+            fn index_record(
+                indices: &mut std::collections::BTreeMap<
+                    #field_enum_name,
+                    std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
+                >,
+                id: usize,
+                record: &#struct_name,
+            ) {
+                for &field in #struct_name::all_fields() {
+                    let ids = indices
+                        .entry(field)
+                        .or_default()
+                        .entry(record.field_bytes(field).to_vec())
+                        .or_default();
+
+                    if let Err(position) = ids.binary_search(&id) {
+                        ids.insert(position, id);
+                    }
+                }
+            }
+
+            #[doc = "Removes one record from every field index."]
+            #[doc = "1件のレコードを全フィールド索引から削除します。"]
+            fn unindex_record(
+                indices: &mut std::collections::BTreeMap<
+                    #field_enum_name,
+                    std::collections::BTreeMap<Vec<u8>, Vec<usize>>,
+                >,
+                id: usize,
+                record: &#struct_name,
+            ) {
+                for &field in #struct_name::all_fields() {
+                    let value = record.field_bytes(field);
+                    let remove_field = if let Some(field_index) = indices.get_mut(&field) {
+                        let remove_value = if let Some(ids) = field_index.get_mut(value) {
+                            if let Ok(position) = ids.binary_search(&id) {
+                                ids.remove(position);
+                            }
+                            ids.is_empty()
+                        } else {
+                            false
+                        };
+
+                        if remove_value {
+                            field_index.remove(value);
+                        }
+                        field_index.is_empty()
+                    } else {
+                        false
+                    };
+
+                    if remove_field {
+                        indices.remove(&field);
+                    }
+                }
+            }
+
+            #[doc = "Rebuilds all field indexes from the current vector order."]
+            #[doc = "現在の vector 順序から全フィールド索引を再構築します。"]
+            fn rebuild_indices(&mut self) {
+                let mut indices = std::collections::BTreeMap::new();
+                for (id, record) in self.records.iter().enumerate() {
+                    Self::index_record(&mut indices, id, record.as_ref());
+                }
+                self.indices = indices;
+            }
+
+            #[doc = "Returns the exclusive upper bound for byte keys that share a prefix."]
+            #[doc = "同じ prefix を持つバイトキーを範囲検索するための排他的上限を返します。"]
+            fn prefix_upper_bound(prefix: &[u8]) -> Option<Vec<u8>> {
+                let mut upper = prefix.to_vec();
+                for index in (0..upper.len()).rev() {
+                    if upper[index] != u8::MAX {
+                        upper[index] += 1;
+                        upper.truncate(index + 1);
+                        return Some(upper);
+                    }
+                }
+                None
+            }
+
+            #[doc = "Returns indexed record IDs whose field keys share a prefix."]
+            #[doc = "フィールドキーが prefix を共有するレコード ID を索引から返します。"]
+            fn indexed_prefix_ids(
+                &self,
+                field: #field_enum_name,
+                prefix: &[u8],
+                padding_only: bool,
+            ) -> Vec<usize> {
+                use std::ops::Bound::{Excluded, Included, Unbounded};
+
+                let Some(field_index) = self.indices.get(&field) else {
+                    return Vec::new();
+                };
+                let upper = Self::prefix_upper_bound(prefix);
+                let bounds = match upper.as_deref() {
+                    Some(upper) => (Included(prefix), Excluded(upper)),
+                    None => (Included(prefix), Unbounded),
+                };
+                let mut ids = Vec::new();
+
+                for (value, indexed_ids) in field_index.range::<[u8], _>(bounds) {
+                    if !padding_only
+                        || value[prefix.len()..]
+                            .iter()
+                            .all(|byte| *byte == 0x00 || *byte == b' ')
+                    {
+                        ids.extend_from_slice(indexed_ids);
+                    }
+                }
+
+                ids
+            }
+
+            #[doc = "Returns the first indexed record ID whose field key shares a prefix."]
+            #[doc = "フィールドキーが prefix を共有する最初のレコード ID を索引から返します。"]
+            fn first_indexed_prefix_id(
+                &self,
+                field: #field_enum_name,
+                prefix: &[u8],
+                padding_only: bool,
+            ) -> Option<usize> {
+                use std::ops::Bound::{Excluded, Included, Unbounded};
+
+                let field_index = self.indices.get(&field)?;
+                let upper = Self::prefix_upper_bound(prefix);
+                let bounds = match upper.as_deref() {
+                    Some(upper) => (Included(prefix), Excluded(upper)),
+                    None => (Included(prefix), Unbounded),
+                };
+
+                for (value, indexed_ids) in field_index.range::<[u8], _>(bounds) {
+                    if (!padding_only
+                        || value[prefix.len()..]
+                            .iter()
+                            .all(|byte| *byte == 0x00 || *byte == b' '))
+                        && let Some(id) = indexed_ids.first()
+                    {
+                        return Some(*id);
+                    }
+                }
+
+                None
+            }
+
+            #[doc = "Maps current record IDs to borrowed records in current list order."]
+            #[doc = "現在のレコード ID を、現在の List 順序に並ぶレコード参照へ変換します。"]
+            fn records_for_ids<'a>(&'a self, mut ids: Vec<usize>) -> Vec<&#struct_name> {
+                ids.sort_unstable();
+                ids.into_iter().filter_map(|id| self.get(id)).collect()
+            }
+
+            #[doc = "Validates a search value against the selected field width."]
+            #[doc = "検索値が選択フィールドの幅に収まることを検証します。"]
+            fn validate_search_width(
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<(), ::fixed_record::error::Error> {
+                let size = #struct_name::size_of(field);
+                if value.len() > size {
+                    return Err(::fixed_record::error::Error::FieldOverflow {
+                        field: #struct_name::name_of(field),
+                        size,
+                        actual: value.len(),
+                    });
+                }
+                Ok(())
+            }
+
             #[doc = "Inserts a record and returns its current index as the ID."]
             #[doc = "レコードを追加し、現在の index を ID として返します。"]
             pub fn insert(&mut self, record: #struct_name) -> usize {
                 let id = self.records.len();
                 self.records.push(Box::new(record));
+                Self::index_record(&mut self.indices, id, self.records[id].as_ref());
                 id
             }
 
@@ -201,50 +246,51 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.records.get(id).map(|record| record.as_ref())
             }
 
-            #[doc = "Replaces the record at the specified current index."]
-            #[doc = "指定された現在の index にあるレコードを置き換えます。"]
+            #[doc = "Replaces the record at the specified current index and updates all field indexes."]
+            #[doc = "指定された現在の index にあるレコードを置き換え、全フィールド索引を更新します。"]
             pub fn update(&mut self, id: usize, record: #struct_name) -> bool {
                 let Some(slot) = self.records.get_mut(id) else {
                     return false;
                 };
 
-                *slot = Box::new(record);
+                Self::unindex_record(&mut self.indices, id, slot.as_ref());
+                **slot = record;
+                Self::index_record(&mut self.indices, id, slot.as_ref());
                 true
             }
 
-            #[doc = "Removes the record at the specified current index."]
-            #[doc = "指定された現在の index にあるレコードを削除します。"]
+            #[doc = "Removes the record at the specified current index and rebuilds all field indexes."]
+            #[doc = "指定された現在の index にあるレコードを削除し、全フィールド索引を再構築します。"]
             pub fn remove(&mut self, id: usize) -> bool {
                 if id >= self.records.len() {
                     return false;
                 }
 
                 self.records.remove(id);
+                self.rebuild_indices();
                 true
             }
 
-            #[doc = "Returns records whose specified field exactly matches the value."]
-            #[doc = "指定フィールドが値と完全一致するレコードを返します。"]
+            #[doc = "Returns records whose specified field exactly matches the value using the field index."]
+            #[doc = "フィールド索引を使い、指定フィールドが値と完全一致するレコードを返します。"]
             pub fn find_by<const N: usize>(
                 &self,
                 field: #field_enum_name,
                 value: impl Into<::fixed_record::Fixed<N>>,
             ) -> Vec<&#struct_name> {
                 let value = value.into();
-                self.records
-                    .iter()
-                    .filter_map(|record| {
-                        if record.field_bytes(field) == value.as_bytes() {
-                            Some(record.as_ref())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
+                let Some(ids) = self
+                    .indices
+                    .get(&field)
+                    .and_then(|field_index| field_index.get(value.as_bytes()))
+                else {
+                    return Vec::new();
+                };
+                ids.iter().filter_map(|id| self.get(*id)).collect()
             }
 
-            #[doc = "Returns records whose specified field matches the value."]
-            #[doc = "指定フィールドが値と一致するレコードを返します。"]
+            #[doc = "Returns records whose specified field matches the value using the field index."]
+            #[doc = "フィールド索引を使い、指定フィールドが値と一致するレコードを返します。"]
             #[doc = "When the search value is shorter than the field width, trailing `0x00` or space bytes are accepted."]
             #[doc = "検索値がフィールド幅より短い場合は、後続バイトが `0x00` または半角スペースのレコードも一致します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
@@ -255,13 +301,13 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 value: impl AsRef<[u8]>,
             ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
                 let raw_value = value.as_ref();
-                match field {
-                    #( #try_find_by_arms ),*
-                }
+                Self::validate_search_width(field, raw_value)?;
+                let ids = self.indexed_prefix_ids(field, raw_value, true);
+                Ok(self.records_for_ids(ids))
             }
 
-            #[doc = "Returns records whose specified field starts with the value."]
-            #[doc = "指定フィールドが値で始まるレコードを返します。"]
+            #[doc = "Returns records whose specified field starts with the value using the field index."]
+            #[doc = "フィールド索引を使い、指定フィールドが値で始まるレコードを返します。"]
             #[doc = "When the search value is shorter than the field width, trailing bytes may contain any value."]
             #[doc = "検索値がフィールド幅より短い場合は、後続バイトの内容に関係なく一致します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
@@ -272,13 +318,13 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 value: impl AsRef<[u8]>,
             ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
                 let raw_value = value.as_ref();
-                match field {
-                    #( #try_find_by_prefix_arms ),*
-                }
+                Self::validate_search_width(field, raw_value)?;
+                let ids = self.indexed_prefix_ids(field, raw_value, false);
+                Ok(self.records_for_ids(ids))
             }
 
-            #[doc = "Returns records whose specified field value is within the range."]
-            #[doc = "指定フィールドの値が範囲内にあるレコードを返します。"]
+            #[doc = "Returns records whose specified field value is within the indexed range."]
+            #[doc = "指定フィールドの値が索引上の範囲内にあるレコードを返します。"]
             pub fn find_range_by<const N: usize, R>(
                 &self,
                 field: #field_enum_name,
@@ -287,49 +333,80 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             where
                 R: std::ops::RangeBounds<::fixed_record::Fixed<N>>,
             {
-                self.records
-                    .iter()
-                    .filter_map(|record| {
-                        let value =
-                            ::fixed_record::Fixed::<N>::from_slice(record.field_bytes(field))
-                                .ok()?;
-                        if range.contains(&value) {
-                            Some(record.as_ref())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
+                use std::ops::Bound::{Excluded, Included, Unbounded};
+
+                if N != #struct_name::size_of(field) {
+                    return Vec::new();
+                }
+                let Some(field_index) = self.indices.get(&field) else {
+                    return Vec::new();
+                };
+                let start = match range.start_bound() {
+                    Included(value) => Included(value.as_bytes().to_vec()),
+                    Excluded(value) => Excluded(value.as_bytes().to_vec()),
+                    Unbounded => Unbounded,
+                };
+                let end = match range.end_bound() {
+                    Included(value) => Included(value.as_bytes().to_vec()),
+                    Excluded(value) => Excluded(value.as_bytes().to_vec()),
+                    Unbounded => Unbounded,
+                };
+                let start_is_excluded = matches!(&start, Excluded(_));
+                let end_is_excluded = matches!(&end, Excluded(_));
+                let invalid_range = match (&start, &end) {
+                    (
+                        Included(start_value) | Excluded(start_value),
+                        Included(end_value) | Excluded(end_value),
+                    ) => {
+                        start_value > end_value
+                            || (start_value == end_value
+                                && start_is_excluded
+                                && end_is_excluded)
+                    }
+                    _ => false,
+                };
+                if invalid_range {
+                    return Vec::new();
+                }
+
+                let mut ids = Vec::new();
+                for indexed_ids in field_index.range((start, end)).map(|(_, ids)| ids) {
+                    ids.extend_from_slice(indexed_ids);
+                }
+                self.records_for_ids(ids)
             }
 
-            #[doc = "Returns an iterator over records sorted by the specified field in ascending order."]
-            #[doc = "指定フィールドで昇順に並ぶレコードのイテレータを返します。"]
+            #[doc = "Returns an iterator over records in indexed ascending order by the specified field."]
+            #[doc = "指定フィールドの索引上の昇順でレコードを返すイテレータです。"]
             pub fn iter_sorted_by<'a, const N: usize>(
                 &'a self,
                 field: #field_enum_name,
             ) -> impl Iterator<Item = &'a #struct_name> + 'a {
-                let mut records: Vec<&#struct_name> =
-                    self.records.iter().map(|record| record.as_ref()).collect();
-                records.sort_by(|left, right| {
-                    left.field_bytes(field).cmp(right.field_bytes(field))
-                });
+                let mut records = Vec::with_capacity(self.records.len());
+                if let Some(field_index) = self.indices.get(&field) {
+                    for ids in field_index.values() {
+                        records.extend(ids.iter().filter_map(|id| self.get(*id)));
+                    }
+                }
                 records.into_iter()
             }
 
-            #[doc = "Sorts records by comparing all fields in declaration order."]
-            #[doc = "レコードを定義順の全フィールド比較でソートします。"]
+            #[doc = "Sorts records by comparing all fields in declaration order and rebuilds the indexes."]
+            #[doc = "レコードを定義順の全フィールド比較でソートし、索引を再構築します。"]
             pub fn sort(&mut self) {
                 self.records.sort_by(|left, right| {
                     left.as_ref().compare_all_fields(right.as_ref())
                 });
+                self.rebuild_indices();
             }
 
-            #[doc = "Sorts records by the specified field priority order."]
-            #[doc = "指定したフィールド優先順でレコードをソートします。"]
+            #[doc = "Sorts records by the specified field priority order and rebuilds the indexes."]
+            #[doc = "指定したフィールド優先順でレコードをソートし、索引を再構築します。"]
             pub fn sort_by(&mut self, fields: &[#field_enum_name]) {
                 self.records.sort_by(|left, right| {
                     left.as_ref().compare_by_fields(right.as_ref(), fields)
                 });
+                self.rebuild_indices();
             }
 
             #[doc = "Returns the first record in the current order."]
@@ -338,24 +415,28 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.records.first().map(|record| record.as_ref())
             }
 
-            #[doc = "Returns the first record in ascending order by the specified field."]
-            #[doc = "指定フィールドの昇順で最初のレコードを返します。"]
+            #[doc = "Returns the first record in indexed ascending order by the specified field."]
+            #[doc = "指定フィールドの索引上の昇順で最初のレコードを返します。"]
             pub fn first_by<const N: usize>(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                self.iter_sorted_by::<N>(field).next()
+                self.try_first_sorted_by(field)
             }
 
-            #[doc = "Returns the first record in ascending order by the specified field."]
-            #[doc = "指定フィールドの昇順で最初のレコードを返します。"]
+            #[doc = "Returns the first record in indexed ascending order by the specified field."]
+            #[doc = "指定フィールドの索引上の昇順で最初のレコードを返します。"]
             #[doc = "Unlike `first_by`, callers do not need to specify the field width."]
             #[doc = "`first_by` と違い、呼び出し側でフィールド幅を指定する必要はありません。"]
             pub fn try_first_sorted_by(&self, field: #field_enum_name) -> Option<&#struct_name> {
-                match field {
-                    #( #try_first_sorted_by_arms ),*
-                }
+                let id = self
+                    .indices
+                    .get(&field)?
+                    .first_key_value()?
+                    .1
+                    .first()?;
+                self.get(*id)
             }
 
-            #[doc = "Returns the first matching record in ascending order by the specified field."]
-            #[doc = "指定フィールドが値と一致するレコードのうち、指定フィールドの昇順で最初のものを返します。"]
+            #[doc = "Returns the first indexed record whose specified field matches the value."]
+            #[doc = "指定フィールドが値と一致するレコードのうち、索引上で最初のものを返します。"]
             #[doc = "When the search value is shorter than the field width, trailing `0x00` or space bytes are accepted."]
             #[doc = "検索値がフィールド幅より短い場合は、後続バイトが `0x00` または半角スペースのレコードも一致します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
@@ -366,13 +447,14 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 value: impl AsRef<[u8]>,
             ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
                 let raw_value = value.as_ref();
-                match field {
-                    #( #try_first_by_arms ),*
-                }
+                Self::validate_search_width(field, raw_value)?;
+                Ok(self
+                    .first_indexed_prefix_id(field, raw_value, true)
+                    .and_then(|id| self.get(id)))
             }
 
-            #[doc = "Returns the first prefix match in ascending order by the specified field."]
-            #[doc = "指定フィールドが値で始まるレコードのうち、指定フィールドの昇順で最初のものを返します。"]
+            #[doc = "Returns the first indexed prefix match for the specified field."]
+            #[doc = "指定フィールドが値で始まるレコードのうち、索引上で最初のものを返します。"]
             #[doc = "Returns `Error::FieldOverflow` when the search value is wider than the field."]
             #[doc = "検索値がフィールド幅を超える場合は `Error::FieldOverflow` を返します。"]
             pub fn try_first_by_prefix(
@@ -381,9 +463,10 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 value: impl AsRef<[u8]>,
             ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
                 let raw_value = value.as_ref();
-                match field {
-                    #( #try_first_by_prefix_arms ),*
-                }
+                Self::validate_search_width(field, raw_value)?;
+                Ok(self
+                    .first_indexed_prefix_id(field, raw_value, false)
+                    .and_then(|id| self.get(id)))
             }
 
             #[doc = "Returns all current record IDs."]

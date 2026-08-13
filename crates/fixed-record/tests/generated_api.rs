@@ -852,6 +852,129 @@ mod tests {
         assert!(list.get(id).is_none());
         assert!(list.find_by(TestRecordField::Code, *b"D0001").is_empty());
     }
+
+    #[test]
+    fn test_list_field_indices_follow_insert_update_sort_and_remove() {
+        let mut list = TestRecordList::new();
+
+        list.insert(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+        );
+        list.insert(
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("A0001")
+                .with_amount_int(20)
+                .build(),
+        );
+        list.insert(
+            TestRecord::builder()
+                .with_name("Carol")
+                .with_code("C0001")
+                .with_amount_int(30)
+                .build(),
+        );
+
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0, 1]));
+        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+        assert_eq!(
+            list.find_by(TestRecordField::Code, *b"A0001")
+                .iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Bob"]
+        );
+
+        assert!(
+            list.update(
+                1,
+                TestRecord::builder()
+                    .with_name("Aaron")
+                    .with_code("B0001")
+                    .with_amount_int(25)
+                    .build(),
+            )
+        );
+
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![0]));
+        assert_eq!(code_index.get(b"B0001".as_slice()), Some(&vec![1]));
+
+        list.sort_by(&[TestRecordField::Name]);
+
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert_eq!(code_index.get(b"B0001".as_slice()), Some(&vec![0]));
+        assert_eq!(code_index.get(b"A0001".as_slice()), Some(&vec![1]));
+        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![2]));
+
+        assert!(list.remove(1));
+
+        let code_index = list.indices.get(&TestRecordField::Code).unwrap();
+        assert!(!code_index.contains_key(b"A0001".as_slice()));
+        assert_eq!(code_index.get(b"B0001".as_slice()), Some(&vec![0]));
+        assert_eq!(code_index.get(b"C0001".as_slice()), Some(&vec![1]));
+        assert!(list.find_by(TestRecordField::Code, *b"A0001").is_empty());
+        assert_eq!(
+            list.try_find_by_prefix(TestRecordField::Code, b"C")
+                .unwrap()[0]
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Carol"
+        );
+    }
+
+    #[test]
+    fn test_list_range_and_sorted_iteration_use_field_indices() {
+        let mut list = TestRecordList::new();
+
+        for (name, amount) in [("Thirty", 30), ("Ten", 10), ("Twenty", 20), ("Second", 20)] {
+            list.insert(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code("A0001")
+                    .with_amount_int(amount)
+                    .build(),
+            );
+        }
+
+        let low = Fixed::<8>::from(*b"00000015");
+        let high = Fixed::<8>::from(*b"00000025");
+        let in_range = list.find_range_by(TestRecordField::Amount, low..=high);
+        assert_eq!(
+            in_range
+                .iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Twenty", "Second"]
+        );
+
+        let sorted_amounts = list
+            .iter_sorted_by::<8>(TestRecordField::Amount)
+            .map(|record| record.amount().to_vec())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sorted_amounts,
+            vec![
+                b"00000010".to_vec(),
+                b"00000020".to_vec(),
+                b"00000020".to_vec(),
+                b"00000030".to_vec(),
+            ]
+        );
+        assert_eq!(
+            list.first_by::<8>(TestRecordField::Amount)
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Ten"
+        );
+    }
+
     #[test]
     fn test_try_find_by_matches_short_value_with_zero_or_space_padding() {
         let mut list = TestRecordList::new();
