@@ -308,13 +308,13 @@
 <a href=#308 id=308 data-nosnippet>308</a>//!
 <a href=#309 id=309 data-nosnippet>309</a>//! # Searchable Lists / 検索可能な List
 <a href=#310 id=310 data-nosnippet>310</a>//!
-<a href=#311 id=311 data-nosnippet>311</a>//! With the default `list` feature, the macro generates `{StructName}List`. It stores records,
-<a href=#312 id=312 data-nosnippet>312</a>//! maintains field indexes, and supports lookup, update, logical removal, vacuuming, sorting, exact
-<a href=#313 id=313 data-nosnippet>313</a>//! searches, padded searches, prefix searches, and range searches.
+<a href=#311 id=311 data-nosnippet>311</a>//! With the default `list` feature, the macro generates the optional helper `{StructName}List`. It
+<a href=#312 id=312 data-nosnippet>312</a>//! stores records, maintains field indexes, and supports lookup, update, logical removal,
+<a href=#313 id=313 data-nosnippet>313</a>//! vacuuming, sorting, exact searches, padded searches, prefix searches, and range searches.
 <a href=#314 id=314 data-nosnippet>314</a>//!
-<a href=#315 id=315 data-nosnippet>315</a>//! default feature の `list` が有効な場合、macro は `{StructName}List` を生成します。レコードを
-<a href=#316 id=316 data-nosnippet>316</a>//! 保持し、フィールド index を管理し、lookup、update、論理削除、vacuum、sort、完全一致検索、
-<a href=#317 id=317 data-nosnippet>317</a>//! padding を考慮した検索、prefix 検索、range 検索を提供します。
+<a href=#315 id=315 data-nosnippet>315</a>//! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
+<a href=#316 id=316 data-nosnippet>316</a>//! これはレコードを保持し、フィールド index を管理し、lookup、update、論理削除、vacuum、sort、
+<a href=#317 id=317 data-nosnippet>317</a>//! 完全一致検索、padding を考慮した検索、prefix 検索、range 検索を提供します。
 <a href=#318 id=318 data-nosnippet>318</a>//!
 <a href=#319 id=319 data-nosnippet>319</a>//! ```
 <a href=#320 id=320 data-nosnippet>320</a>//! use fixed_record::prelude::*;
@@ -454,126 +454,127 @@
 <a href=#454 id=454 data-nosnippet>454</a>//!
 <a href=#455 id=455 data-nosnippet>455</a>//! # Feature Flags / feature flag
 <a href=#456 id=456 data-nosnippet>456</a>//!
-<a href=#457 id=457 data-nosnippet>457</a>//! - `list`: enabled by default. Generates `{StructName}List`.
-<a href=#458 id=458 data-nosnippet>458</a>//! - `list`: default で有効です。`{StructName}List` を生成します。
+<a href=#457 id=457 data-nosnippet>457</a>//! - `list`: enabled by default. Generates the optional `{StructName}List` helper and search index APIs.
+<a href=#458 id=458 data-nosnippet>458</a>//! - `list`: default で有効です。補助機能の `{StructName}List` と検索インデックス API を生成します。
 <a href=#459 id=459 data-nosnippet>459</a>//!
-<a href=#460 id=460 data-nosnippet>460</a>//! To disable List generation:
-<a href=#461 id=461 data-nosnippet>461</a>//!
-<a href=#462 id=462 data-nosnippet>462</a>//! List 生成を無効化する場合:
-<a href=#463 id=463 data-nosnippet>463</a>//!
-<a href=#464 id=464 data-nosnippet>464</a>//! ```toml
-<a href=#465 id=465 data-nosnippet>465</a>//! [dependencies]
-<a href=#466 id=466 data-nosnippet>466</a>//! fixed-record = { version = "0.1", default-features = false }
-<a href=#467 id=467 data-nosnippet>467</a>//! ```
-<a href=#468 id=468 data-nosnippet>468</a>//!
-<a href=#469 id=469 data-nosnippet>469</a>//! # Zerocopy Support / zerocopy 対応
-<a href=#470 id=470 data-nosnippet>470</a>//!
-<a href=#471 id=471 data-nosnippet>471</a>//! Generated records always use `#[repr(C)]` and derive `zerocopy::FromBytes`,
-<a href=#472 id=472 data-nosnippet>472</a>//! `zerocopy::IntoBytes`, `zerocopy::Immutable`, and `zerocopy::KnownLayout`.
-<a href=#473 id=473 data-nosnippet>473</a>//! The zerocopy traits are re-exported from [`prelude`].
-<a href=#474 id=474 data-nosnippet>474</a>//!
-<a href=#475 id=475 data-nosnippet>475</a>//! 生成レコードには常に `#[repr(C)]` が付き、`zerocopy::FromBytes`、
-<a href=#476 id=476 data-nosnippet>476</a>//! `zerocopy::IntoBytes`、`zerocopy::Immutable`、`zerocopy::KnownLayout` を derive します。
-<a href=#477 id=477 data-nosnippet>477</a>//! zerocopy traits は [`prelude`] から再エクスポートされます。
-<a href=#478 id=478 data-nosnippet>478</a>//!
-<a href=#479 id=479 data-nosnippet>479</a>//! ```
-<a href=#480 id=480 data-nosnippet>480</a>//! use fixed_record::prelude::*;
-<a href=#481 id=481 data-nosnippet>481</a>//!
-<a href=#482 id=482 data-nosnippet>482</a>//! #[fixed_record]
-<a href=#483 id=483 data-nosnippet>483</a>//! struct Order {
-<a href=#484 id=484 data-nosnippet>484</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#485 id=485 data-nosnippet>485</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#486 id=486 data-nosnippet>486</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#487 id=487 data-nosnippet>487</a>//! }
-<a href=#488 id=488 data-nosnippet>488</a>//!
-<a href=#489 id=489 data-nosnippet>489</a>//! let raw = b"C001A0004200001250";
-<a href=#490 id=490 data-nosnippet>490</a>//!
-<a href=#491 id=491 data-nosnippet>491</a>//! let order = Order::ref_from_bytes(raw).unwrap();
-<a href=#492 id=492 data-nosnippet>492</a>//! assert_eq!(order.customer_id(), b"C001");
-<a href=#493 id=493 data-nosnippet>493</a>//! assert_eq!(order.as_bytes(), raw);
-<a href=#494 id=494 data-nosnippet>494</a>//! assert_eq!(order.as_str().unwrap(), "C001A0004200001250");
-<a href=#495 id=495 data-nosnippet>495</a>//! ```
-<a href=#496 id=496 data-nosnippet>496</a>//!
-<a href=#497 id=497 data-nosnippet>497</a>//! Use `ref_from_bytes_prefix` when the input may contain trailing bytes after the first record.
-<a href=#498 id=498 data-nosnippet>498</a>//!
-<a href=#499 id=499 data-nosnippet>499</a>//! 先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
-<a href=#500 id=500 data-nosnippet>500</a>//!
-<a href=#501 id=501 data-nosnippet>501</a>//! ```
-<a href=#502 id=502 data-nosnippet>502</a>//! use fixed_record::prelude::*;
-<a href=#503 id=503 data-nosnippet>503</a>//!
-<a href=#504 id=504 data-nosnippet>504</a>//! #[fixed_record]
-<a href=#505 id=505 data-nosnippet>505</a>//! struct Order {
-<a href=#506 id=506 data-nosnippet>506</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#507 id=507 data-nosnippet>507</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#508 id=508 data-nosnippet>508</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#509 id=509 data-nosnippet>509</a>//! }
-<a href=#510 id=510 data-nosnippet>510</a>//!
-<a href=#511 id=511 data-nosnippet>511</a>//! let raw = b"C001A0004200001250rest";
-<a href=#512 id=512 data-nosnippet>512</a>//! let order = Order::ref_from_bytes_prefix(raw).unwrap();
-<a href=#513 id=513 data-nosnippet>513</a>//! assert_eq!(order.customer_id(), b"C001");
-<a href=#514 id=514 data-nosnippet>514</a>//! ```
-<a href=#515 id=515 data-nosnippet>515</a>//!
-<a href=#516 id=516 data-nosnippet>516</a>//! String inputs can use `ref_from_str` or `ref_from_str_prefix`.
-<a href=#517 id=517 data-nosnippet>517</a>//!
-<a href=#518 id=518 data-nosnippet>518</a>//! 文字列入力では `ref_from_str` または `ref_from_str_prefix` を使えます。
-<a href=#519 id=519 data-nosnippet>519</a>//!
-<a href=#520 id=520 data-nosnippet>520</a>//! ```
-<a href=#521 id=521 data-nosnippet>521</a>//! use fixed_record::prelude::*;
-<a href=#522 id=522 data-nosnippet>522</a>//!
-<a href=#523 id=523 data-nosnippet>523</a>//! #[fixed_record]
-<a href=#524 id=524 data-nosnippet>524</a>//! struct Order {
-<a href=#525 id=525 data-nosnippet>525</a>//!     customer_id: Fixed&lt;4&gt;,
-<a href=#526 id=526 data-nosnippet>526</a>//!     order_no: Fixed&lt;6&gt;,
-<a href=#527 id=527 data-nosnippet>527</a>//!     amount: Fixed&lt;8&gt;,
-<a href=#528 id=528 data-nosnippet>528</a>//! }
-<a href=#529 id=529 data-nosnippet>529</a>//!
-<a href=#530 id=530 data-nosnippet>530</a>//! let order = Order::ref_from_str_prefix("C001A0004200001250rest").unwrap();
-<a href=#531 id=531 data-nosnippet>531</a>//! assert_eq!(order.order_no_str().unwrap(), "A00042");
-<a href=#532 id=532 data-nosnippet>532</a>//! ```
-<a href=#533 id=533 data-nosnippet>533</a>//!
-<a href=#534 id=534 data-nosnippet>534</a></span><span class="kw">extern crate </span><span class="self">self </span><span class="kw">as </span>fixed_record;
-<a href=#535 id=535 data-nosnippet>535</a>
-<a href=#536 id=536 data-nosnippet>536</a><span class="kw">pub mod </span>error;
-<a href=#537 id=537 data-nosnippet>537</a><span class="kw">pub mod </span>io;
-<a href=#538 id=538 data-nosnippet>538</a><span class="kw">pub mod </span>traits;
-<a href=#539 id=539 data-nosnippet>539</a><span class="kw">pub mod </span>types;
-<a href=#540 id=540 data-nosnippet>540</a>
-<a href=#541 id=541 data-nosnippet>541</a><span class="kw">pub use </span>fixed_record_macros::fixed_record;
-<a href=#542 id=542 data-nosnippet>542</a><span class="kw">pub use </span>zerocopy;
-<a href=#543 id=543 data-nosnippet>543</a>
-<a href=#544 id=544 data-nosnippet>544</a><span class="kw">pub use </span>error::Error;
-<a href=#545 id=545 data-nosnippet>545</a><span class="kw">pub use </span>io::{Reader, RecordSeparator, Writer};
-<a href=#546 id=546 data-nosnippet>546</a><span class="kw">pub use </span>traits::FixedRecord;
-<a href=#547 id=547 data-nosnippet>547</a><span class="kw">pub use </span>types::Fixed;
-<a href=#548 id=548 data-nosnippet>548</a><span class="kw">pub use </span>zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
-<a href=#549 id=549 data-nosnippet>549</a>
-<a href=#550 id=550 data-nosnippet>550</a><span class="kw">pub mod </span>prelude {
-<a href=#551 id=551 data-nosnippet>551</a>    <span class="kw">pub use </span><span class="kw">crate</span>::fixed_record;
-<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">pub use crate</span>::{
-<a href=#553 id=553 data-nosnippet>553</a>        Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout, Reader,
-<a href=#554 id=554 data-nosnippet>554</a>        RecordSeparator, Writer,
-<a href=#555 id=555 data-nosnippet>555</a>    };
-<a href=#556 id=556 data-nosnippet>556</a>}
-<a href=#557 id=557 data-nosnippet>557</a>
-<a href=#558 id=558 data-nosnippet>558</a><span class="doccomment">/// Documentation examples for APIs generated by [`macro@fixed_record`].
-<a href=#559 id=559 data-nosnippet>559</a>/// [`macro@fixed_record`] が生成する API を rustdoc で確認するためのサンプルです。
-<a href=#560 id=560 data-nosnippet>560</a></span><span class="attr">#[cfg(doc)]
-<a href=#561 id=561 data-nosnippet>561</a></span><span class="kw">pub mod </span>doc_examples {
-<a href=#562 id=562 data-nosnippet>562</a>    <span class="kw">use </span><span class="kw">crate</span>::prelude::<span class="kw-2">*</span>;
-<a href=#563 id=563 data-nosnippet>563</a>
-<a href=#564 id=564 data-nosnippet>564</a>    <span class="doccomment">/// Test record used to document the generated fixed-record API.
-<a href=#565 id=565 data-nosnippet>565</a>    /// 生成される fixed-record API のドキュメント用テストレコードです。
-<a href=#566 id=566 data-nosnippet>566</a>    </span><span class="attr">#[fixed_record]
-<a href=#567 id=567 data-nosnippet>567</a>    </span><span class="kw">pub struct </span>TestRecord {
-<a href=#568 id=568 data-nosnippet>568</a>        <span class="doccomment">/// Name field used by generated API tests.
-<a href=#569 id=569 data-nosnippet>569</a>        /// 生成 API テストで使う名前フィールドです。
-<a href=#570 id=570 data-nosnippet>570</a>        </span>name: Fixed&lt;<span class="number">10</span>&gt;,
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="doccomment">/// Code field used by generated API tests.
-<a href=#572 id=572 data-nosnippet>572</a>        /// 生成 API テストで使うコードフィールドです。
-<a href=#573 id=573 data-nosnippet>573</a>        </span>code: Fixed&lt;<span class="number">5</span>&gt;,
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="doccomment">/// Amount field used by generated API tests.
-<a href=#575 id=575 data-nosnippet>575</a>        /// 生成 API テストで使う金額フィールドです。
-<a href=#576 id=576 data-nosnippet>576</a>        </span>amount: Fixed&lt;<span class="number">8</span>&gt;,
-<a href=#577 id=577 data-nosnippet>577</a>    }
-<a href=#578 id=578 data-nosnippet>578</a>}
+<a href=#460 id=460 data-nosnippet>460</a>//! Disable default features when you only need records, field operations, parsing, `Reader`, and
+<a href=#461 id=461 data-nosnippet>461</a>//! `Writer`:
+<a href=#462 id=462 data-nosnippet>462</a>//!
+<a href=#463 id=463 data-nosnippet>463</a>//! レコード本体、フィールド操作、parse、`Reader`、`Writer` だけを使う場合:
+<a href=#464 id=464 data-nosnippet>464</a>//!
+<a href=#465 id=465 data-nosnippet>465</a>//! ```toml
+<a href=#466 id=466 data-nosnippet>466</a>//! [dependencies]
+<a href=#467 id=467 data-nosnippet>467</a>//! fixed-record = { version = "0.1", default-features = false }
+<a href=#468 id=468 data-nosnippet>468</a>//! ```
+<a href=#469 id=469 data-nosnippet>469</a>//!
+<a href=#470 id=470 data-nosnippet>470</a>//! # Zerocopy Support / zerocopy 対応
+<a href=#471 id=471 data-nosnippet>471</a>//!
+<a href=#472 id=472 data-nosnippet>472</a>//! Generated records always use `#[repr(C)]` and derive `zerocopy::FromBytes`,
+<a href=#473 id=473 data-nosnippet>473</a>//! `zerocopy::IntoBytes`, `zerocopy::Immutable`, and `zerocopy::KnownLayout`.
+<a href=#474 id=474 data-nosnippet>474</a>//! The zerocopy traits are re-exported from [`prelude`].
+<a href=#475 id=475 data-nosnippet>475</a>//!
+<a href=#476 id=476 data-nosnippet>476</a>//! 生成レコードには常に `#[repr(C)]` が付き、`zerocopy::FromBytes`、
+<a href=#477 id=477 data-nosnippet>477</a>//! `zerocopy::IntoBytes`、`zerocopy::Immutable`、`zerocopy::KnownLayout` を derive します。
+<a href=#478 id=478 data-nosnippet>478</a>//! zerocopy traits は [`prelude`] から再エクスポートされます。
+<a href=#479 id=479 data-nosnippet>479</a>//!
+<a href=#480 id=480 data-nosnippet>480</a>//! ```
+<a href=#481 id=481 data-nosnippet>481</a>//! use fixed_record::prelude::*;
+<a href=#482 id=482 data-nosnippet>482</a>//!
+<a href=#483 id=483 data-nosnippet>483</a>//! #[fixed_record]
+<a href=#484 id=484 data-nosnippet>484</a>//! struct Order {
+<a href=#485 id=485 data-nosnippet>485</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#486 id=486 data-nosnippet>486</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#487 id=487 data-nosnippet>487</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#488 id=488 data-nosnippet>488</a>//! }
+<a href=#489 id=489 data-nosnippet>489</a>//!
+<a href=#490 id=490 data-nosnippet>490</a>//! let raw = b"C001A0004200001250";
+<a href=#491 id=491 data-nosnippet>491</a>//!
+<a href=#492 id=492 data-nosnippet>492</a>//! let order = Order::ref_from_bytes(raw).unwrap();
+<a href=#493 id=493 data-nosnippet>493</a>//! assert_eq!(order.customer_id(), b"C001");
+<a href=#494 id=494 data-nosnippet>494</a>//! assert_eq!(order.as_bytes(), raw);
+<a href=#495 id=495 data-nosnippet>495</a>//! assert_eq!(order.as_str().unwrap(), "C001A0004200001250");
+<a href=#496 id=496 data-nosnippet>496</a>//! ```
+<a href=#497 id=497 data-nosnippet>497</a>//!
+<a href=#498 id=498 data-nosnippet>498</a>//! Use `ref_from_bytes_prefix` when the input may contain trailing bytes after the first record.
+<a href=#499 id=499 data-nosnippet>499</a>//!
+<a href=#500 id=500 data-nosnippet>500</a>//! 先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
+<a href=#501 id=501 data-nosnippet>501</a>//!
+<a href=#502 id=502 data-nosnippet>502</a>//! ```
+<a href=#503 id=503 data-nosnippet>503</a>//! use fixed_record::prelude::*;
+<a href=#504 id=504 data-nosnippet>504</a>//!
+<a href=#505 id=505 data-nosnippet>505</a>//! #[fixed_record]
+<a href=#506 id=506 data-nosnippet>506</a>//! struct Order {
+<a href=#507 id=507 data-nosnippet>507</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#508 id=508 data-nosnippet>508</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#509 id=509 data-nosnippet>509</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#510 id=510 data-nosnippet>510</a>//! }
+<a href=#511 id=511 data-nosnippet>511</a>//!
+<a href=#512 id=512 data-nosnippet>512</a>//! let raw = b"C001A0004200001250rest";
+<a href=#513 id=513 data-nosnippet>513</a>//! let order = Order::ref_from_bytes_prefix(raw).unwrap();
+<a href=#514 id=514 data-nosnippet>514</a>//! assert_eq!(order.customer_id(), b"C001");
+<a href=#515 id=515 data-nosnippet>515</a>//! ```
+<a href=#516 id=516 data-nosnippet>516</a>//!
+<a href=#517 id=517 data-nosnippet>517</a>//! String inputs can use `ref_from_str` or `ref_from_str_prefix`.
+<a href=#518 id=518 data-nosnippet>518</a>//!
+<a href=#519 id=519 data-nosnippet>519</a>//! 文字列入力では `ref_from_str` または `ref_from_str_prefix` を使えます。
+<a href=#520 id=520 data-nosnippet>520</a>//!
+<a href=#521 id=521 data-nosnippet>521</a>//! ```
+<a href=#522 id=522 data-nosnippet>522</a>//! use fixed_record::prelude::*;
+<a href=#523 id=523 data-nosnippet>523</a>//!
+<a href=#524 id=524 data-nosnippet>524</a>//! #[fixed_record]
+<a href=#525 id=525 data-nosnippet>525</a>//! struct Order {
+<a href=#526 id=526 data-nosnippet>526</a>//!     customer_id: Fixed&lt;4&gt;,
+<a href=#527 id=527 data-nosnippet>527</a>//!     order_no: Fixed&lt;6&gt;,
+<a href=#528 id=528 data-nosnippet>528</a>//!     amount: Fixed&lt;8&gt;,
+<a href=#529 id=529 data-nosnippet>529</a>//! }
+<a href=#530 id=530 data-nosnippet>530</a>//!
+<a href=#531 id=531 data-nosnippet>531</a>//! let order = Order::ref_from_str_prefix("C001A0004200001250rest").unwrap();
+<a href=#532 id=532 data-nosnippet>532</a>//! assert_eq!(order.order_no_str().unwrap(), "A00042");
+<a href=#533 id=533 data-nosnippet>533</a>//! ```
+<a href=#534 id=534 data-nosnippet>534</a>//!
+<a href=#535 id=535 data-nosnippet>535</a></span><span class="kw">extern crate </span><span class="self">self </span><span class="kw">as </span>fixed_record;
+<a href=#536 id=536 data-nosnippet>536</a>
+<a href=#537 id=537 data-nosnippet>537</a><span class="kw">pub mod </span>error;
+<a href=#538 id=538 data-nosnippet>538</a><span class="kw">pub mod </span>io;
+<a href=#539 id=539 data-nosnippet>539</a><span class="kw">pub mod </span>traits;
+<a href=#540 id=540 data-nosnippet>540</a><span class="kw">pub mod </span>types;
+<a href=#541 id=541 data-nosnippet>541</a>
+<a href=#542 id=542 data-nosnippet>542</a><span class="kw">pub use </span>fixed_record_macros::fixed_record;
+<a href=#543 id=543 data-nosnippet>543</a><span class="kw">pub use </span>zerocopy;
+<a href=#544 id=544 data-nosnippet>544</a>
+<a href=#545 id=545 data-nosnippet>545</a><span class="kw">pub use </span>error::Error;
+<a href=#546 id=546 data-nosnippet>546</a><span class="kw">pub use </span>io::{Reader, RecordSeparator, Writer};
+<a href=#547 id=547 data-nosnippet>547</a><span class="kw">pub use </span>traits::FixedRecord;
+<a href=#548 id=548 data-nosnippet>548</a><span class="kw">pub use </span>types::Fixed;
+<a href=#549 id=549 data-nosnippet>549</a><span class="kw">pub use </span>zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+<a href=#550 id=550 data-nosnippet>550</a>
+<a href=#551 id=551 data-nosnippet>551</a><span class="kw">pub mod </span>prelude {
+<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">pub use </span><span class="kw">crate</span>::fixed_record;
+<a href=#553 id=553 data-nosnippet>553</a>    <span class="kw">pub use crate</span>::{
+<a href=#554 id=554 data-nosnippet>554</a>        Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout, Reader,
+<a href=#555 id=555 data-nosnippet>555</a>        RecordSeparator, Writer,
+<a href=#556 id=556 data-nosnippet>556</a>    };
+<a href=#557 id=557 data-nosnippet>557</a>}
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a><span class="doccomment">/// Documentation examples for APIs generated by [`macro@fixed_record`].
+<a href=#560 id=560 data-nosnippet>560</a>/// [`macro@fixed_record`] が生成する API を rustdoc で確認するためのサンプルです。
+<a href=#561 id=561 data-nosnippet>561</a></span><span class="attr">#[cfg(doc)]
+<a href=#562 id=562 data-nosnippet>562</a></span><span class="kw">pub mod </span>doc_examples {
+<a href=#563 id=563 data-nosnippet>563</a>    <span class="kw">use </span><span class="kw">crate</span>::prelude::<span class="kw-2">*</span>;
+<a href=#564 id=564 data-nosnippet>564</a>
+<a href=#565 id=565 data-nosnippet>565</a>    <span class="doccomment">/// Test record used to document the generated fixed-record API.
+<a href=#566 id=566 data-nosnippet>566</a>    /// 生成される fixed-record API のドキュメント用テストレコードです。
+<a href=#567 id=567 data-nosnippet>567</a>    </span><span class="attr">#[fixed_record]
+<a href=#568 id=568 data-nosnippet>568</a>    </span><span class="kw">pub struct </span>TestRecord {
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="doccomment">/// Name field used by generated API tests.
+<a href=#570 id=570 data-nosnippet>570</a>        /// 生成 API テストで使う名前フィールドです。
+<a href=#571 id=571 data-nosnippet>571</a>        </span>name: Fixed&lt;<span class="number">10</span>&gt;,
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="doccomment">/// Code field used by generated API tests.
+<a href=#573 id=573 data-nosnippet>573</a>        /// 生成 API テストで使うコードフィールドです。
+<a href=#574 id=574 data-nosnippet>574</a>        </span>code: Fixed&lt;<span class="number">5</span>&gt;,
+<a href=#575 id=575 data-nosnippet>575</a>        <span class="doccomment">/// Amount field used by generated API tests.
+<a href=#576 id=576 data-nosnippet>576</a>        /// 生成 API テストで使う金額フィールドです。
+<a href=#577 id=577 data-nosnippet>577</a>        </span>amount: Fixed&lt;<span class="number">8</span>&gt;,
+<a href=#578 id=578 data-nosnippet>578</a>    }
+<a href=#579 id=579 data-nosnippet>579</a>}
 </code></pre></div></section></main></body></html>
