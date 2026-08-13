@@ -89,12 +89,12 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 - `apply_*` 系の一括流し込み
 - `FixedRecord` trait 実装
 - `Reader` / `Writer` との連携
-- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
+- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 ## List 検索
 
-`{StructName}List` は default feature の `list` で生成される補助機能です。メモリ上のレコード集合に対して、lookup、prefix search、range search、sort、logical remove、`vacuum` を使いたい場合に向いています。
+`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを boxed entry の vector として保持し、メモリ上のレコード集合に対して lookup、prefix search、range search、sort、物理削除を使いたい場合に向いています。
 
 record parsing、field access、`Reader`、`Writer` だけでよい場合は default feature を外すと、List 型は生成されません。
 
@@ -143,7 +143,7 @@ let mut cr_writer = Writer::new(output)
 
 ## Feature Flags
 
-- `list`: default feature。補助機能の `{StructName}List` と検索インデックス API を生成します。
+- `list`: default feature。補助機能の `{StructName}List` を生成します。
 
 レコード本体、フィールド操作、parse、`Reader`、`Writer` だけを使いたい場合は、default feature を外します。
 

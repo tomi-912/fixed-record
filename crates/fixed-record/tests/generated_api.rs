@@ -699,29 +699,9 @@ mod tests {
             "A0001"
         );
 
-        let code_index = list
-            .indices
-            .get(&TestRecordField::Code)
-            .unwrap()
-            .downcast_ref::<
-                std::collections::BTreeMap<Fixed<5>, std::collections::BTreeSet<usize>>,
-            >()
-            .unwrap();
-        assert!(code_index.contains_key(&Fixed::<5>::from_slice(b"B0001").unwrap()));
-
         assert!(list.remove(id_b));
         assert_eq!(list.len(), 1);
-        let code_index = list
-            .indices
-            .get(&TestRecordField::Code)
-            .unwrap()
-            .downcast_ref::<
-                std::collections::BTreeMap<Fixed<5>, std::collections::BTreeSet<usize>>,
-            >()
-            .unwrap();
-        assert!(!code_index.contains_key(&Fixed::<5>::from_slice(b"B0001").unwrap()));
-        assert_eq!(list.all_ids().len(), 2);
-        list.vacuum();
+        assert!(list.find_by(TestRecordField::Code, *b"B0001").is_empty());
         assert_eq!(list.all_ids(), vec![id_a]);
     }
     #[test]
@@ -747,10 +727,10 @@ mod tests {
 
         assert!(list.remove(id));
         assert!(list.get(id).is_none());
-        assert_eq!(list.all_ids(), vec![id]);
+        assert!(list.all_ids().is_empty());
     }
     #[test]
-    fn test_list_update_replaces_record_and_rebuilds_indices_for_id() {
+    fn test_list_update_replaces_record_for_id() {
         let mut list = TestRecordList::new();
 
         let id = list.insert(

@@ -309,12 +309,12 @@
 //! # Searchable Lists / 検索可能な List
 //!
 //! With the default `list` feature, the macro generates the optional helper `{StructName}List`. It
-//! stores records, maintains field indexes, and supports lookup, update, logical removal,
-//! vacuuming, sorting, exact searches, padded searches, prefix searches, and range searches.
+//! stores records as a vector of boxed entries and supports lookup, update, physical removal,
+//! sorting, exact searches, padded searches, prefix searches, and range searches.
 //!
 //! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
-//! これはレコードを保持し、フィールド index を管理し、lookup、update、論理削除、vacuum、sort、
-//! 完全一致検索、padding を考慮した検索、prefix 検索、range 検索を提供します。
+//! これはレコードを boxed entry の vector として保持し、lookup、update、物理削除、sort、完全一致検索、
+//! padding を考慮した検索、prefix 検索、range 検索を提供します。
 //!
 //! ```
 //! use fixed_record::prelude::*;
@@ -362,8 +362,6 @@
 //!
 //! assert!(list.remove(id_second));
 //! assert_eq!(list.len(), 1);
-//! assert_eq!(list.all_ids().len(), 2);
-//! list.vacuum();
 //! assert_eq!(list.all_ids(), vec![id_first]);
 //! ```
 //!
@@ -454,8 +452,8 @@
 //!
 //! # Feature Flags / feature flag
 //!
-//! - `list`: enabled by default. Generates the optional `{StructName}List` helper and search index APIs.
-//! - `list`: default で有効です。補助機能の `{StructName}List` と検索インデックス API を生成します。
+//! - `list`: enabled by default. Generates the optional `{StructName}List` helper.
+//! - `list`: default で有効です。補助機能の `{StructName}List` を生成します。
 //!
 //! Disable default features when you only need records, field operations, parsing, `Reader`, and
 //! `Writer`:
