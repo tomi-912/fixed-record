@@ -41,10 +41,10 @@ impl RecordSeparator {
 /// Iterator that reads fixed-width records from a stream.
 /// 固定長レコードをストリームから順に読み込むイテレータです。
 ///
-/// `Reader::new` expects records to be adjacent with no separator. Use [`Reader::with_separator`]
-/// when a separator must appear between records.
-/// `Reader::new` はレコード同士が区切りなしで連続している入力を読みます。レコード間に区切りが
-/// 必要な場合は [`Reader::with_separator`] で指定します。
+/// `Reader::new` expects LF (`\n`) after records. Use [`Reader::with_separator`] when the input
+/// uses a different separator or no separator.
+/// `Reader::new` はレコード後ろに LF (`\n`) がある入力を想定します。別の区切り、または区切りなしの
+/// 入力を読む場合は [`Reader::with_separator`] で指定します。
 ///
 /// When a separator is configured, it must appear after every record, including the final record.
 /// 区切りを設定した場合は、最終レコードを含むすべてのレコード後ろにその区切りが必要です。
@@ -104,7 +104,7 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
-            separator: RecordSeparator::None,
+            separator: RecordSeparator::Lf,
             sequence_fields: Vec::new(),
             allow_equal_sequence: true,
             previous_sequence_key: None,
@@ -502,12 +502,13 @@ mod tests {
         assert!(matches!(err, Error::Io(_)));
     }
 
-    /// Verifies that adjacent records are read when no separator is configured.
-    /// 区切りなし設定で連続したレコードを読めることを確認します。
+    /// Verifies that adjacent records are read when no separator is explicitly configured.
+    /// 区切りなしを明示設定した場合に連続したレコードを読めることを確認します。
     #[test]
-    fn reader_accepts_adjacent_records_by_default() {
+    fn reader_accepts_adjacent_records_with_none_separator() {
         let mut reader =
-            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abcdefgh".to_vec())));
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abcdefgh".to_vec())))
+                .with_separator(RecordSeparator::None);
 
         assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"abcd"));
         assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"efgh"));

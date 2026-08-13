@@ -31,8 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     writer.write_record(&payment)?;
     drop(writer);
 
-    let mut reader = Reader::<_, Payment>::new(BufReader::new(Cursor::new(bytes)))
-        .with_separator(RecordSeparator::Lf);
+    let mut reader = Reader::<_, Payment>::new(BufReader::new(Cursor::new(bytes)));
     let read_back = reader.next().unwrap()?;
     println!("read back account: {}", read_back.account_no_str()?);
 
