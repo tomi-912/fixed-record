@@ -160,6 +160,23 @@ assert_eq!(user.as_bytes(), raw);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+`ref_from_bytes` は入力長がちょうど1レコード分である必要があります。先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
+
+```rust
+# use fixed_record::prelude::*;
+# #[fixed_record]
+# struct User {
+#     id: Fixed<8>,
+#     name: Fixed<16>,
+#     age: Fixed<3>,
+# }
+let raw = b"00000001Tanaka          025rest";
+let user = User::ref_from_bytes_prefix(raw)?;
+
+assert_eq!(user.id(), b"00000001");
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 ## Examples
 
 ```bash

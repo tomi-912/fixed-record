@@ -1227,6 +1227,21 @@ pub fn impl_fixed_record_core(
                 Self::parse(src.as_bytes())
             }
 
+            #[doc = "Reads the first record-width bytes as a zero-copy shared reference."]
+            #[doc = "先頭の1レコード分のバイト列を、コピーせず共有参照として読み取ります。"]
+            #[doc = "Unlike `zerocopy::FromBytes::ref_from_bytes`, extra trailing bytes are accepted."]
+            #[doc = "`zerocopy::FromBytes::ref_from_bytes` と異なり、後続の余りバイトを許容します。"]
+            pub fn ref_from_bytes_prefix(src: &[u8]) -> Result<&Self, ::fixed_record::error::Error> {
+                if src.len() < Self::TOTAL_LEN {
+                    return Err(::fixed_record::error::Error::TooShort);
+                }
+
+                <Self as ::fixed_record::zerocopy::FromBytes>::ref_from_bytes(
+                    &src[..Self::TOTAL_LEN],
+                )
+                .map_err(|_| ::fixed_record::error::Error::AlignmentError)
+            }
+
             // Dynamic field operations.
             // フィールド操作（動的アクセス）です。
 

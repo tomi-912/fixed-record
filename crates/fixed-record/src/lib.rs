@@ -490,6 +490,25 @@
 //! assert_eq!(order.as_bytes(), raw);
 //! ```
 //!
+//! Use `ref_from_bytes_prefix` when the input may contain trailing bytes after the first record.
+//!
+//! 先頭1レコードの後ろに余りバイトが続く可能性がある場合は、`ref_from_bytes_prefix` を使います。
+//!
+//! ```
+//! use fixed_record::prelude::*;
+//!
+//! #[fixed_record]
+//! struct Order {
+//!     customer_id: Fixed<4>,
+//!     order_no: Fixed<6>,
+//!     amount: Fixed<8>,
+//! }
+//!
+//! let raw = b"C001A0004200001250rest";
+//! let order = Order::ref_from_bytes_prefix(raw).unwrap();
+//! assert_eq!(order.customer_id(), b"C001");
+//! ```
+//!
 extern crate self as fixed_record;
 
 pub mod error;

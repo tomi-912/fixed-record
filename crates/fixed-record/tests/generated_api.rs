@@ -1302,4 +1302,21 @@ mod tests {
         rec_mut.set_field_str(TestRecordField::Code, "ZZ999");
         assert_eq!(&writable[10..15], b"ZZ999");
     }
+
+    #[test]
+    fn test_ref_from_bytes_prefix_accepts_trailing_bytes() {
+        let data = b"HelloWorldABCDE12345678tail";
+
+        let rec = TestRecord::ref_from_bytes_prefix(data).unwrap();
+
+        assert_eq!(rec.name(), b"HelloWorld");
+        assert_eq!(rec.as_bytes(), b"HelloWorldABCDE12345678");
+    }
+
+    #[test]
+    fn test_ref_from_bytes_prefix_reports_too_short() {
+        let err = TestRecord::ref_from_bytes_prefix(b"short").unwrap_err();
+
+        assert_eq!(err, fixed_record::Error::TooShort);
+    }
 }
