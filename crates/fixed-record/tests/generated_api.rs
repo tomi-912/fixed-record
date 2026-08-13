@@ -1319,4 +1319,32 @@ mod tests {
 
         assert_eq!(err, fixed_record::Error::TooShort);
     }
+
+    #[test]
+    fn test_zerocopy_as_bytes_views_record_memory() {
+        let rec = TestRecord::builder()
+            .with_name("HelloWorld")
+            .with_code("ABCDE")
+            .with_amount_int(12345678)
+            .build();
+
+        let bytes = rec.as_bytes();
+
+        assert_eq!(bytes, b"HelloWorldABCDE12345678");
+    }
+
+    #[test]
+    fn test_zerocopy_as_mut_bytes_updates_record_memory() {
+        let mut rec = TestRecord::builder()
+            .with_name("HelloWorld")
+            .with_code("ABCDE")
+            .with_amount_int(12345678)
+            .build();
+
+        let bytes = rec.as_mut_bytes();
+        bytes[10..15].copy_from_slice(b"ZZ999");
+
+        assert_eq!(rec.code(), b"ZZ999");
+        assert_eq!(rec.to_bytes(), *b"HelloWorldZZ99912345678");
+    }
 }
