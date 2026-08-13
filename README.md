@@ -8,6 +8,34 @@ Japanese documentation is available in [README.ja.md](README.ja.md).
 
 API documentation is published at <https://tomi-912.github.io/fixed-record/>.
 
+## Why fixed-record?
+
+Fixed-width records show up in bank files, host integrations, legacy batch jobs, and line-oriented data exchanges where every field has a byte width. `fixed-record` keeps the record layout in one Rust struct and generates the repetitive code around it.
+
+The main benefits are:
+
+- define byte layouts once with `Fixed<N>` fields
+- get generated builders, getters, setters, parsing, serialization, and metadata
+- keep fields private while using generated methods as the public API
+- read and write record streams with `Reader` and `Writer`
+- search and sort records with generated `{StructName}List` APIs when the default `list` feature is enabled
+- use safe zerocopy views through `zerocopy` traits without writing unsafe code
+
+## Record Shape
+
+`#[fixed_record]` supports structs with named fields, and every field must be `Fixed<N>`.
+
+```rust
+#[fixed_record]
+struct Payment {
+    bank_code: Fixed<4>,
+    account_no: Fixed<7>,
+    amount: Fixed<8>,
+}
+```
+
+Non-`Fixed<N>` fields, tuple structs, zero-width fields, negative widths, and non-literal widths are rejected at compile time.
+
 ## Installation
 
 Before the crate is published to crates.io, depend on the Git repository.
@@ -63,23 +91,6 @@ Applying `#[fixed_record]` to a struct mainly generates:
 - `Reader` / `Writer` interoperability
 - `{StructName}List` insertion, lookup, range search, removal, `vacuum`, and sorting, with the same visibility as the record struct
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
-
-## Field Initialization
-
-`set_field_*` clears the target field with `CLEAR_BYTE` before writing. When unspecified, `CLEAR_BYTE` is a space byte (`0x20`).
-
-```rust
-#[fixed_record(clear_byte = ZERO)]
-struct User {
-    id: Fixed<8>,
-}
-```
-
-Use `clear_byte = ZERO` or `clear_byte = 0` when `set_field_*`, `builder()`, `default()`, and `cleared()` should initialize fields with `0x00`.
-
-For explicit initialization, use `zeroed()`, `spaced()`, or `cleared()`. `zeroed()` always uses `0x00`, `spaced()` always uses spaces, and `cleared()` uses `CLEAR_BYTE`.
-
-Use `set_field_bytes_no_clear` / `set_field_str_no_clear` when you want to preserve existing trailing bytes. The builder-style `with_*` methods also perform partial overwrites without clearing first.
 
 ## List Search
 
@@ -204,6 +215,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Field Initialization
+
+`set_field_*` clears the target field with `CLEAR_BYTE` before writing. When unspecified, `CLEAR_BYTE` is a space byte (`0x20`).
+
+```rust
+#[fixed_record(clear_byte = ZERO)]
+struct User {
+    id: Fixed<8>,
+}
+```
+
+Use `clear_byte = ZERO` or `clear_byte = 0` when `set_field_*`, `builder()`, `default()`, and `cleared()` should initialize fields with `0x00`.
+
+For explicit initialization, use `zeroed()`, `spaced()`, or `cleared()`. `zeroed()` always uses `0x00`, `spaced()` always uses spaces, and `cleared()` uses `CLEAR_BYTE`.
+
+Use `set_field_bytes_no_clear` / `set_field_str_no_clear` when you want to preserve existing trailing bytes. The builder-style `with_*` methods also perform partial overwrites without clearing first.
+
 ## Examples
 
 ```bash
@@ -211,19 +239,6 @@ cargo run -p fixed-record-basic-example --bin fixed_record_usage
 cargo run -p fixed-record-basic-example --bin macro_reexport
 cargo run -p fixed-record-no-list-example
 ```
-
-## Workspace Layout
-
-```text
-crates/
-  fixed-record/
-  fixed-record-macros/
-examples/
-  basic/
-  no-list/
-```
-
-The public entry point is `fixed-record`. `fixed-record-macros` is the proc macro implementation crate.
 
 ## License
 

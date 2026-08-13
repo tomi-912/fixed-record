@@ -8,6 +8,34 @@
 
 API ドキュメントは <https://tomi-912.github.io/fixed-record/> で公開しています。
 
+## なぜ fixed-record?
+
+固定長レコードは、銀行系ファイル、ホスト連携、レガシーなバッチ処理、行単位のデータ交換など、各フィールドのバイト幅が決まっている場面でよく出てきます。`fixed-record` は、そのレイアウトを Rust の struct に一度だけ書き、周辺の定型コードを生成します。
+
+主なメリットは次のとおりです。
+
+- `Fixed<N>` フィールドでバイトレイアウトを一度だけ定義できます。
+- builder、getter、setter、parse、serialize、メタ情報が生成されます。
+- フィールドを private にしたまま、生成メソッドを公開 API として使えます。
+- `Reader` / `Writer` でレコード列を読み書きできます。
+- default feature の `list` が有効な場合、生成された `{StructName}List` で検索やソートができます。
+- unsafe を書かずに、`zerocopy` traits による安全な zerocopy view を使えます。
+
+## レコード定義の形
+
+`#[fixed_record]` は named fields の struct に対応し、全フィールドが `Fixed<N>` である必要があります。
+
+```rust
+#[fixed_record]
+struct Payment {
+    bank_code: Fixed<4>,
+    account_no: Fixed<7>,
+    amount: Fixed<8>,
+}
+```
+
+`Fixed<N>` 以外のフィールド、tuple struct、0 byte のフィールド、負の幅、literal ではない幅は compile error になります。
+
 ## インストール
 
 crates.io に公開する前は、Git repository 依存として追加します。
@@ -63,23 +91,6 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 - `Reader` / `Writer` との連携
 - レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
-
-## フィールド初期化
-
-`set_field_*` は、書き込み前に `CLEAR_BYTE` で対象フィールドをクリアします。未指定時の `CLEAR_BYTE` は半角スペース (`0x20`) です。
-
-```rust
-#[fixed_record(clear_byte = ZERO)]
-struct User {
-    id: Fixed<8>,
-}
-```
-
-`set_field_*`、`builder()`、`default()`、`cleared()` で `0x00` 初期化したい場合は、`clear_byte = ZERO` または `clear_byte = 0` を指定します。
-
-明示的な初期化には、`zeroed()`、`spaced()`、`cleared()` を使えます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
-
-既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。`with_*` はメソッドチェーン用の部分上書き API で、書き込み前のクリアを行いません。
 
 ## List 検索
 
@@ -204,6 +215,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## フィールド初期化
+
+`set_field_*` は、書き込み前に `CLEAR_BYTE` で対象フィールドをクリアします。未指定時の `CLEAR_BYTE` は半角スペース (`0x20`) です。
+
+```rust
+#[fixed_record(clear_byte = ZERO)]
+struct User {
+    id: Fixed<8>,
+}
+```
+
+`set_field_*`、`builder()`、`default()`、`cleared()` で `0x00` 初期化したい場合は、`clear_byte = ZERO` または `clear_byte = 0` を指定します。
+
+明示的な初期化には、`zeroed()`、`spaced()`、`cleared()` を使えます。`zeroed()` は常に `0x00`、`spaced()` は常に半角スペース、`cleared()` は `CLEAR_BYTE` で初期化します。
+
+既存の後続バイトを残したい場合は、`set_field_bytes_no_clear` / `set_field_str_no_clear` を使います。`with_*` はメソッドチェーン用の部分上書き API で、書き込み前のクリアを行いません。
+
 ## Examples
 
 ```bash
@@ -211,19 +239,6 @@ cargo run -p fixed-record-basic-example --bin fixed_record_usage
 cargo run -p fixed-record-basic-example --bin macro_reexport
 cargo run -p fixed-record-no-list-example
 ```
-
-## Workspace Layout
-
-```text
-crates/
-  fixed-record/
-  fixed-record-macros/
-examples/
-  basic/
-  no-list/
-```
-
-公開時の利用者向け入口は `fixed-record` です。`fixed-record-macros` は proc macro 実装用 crate として扱います。
 
 ## ライセンス
 
