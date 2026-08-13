@@ -286,7 +286,8 @@ mod tests {
         writer.flush().unwrap();
         drop(writer);
 
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(buf)));
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(buf)))
+            .with_separator(RecordSeparator::Crlf);
         assert_eq!(
             reader
                 .next()
@@ -347,7 +348,8 @@ mod tests {
         assert_eq!(raw, expected);
 
         let file = File::open(&path).unwrap();
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        let mut reader =
+            Reader::<_, TestRecord>::new(BufReader::new(file)).with_separator(RecordSeparator::Lf);
         assert_eq!(
             reader
                 .next()
@@ -405,7 +407,8 @@ mod tests {
         assert!(raw.windows(2).any(|bytes| bytes == b"\r\n"));
 
         let file = File::open(&path).unwrap();
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file))
+            .with_separator(RecordSeparator::Crlf);
         assert_eq!(
             reader
                 .next()
@@ -468,7 +471,8 @@ mod tests {
         assert_eq!(raw, expected);
 
         let file = File::open(&path).unwrap();
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        let mut reader =
+            Reader::<_, TestRecord>::new(BufReader::new(file)).with_separator(RecordSeparator::Cr);
         assert_eq!(
             reader
                 .next()
@@ -531,7 +535,8 @@ mod tests {
         assert_eq!(raw, expected);
 
         let file = File::open(&path).unwrap();
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(file))
+            .with_separator(RecordSeparator::Comma);
         assert_eq!(
             reader
                 .next()
@@ -555,8 +560,58 @@ mod tests {
         std::fs::remove_file(path).unwrap();
     }
     #[test]
-    fn test_reader_skips_comma_between_records() {
-        use fixed_record::Reader;
+    fn test_reader_writer_round_trip_without_separator() {
+        use fixed_record::{Reader, RecordSeparator, Writer};
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Nina")
+            .with_code("N0001")
+            .with_amount_int(110)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Owen")
+            .with_code("O0001")
+            .with_amount_int(120)
+            .build();
+
+        let mut bytes = Vec::new();
+        let mut writer = Writer::new(&mut bytes).with_separator(RecordSeparator::None);
+        writer.write_record(&first).unwrap();
+        writer.write_record(&second).unwrap();
+        writer.flush().unwrap();
+        drop(writer);
+
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&first.to_bytes());
+        expected.extend_from_slice(&second.to_bytes());
+        assert_eq!(bytes, expected);
+
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::None);
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Nina"
+        );
+        assert_eq!(
+            reader
+                .next()
+                .unwrap()
+                .unwrap()
+                .get_field_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Owen"
+        );
+        assert!(reader.next().is_none());
+    }
+    #[test]
+    fn test_reader_uses_configured_comma_separator() {
+        use fixed_record::{Reader, RecordSeparator};
         use std::io::{BufReader, Cursor};
 
         let first = TestRecord::builder()
@@ -576,7 +631,8 @@ mod tests {
         bytes.extend_from_slice(&second.to_bytes());
         bytes.push(b',');
 
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::Comma);
         assert_eq!(
             reader
                 .next()
@@ -1065,7 +1121,7 @@ mod tests {
     }
     #[test]
     fn test_utf8_reader_reads_fixed_byte_records_exactly() {
-        use fixed_record::Reader;
+        use fixed_record::{Reader, RecordSeparator};
         use std::io::{BufReader, Cursor};
 
         let first = TestRecord::builder()
@@ -1083,8 +1139,10 @@ mod tests {
         bytes.extend_from_slice(&first.to_bytes());
         bytes.extend_from_slice(b"\n");
         bytes.extend_from_slice(&second.to_bytes());
+        bytes.extend_from_slice(b"\n");
 
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::Lf);
 
         let read_first = reader.next().unwrap().unwrap();
         assert_eq!(read_first.name(), "あいう ".as_bytes());
@@ -1110,7 +1168,7 @@ mod tests {
     }
     #[test]
     fn test_reader_sequence_check_accepts_ascending_fields() {
-        use fixed_record::Reader;
+        use fixed_record::{Reader, RecordSeparator};
         use std::io::{BufReader, Cursor};
 
         let first = TestRecord::builder()
@@ -1131,6 +1189,7 @@ mod tests {
         bytes.push(b'\n');
 
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::Lf)
             .with_sequence_check([TestRecordField::Code, TestRecordField::Amount]);
 
         assert_eq!(
@@ -1155,7 +1214,7 @@ mod tests {
     }
     #[test]
     fn test_reader_sequence_check_reports_descending_fields() {
-        use fixed_record::Reader;
+        use fixed_record::{Reader, RecordSeparator};
         use std::io::{BufReader, Cursor};
 
         let first = TestRecord::builder()
@@ -1176,6 +1235,7 @@ mod tests {
         bytes.push(b'\n');
 
         let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::Lf)
             .with_sequence_check([TestRecordField::Code, TestRecordField::Amount]);
 
         assert!(reader.next().unwrap().is_ok());
@@ -1190,7 +1250,7 @@ mod tests {
     }
     #[test]
     fn test_reader_sequence_check_can_reject_equal_fields() {
-        use fixed_record::Reader;
+        use fixed_record::{Reader, RecordSeparator};
         use std::io::{BufReader, Cursor};
 
         let first = TestRecord::builder()
@@ -1212,6 +1272,7 @@ mod tests {
 
         let mut allow_equal_reader =
             Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes.clone())))
+                .with_separator(RecordSeparator::Lf)
                 .with_sequence_check([TestRecordField::Code, TestRecordField::Amount]);
 
         assert!(allow_equal_reader.next().unwrap().is_ok());
@@ -1219,6 +1280,7 @@ mod tests {
 
         let mut reject_equal_reader =
             Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+                .with_separator(RecordSeparator::Lf)
                 .with_sequence_check_options(
                     [TestRecordField::Code, TestRecordField::Amount],
                     false,
@@ -1259,7 +1321,7 @@ mod tests {
     }
     #[test]
     fn test_utf8_writer_reader_round_trip_when_field_width_is_large_enough() {
-        use fixed_record::{Reader, Writer};
+        use fixed_record::{Reader, RecordSeparator, Writer};
         use std::io::{BufReader, Cursor};
 
         let record = TestRecord::builder()
@@ -1274,7 +1336,8 @@ mod tests {
         writer.flush().unwrap();
         drop(writer);
 
-        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)));
+        let mut reader = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes)))
+            .with_separator(RecordSeparator::Lf);
         let read_back = reader.next().unwrap().unwrap();
 
         assert_eq!(read_back.name(), "あいう ".as_bytes());

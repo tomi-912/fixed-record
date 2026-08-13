@@ -7,6 +7,9 @@ use std::marker::PhantomData;
 /// [`Writer`] が各レコードの後ろに書き出す区切りです。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordSeparator {
+    /// No separator.
+    /// 区切りなしです。
+    None,
     /// Line feed (`\n`).
     /// LF (`\n`) です。
     Lf,
@@ -26,6 +29,7 @@ impl RecordSeparator {
     /// この区切りを表すバイト列を返します。
     pub const fn as_bytes(self) -> &'static [u8] {
         match self {
+            Self::None => b"",
             Self::Lf => b"\n",
             Self::Cr => b"\r",
             Self::Crlf => b"\r\n",
@@ -37,8 +41,13 @@ impl RecordSeparator {
 /// Iterator that reads fixed-width records from a stream.
 /// 固定長レコードをストリームから順に読み込むイテレータです。
 ///
-/// A trailing `\n`, `\r`, `\r\n`, or `,` immediately after each record is skipped automatically.
-/// 各レコードの直後にある `\n`、`\r`、`\r\n`、`,` は自動的に読み飛ばします。
+/// `Reader::new` expects records to be adjacent with no separator. Use [`Reader::with_separator`]
+/// when a separator must appear between records.
+/// `Reader::new` はレコード同士が区切りなしで連続している入力を読みます。レコード間に区切りが
+/// 必要な場合は [`Reader::with_separator`] で指定します。
+///
+/// When a separator is configured, it must appear after every record, including the final record.
+/// 区切りを設定した場合は、最終レコードを含むすべてのレコード後ろにその区切りが必要です。
 ///
 /// # Examples
 ///
@@ -65,9 +74,10 @@ impl RecordSeparator {
 /// input.extend_from_slice(&first.to_bytes());
 /// input.extend_from_slice(b"\r\n");
 /// input.extend_from_slice(&second.to_bytes());
-/// input.push(b',');
+/// input.extend_from_slice(b"\r\n");
 ///
-/// let mut reader = Reader::<_, Payment>::new(BufReader::new(Cursor::new(input)));
+/// let mut reader = Reader::<_, Payment>::new(BufReader::new(Cursor::new(input)))
+///     .with_separator(RecordSeparator::Crlf);
 ///
 /// assert_eq!(
 ///     reader.next().unwrap().unwrap().get_field_trimmed(PaymentField::Id).unwrap(),
@@ -81,6 +91,7 @@ impl RecordSeparator {
 /// ```
 pub struct Reader<R, T: FixedRecord> {
     reader: R,
+    separator: RecordSeparator,
     sequence_fields: Vec<T::Field>,
     allow_equal_sequence: bool,
     previous_sequence_key: Option<Vec<Vec<u8>>>,
@@ -93,11 +104,22 @@ impl<R: BufRead, T: FixedRecord> Reader<R, T> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
+            separator: RecordSeparator::None,
             sequence_fields: Vec::new(),
             allow_equal_sequence: true,
             previous_sequence_key: None,
             _marker: PhantomData,
         }
+    }
+
+    /// Configures the separator expected after records.
+    /// レコードの後ろに期待する区切りを設定します。
+    ///
+    /// `RecordSeparator::None` means records are adjacent with no bytes between them.
+    /// `RecordSeparator::None` は、レコード間に区切りバイトがないことを表します。
+    pub fn with_separator(mut self, separator: RecordSeparator) -> Self {
+        self.separator = separator;
+        self
     }
 
     /// Enables ascending sequence checks using the specified fields as the key.
@@ -196,23 +218,21 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
             Err(err) => return Some(Err(err)),
         };
 
-        loop {
+        let separator = self.separator.as_bytes();
+        if !separator.is_empty() {
             let available = match self.reader.fill_buf() {
                 Ok(bytes) => bytes,
                 Err(err) => return Some(Err(Error::Io(err))),
             };
-            if available.is_empty() {
-                break;
-            }
 
-            if available.starts_with(b"\r\n") {
-                self.reader.consume(2);
-                continue;
-            }
-
-            match available[0] {
-                b'\n' | b'\r' | b',' => self.reader.consume(1),
-                _ => break,
+            if available.starts_with(separator) {
+                self.reader.consume(separator.len());
+            } else {
+                let actual_len = available.len().min(separator.len());
+                return Some(Err(Error::UnexpectedSeparator {
+                    expected: separator,
+                    actual: available[..actual_len].to_vec(),
+                }));
             }
         }
 
@@ -382,8 +402,8 @@ mod tests {
     }
 
     impl BufRead for FillBufErrorAfterRead {
-        /// Produces an I/O error while the reader skips trailing separators after a record.
-        /// レコード読込後の区切り読み飛ばしで I/O エラーを発生させます。
+        /// Produces an I/O error while the reader checks the configured separator.
+        /// 設定された区切りの確認中に I/O エラーを発生させます。
         fn fill_buf(&mut self) -> io::Result<&[u8]> {
             Err(io::Error::other("fill_buf failed"))
         }
@@ -469,16 +489,63 @@ mod tests {
         ));
     }
 
-    /// Verifies that an I/O error while skipping separators is returned as `Error::Io`.
-    /// 区切り読み飛ばし中の I/O エラーが `Error::Io` として返ることを確認します。
+    /// Verifies that an I/O error while checking a configured separator is returned as `Error::Io`.
+    /// 設定された区切りを確認する途中の I/O エラーが `Error::Io` として返ることを確認します。
     #[test]
     fn reader_returns_io_error_from_fill_buf() {
         let mut reader = Reader::<_, TestRecord>::new(FillBufErrorAfterRead {
             cursor: Cursor::new(b"abcd".to_vec()),
-        });
+        })
+        .with_separator(RecordSeparator::Lf);
 
         let err = reader.next().unwrap().unwrap_err();
         assert!(matches!(err, Error::Io(_)));
+    }
+
+    /// Verifies that adjacent records are read when no separator is configured.
+    /// 区切りなし設定で連続したレコードを読めることを確認します。
+    #[test]
+    fn reader_accepts_adjacent_records_by_default() {
+        let mut reader =
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abcdefgh".to_vec())));
+
+        assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"abcd"));
+        assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"efgh"));
+        assert!(reader.next().is_none());
+    }
+
+    /// Verifies that a configured separator must match the input.
+    /// 設定した区切りが入力と一致する必要があることを確認します。
+    #[test]
+    fn reader_rejects_unexpected_separator() {
+        let mut reader =
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abcd,efgh".to_vec())))
+                .with_separator(RecordSeparator::Lf);
+
+        assert_eq!(
+            reader.next().unwrap().unwrap_err(),
+            Error::UnexpectedSeparator {
+                expected: b"\n",
+                actual: b",".to_vec(),
+            }
+        );
+    }
+
+    /// Verifies that a configured separator is required after the final record too.
+    /// 設定した区切りが最終レコードの後ろにも必要であることを確認します。
+    #[test]
+    fn reader_rejects_missing_configured_separator_at_eof() {
+        let mut reader =
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(b"abcd".to_vec())))
+                .with_separator(RecordSeparator::Lf);
+
+        assert_eq!(
+            reader.next().unwrap().unwrap_err(),
+            Error::UnexpectedSeparator {
+                expected: b"\n",
+                actual: Vec::new(),
+            }
+        );
     }
 
     /// Verifies that CRLF separators are consumed as a single two-byte separator.
@@ -486,16 +553,17 @@ mod tests {
     #[test]
     fn reader_consumes_crlf_separator_together() {
         let consume_amounts = Rc::new(RefCell::new(Vec::new()));
-        let input = b"abcd\r\nefgh".to_vec();
+        let input = b"abcd\r\nefgh\r\n".to_vec();
         let mut reader = Reader::<_, TestRecord>::new(TrackingBufRead {
             cursor: Cursor::new(input),
             consume_amounts: Rc::clone(&consume_amounts),
-        });
+        })
+        .with_separator(RecordSeparator::Crlf);
 
         assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"abcd"));
         assert_eq!(reader.next().unwrap().unwrap(), TestRecord(*b"efgh"));
         assert!(reader.next().is_none());
-        assert_eq!(*consume_amounts.borrow(), vec![2]);
+        assert_eq!(*consume_amounts.borrow(), vec![2, 2]);
     }
 
     /// Verifies that dropping `Writer` flushes the inner writer.

@@ -111,19 +111,21 @@ let by_id = list.get(id);
 
 ## Reader / Writer
 
-`Reader` は固定長レコードを順に読み込みます。レコード直後の `\n`、`\r`、`\r\n`、`,` は読み飛ばします。
+`Reader` は固定長レコードを順に読み込みます。`Reader::new` は区切りなしで連続するレコードを想定します。入力の各レコード後ろにバイトがある場合は、期待する区切りを指定します。区切りを設定した場合は、最終レコードの後ろにもその区切りが必要です。
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
+    .with_separator(RecordSeparator::Lf)
     .with_sequence_check([UserField::Id]);
 
 let mut reader = Reader::<_, User>::new(source)
+    .with_separator(RecordSeparator::None)
     .with_sequence_check_options([UserField::Id], false);
 ```
 
 シーケンスチェックでは、前回レコードより今回レコードが小さい場合に `Error::SequenceError` を返します。同一キーはデフォルトで許可されます。
 
-`Writer` は `to_bytes` したレコードを書き出し、レコード末尾に区切りを付けます。
+区切りなしでレコードが連続する入力には `RecordSeparator::None` を使います。`Writer` は `to_bytes` したレコードを書き出し、設定された区切りをレコード末尾に付けます。
 
 `RecordSeparator` で、レコードごとに書き出す区切りを選べます。
 

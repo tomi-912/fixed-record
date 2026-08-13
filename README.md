@@ -111,19 +111,21 @@ Use `try_find_by_prefix` / `try_first_by_prefix` for prefix searches.
 
 ## Reader / Writer
 
-`Reader` reads fixed-width records sequentially. A trailing `\n`, `\r`, `\r\n`, or `,` immediately after each record is skipped automatically.
+`Reader` reads fixed-width records sequentially. `Reader::new` expects adjacent records with no separator. If the input has bytes after each record, specify the expected separator. A configured separator is required after every record, including the final record.
 
 ```rust
 let mut reader = Reader::<_, User>::new(source)
+    .with_separator(RecordSeparator::Lf)
     .with_sequence_check([UserField::Id]);
 
 let mut reader = Reader::<_, User>::new(source)
+    .with_separator(RecordSeparator::None)
     .with_sequence_check_options([UserField::Id], false);
 ```
 
 Sequence checks return `Error::SequenceError` when the current record is smaller than the previous record. Equal keys are allowed by default.
 
-`Writer` writes `to_bytes()` output and appends a separator after each record.
+Use `RecordSeparator::None` when records are adjacent with no separator. `Writer` writes `to_bytes()` output and appends the configured separator after each record.
 
 Use `RecordSeparator` to choose the separator written after each record.
 

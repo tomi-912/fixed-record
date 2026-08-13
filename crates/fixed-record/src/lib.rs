@@ -227,13 +227,15 @@
 //!
 //! # Reader and Writer / Reader / Writer
 //!
-//! [`Reader`] reads records sequentially from any `BufRead`. A separator immediately after each
-//! record (`\n`, `\r`, `\r\n`, or `,`) is skipped automatically. [`Writer`] writes `to_bytes()`
-//! output and appends a [`RecordSeparator`].
+//! [`Reader`] reads records sequentially from any `BufRead`. `Reader::new` expects adjacent
+//! records with no separator; use [`Reader::with_separator`] when the input has a separator after
+//! records. When configured, the separator must also appear after the final record. [`Writer`]
+//! writes `to_bytes()` output and appends a [`RecordSeparator`].
 //!
-//! [`Reader`] は任意の `BufRead` から固定長レコードを順に読みます。各レコード直後の区切り
-//! (`\n`, `\r`, `\r\n`, `,`) は自動的に読み飛ばします。[`Writer`] は `to_bytes()` の結果を
-//! 書き出し、[`RecordSeparator`] を付けます。
+//! [`Reader`] は任意の `BufRead` から固定長レコードを順に読みます。`Reader::new` は区切りなしで
+//! 連続するレコードを想定します。入力のレコード後ろに区切りがある場合は [`Reader::with_separator`]
+//! で指定します。区切りを設定した場合は、最終レコードの後ろにもその区切りが必要です。[`Writer`]
+//! は `to_bytes()` の結果を書き出し、[`RecordSeparator`] を付けます。
 //!
 //! ```
 //! use fixed_record::prelude::*;
@@ -265,7 +267,8 @@
 //! writer.flush().unwrap();
 //! drop(writer);
 //!
-//! let mut reader = Reader::<_, Order>::new(BufReader::new(Cursor::new(output)));
+//! let mut reader = Reader::<_, Order>::new(BufReader::new(Cursor::new(output)))
+//!     .with_separator(RecordSeparator::Crlf);
 //! assert_eq!(reader.next().unwrap().unwrap().order_no(), b"A00001");
 //! assert_eq!(reader.next().unwrap().unwrap().order_no(), b"A00002");
 //! assert!(reader.next().is_none());
@@ -296,6 +299,7 @@
 //! input.push(b'\n');
 //!
 //! let mut reader = Reader::<_, Order>::new(BufReader::new(Cursor::new(input)))
+//!     .with_separator(RecordSeparator::Lf)
 //!     .with_sequence_check([OrderField::CustomerId, OrderField::OrderNo]);
 //!
 //! assert!(reader.next().unwrap().is_ok());

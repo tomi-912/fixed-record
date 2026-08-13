@@ -29,6 +29,12 @@ pub enum Error {
     /// An I/O error occurred while using `Reader`, `Writer`, or related operations.
     /// `Reader` / `Writer` などの I/O 処理中に発生したエラーです。
     Io(io::Error),
+    /// A `Reader` found bytes that did not match the configured record separator.
+    /// `Reader` が設定されたレコード区切りと一致しないバイト列を検出した場合です。
+    UnexpectedSeparator {
+        expected: &'static [u8],
+        actual: Vec<u8>,
+    },
     /// A field value exceeded the fixed width of the target field.
     /// フィールドに入れる値が固定長幅を超えた場合です。
     FieldOverflow {
@@ -59,6 +65,10 @@ impl fmt::Display for Error {
                 "incomplete fixed record: expected {expected} bytes, got {actual} bytes"
             ),
             Error::Io(err) => write!(f, "I/O error while processing fixed record: {err}"),
+            Error::UnexpectedSeparator { expected, actual } => write!(
+                f,
+                "unexpected record separator: expected {expected:?}, got {actual:?}"
+            ),
             Error::FieldOverflow {
                 field,
                 size,
@@ -99,6 +109,16 @@ impl PartialEq for Error {
                 },
             ) => left_expected == right_expected && left_actual == right_actual,
             (Error::Io(left), Error::Io(right)) => left.kind() == right.kind(),
+            (
+                Error::UnexpectedSeparator {
+                    expected: left_expected,
+                    actual: left_actual,
+                },
+                Error::UnexpectedSeparator {
+                    expected: right_expected,
+                    actual: right_actual,
+                },
+            ) => left_expected == right_expected && left_actual == right_actual,
             (
                 Error::FieldOverflow {
                     field: left_field,
