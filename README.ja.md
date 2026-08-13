@@ -89,12 +89,14 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 - `apply_*` 系の一括流し込み
 - `FixedRecord` trait 実装
 - `Reader` / `Writer` との連携
-- レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
+- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による挿入、検索、範囲検索、削除、`vacuum`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
 ## List 検索
 
-default feature の `list` が有効な場合、`{StructName}List` が生成されます。
+`{StructName}List` は default feature の `list` で生成される補助機能です。メモリ上のレコード集合に対して、lookup、prefix search、range search、sort、logical remove、`vacuum` を使いたい場合に向いています。
+
+record parsing、field access、`Reader`、`Writer` だけでよい場合は default feature を外すと、List 型は生成されません。
 
 ```rust
 let mut list = UserList::new();
@@ -141,9 +143,9 @@ let mut cr_writer = Writer::new(output)
 
 ## Feature Flags
 
-- `list`: default feature。`{StructName}List` と検索インデックス API を生成します。
+- `list`: default feature。補助機能の `{StructName}List` と検索インデックス API を生成します。
 
-レコード本体とフィールド操作だけを生成したい場合は、default feature を外します。
+レコード本体、フィールド操作、parse、`Reader`、`Writer` だけを使いたい場合は、default feature を外します。
 
 ```toml
 [dependencies]
