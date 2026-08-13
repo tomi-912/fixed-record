@@ -1,3 +1,5 @@
+#[cfg(feature = "list")]
+use crate::traits::RecordWithList;
 use crate::{Error, FixedRecord, traits::SequenceFields};
 use std::cmp::Ordering;
 use std::io::{self, BufRead, Write};
@@ -241,6 +243,19 @@ impl<R: BufRead, T: FixedRecord> Iterator for Reader<R, T> {
         }
 
         Some(Ok(record))
+    }
+}
+
+#[cfg(feature = "list")]
+impl<R: BufRead, T: RecordWithList> Reader<R, T> {
+    /// Reads all remaining records and builds their generated List with field indexes.
+    /// 残りの全レコードを読み込み、フィールド索引を持つ生成済み List を構築します。
+    ///
+    /// Returns the first parsing, separator, sequence, or I/O error without producing a partial List.
+    /// parse、separator、sequence、I/O の最初のエラーを返し、途中までの List は返しません。
+    pub fn collect_list(self) -> Result<T::List, Error> {
+        let records = self.collect::<Result<Vec<_>, _>>()?;
+        Ok(records.into())
     }
 }
 

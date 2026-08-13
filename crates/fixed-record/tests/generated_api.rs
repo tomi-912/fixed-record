@@ -308,6 +308,59 @@ mod tests {
         );
         assert!(reader.next().is_none());
     }
+
+    #[test]
+    fn test_reader_collect_list_builds_indices_and_returns_reader_errors() {
+        use std::io::{BufReader, Cursor};
+
+        let first = TestRecord::builder()
+            .with_name("Alice")
+            .with_code("A0001")
+            .with_amount_int(10)
+            .build();
+        let second = TestRecord::builder()
+            .with_name("Bob")
+            .with_code("A0001")
+            .with_amount_int(20)
+            .build();
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&first.to_bytes());
+        bytes.push(b'\n');
+        bytes.extend_from_slice(&second.to_bytes());
+        bytes.push(b'\n');
+
+        let list = Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes.clone())))
+            .collect_list()
+            .unwrap();
+        assert_eq!(list.len(), 2);
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Bob"]
+        );
+        assert_eq!(
+            list.indices.code.get(&Fixed::from(*b"A0001")),
+            Some(&vec![0, 1])
+        );
+
+        bytes.pop();
+        let result =
+            Reader::<_, TestRecord>::new(BufReader::new(Cursor::new(bytes))).collect_list();
+        let error = match result {
+            Ok(_) => panic!("missing final separator should fail"),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            error,
+            Error::UnexpectedSeparator {
+                expected: b"\n",
+                actual,
+            } if actual.is_empty()
+        ));
+    }
+
     #[test]
     fn test_reader_writer_round_trip_file_with_lf_separator() {
         use fixed_record::{Reader, RecordSeparator, Writer};

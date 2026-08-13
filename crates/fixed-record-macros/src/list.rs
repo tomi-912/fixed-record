@@ -1120,6 +1120,10 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             }
         }
 
+        impl ::fixed_record::traits::RecordWithList for #struct_name {
+            type List = #list_name;
+        }
+
         impl From<Vec<#struct_name>> for #list_name {
             #[doc = "Creates a list from a vector of records."]
             #[doc = "レコードの vector からリストを作成します。"]

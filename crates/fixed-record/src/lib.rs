@@ -298,12 +298,13 @@
 //! input.extend_from_slice(&second.to_bytes());
 //! input.push(b'\n');
 //!
-//! let mut reader = Reader::<_, Order>::new(BufReader::new(Cursor::new(input)))
-//!     .with_sequence_check([OrderField::CustomerId, OrderField::OrderNo]);
+//! let list = Reader::<_, Order>::new(BufReader::new(Cursor::new(input)))
+//!     .with_sequence_check([OrderField::CustomerId, OrderField::OrderNo])
+//!     .collect_list()
+//!     .unwrap();
 //!
-//! assert!(reader.next().unwrap().is_ok());
-//! assert!(reader.next().unwrap().is_ok());
-//! assert!(reader.next().is_none());
+//! assert_eq!(list.len(), 2);
+//! assert_eq!(list.try_find_by(OrderField::CustomerId, b"C001").unwrap().len(), 2);
 //! ```
 //!
 //! # Searchable Lists / 検索可能な List
@@ -572,11 +573,15 @@ pub use zerocopy;
 
 pub use error::Error;
 pub use io::{Reader, RecordSeparator, Writer};
+#[cfg(feature = "list")]
+pub use traits::RecordWithList;
 pub use traits::{ByteRangeBounds, FixedRecord};
 pub use types::Fixed;
 pub use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 pub mod prelude {
+    #[cfg(feature = "list")]
+    pub use crate::RecordWithList;
     pub use crate::fixed_record;
     pub use crate::{
         ByteRangeBounds, Error, Fixed, FixedRecord, FromBytes, Immutable, IntoBytes, KnownLayout,

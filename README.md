@@ -130,11 +130,12 @@ Editing equivalents are `try_edit_by`, `try_edit_by_padded`, `try_edit_by_prefix
 
 ## Reader / Writer
 
-`Reader` reads fixed-width records sequentially. `Reader::new` expects LF (`\n`) after records, matching `Writer::new`. If the input uses a different separator or no separator, specify it explicitly. A configured separator is required after every record, including the final record.
+`Reader` reads fixed-width records sequentially. `Reader::new` expects LF (`\n`) after records, matching `Writer::new`. If the input uses a different separator or no separator, specify it explicitly. A configured separator is required after every record, including the final record. With the default `list` feature, `collect_list()` reads all remaining records and returns their generated List with field indexes. It returns the first Reader error without producing a partial List.
 
 ```rust
-let mut reader = Reader::<_, User>::new(source)
-    .with_sequence_check([UserField::Id]);
+let list = Reader::<_, User>::new(source)
+    .with_sequence_check([UserField::Id])
+    .collect_list()?;
 
 let mut reader = Reader::<_, User>::new(source)
     .with_separator(RecordSeparator::None)
@@ -160,7 +161,7 @@ let mut cr_writer = Writer::new(output)
 
 ## Feature Flags
 
-- `list`: enabled by default. Generates the optional `{StructName}List` helper.
+- `list`: enabled by default. Generates the optional `{StructName}List` helper and enables `Reader::collect_list()`.
 
 Disable default features when you only want the record type, field operations, parsing, `Reader`, and `Writer`.
 

@@ -130,11 +130,12 @@ list.for_each_mut(|user| user.set_field_str(UserField::Age, "026"));
 
 ## Reader / Writer
 
-`Reader` は固定長レコードを順に読み込みます。`Reader::new` は `Writer::new` と同じく、レコード後ろに LF (`\n`) がある入力を想定します。別の区切り、または区切りなしの入力を読む場合は明示的に指定します。区切りを設定した場合は、最終レコードの後ろにもその区切りが必要です。
+`Reader` は固定長レコードを順に読み込みます。`Reader::new` は `Writer::new` と同じく、レコード後ろに LF (`\n`) がある入力を想定します。別の区切り、または区切りなしの入力を読む場合は明示的に指定します。区切りを設定した場合は、最終レコードの後ろにもその区切りが必要です。default の `list` feature が有効な場合、`collect_list()` は残りの全レコードを読み込み、フィールド索引を持つ生成済み List を返します。Reader の最初のエラーを返し、途中までの List は返しません。
 
 ```rust
-let mut reader = Reader::<_, User>::new(source)
-    .with_sequence_check([UserField::Id]);
+let list = Reader::<_, User>::new(source)
+    .with_sequence_check([UserField::Id])
+    .collect_list()?;
 
 let mut reader = Reader::<_, User>::new(source)
     .with_separator(RecordSeparator::None)
@@ -160,7 +161,7 @@ let mut cr_writer = Writer::new(output)
 
 ## Feature Flags
 
-- `list`: default feature。補助機能の `{StructName}List` を生成します。
+- `list`: default feature。補助機能の `{StructName}List` を生成し、`Reader::collect_list()` を有効にします。
 
 レコード本体、フィールド操作、parse、`Reader`、`Writer` だけを使いたい場合は、default feature を外します。
 

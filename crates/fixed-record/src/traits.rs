@@ -124,6 +124,18 @@ pub trait FixedRecord {
     fn field_bytes(&self, field: Self::Field) -> &[u8];
 }
 
+/// Associates a fixed-width record with its generated List type.
+/// 固定長レコードと、そのレコード用に生成された List 型を関連付けます。
+///
+/// This is implemented automatically by `#[fixed_record]` when the `list` feature is enabled.
+/// `list` feature が有効な場合に `#[fixed_record]` が自動実装します。
+#[cfg(feature = "list")]
+pub trait RecordWithList: FixedRecord + Sized {
+    /// Generated List type that can be built from these records.
+    /// このレコード列から構築できる生成済み List 型です。
+    type List: From<Vec<Self>>;
+}
+
 /// Field arrays that can be passed to `Reader` sequence checks.
 /// `Reader` のシーケンスチェックに指定できるフィールド配列です。
 pub trait SequenceFields<T: FixedRecord> {
