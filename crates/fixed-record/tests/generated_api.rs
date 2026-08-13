@@ -663,6 +663,7 @@ mod tests {
                 .with_amount_int(20)
                 .build(),
         );
+        assert_eq!(id_b, 0);
         let id_a = list.insert(
             TestRecord::builder()
                 .with_name("Alice")
@@ -670,6 +671,7 @@ mod tests {
                 .with_amount_int(10)
                 .build(),
         );
+        assert_eq!(id_a, 1);
 
         assert_eq!(list.len(), 2);
 
@@ -699,13 +701,21 @@ mod tests {
             "A0001"
         );
 
-        assert!(list.remove(id_b));
+        // IDs are current Vec indexes. After sorting by name, Bob is at index 1.
+        assert!(list.remove(1));
         assert_eq!(list.len(), 1);
         assert!(list.find_by(TestRecordField::Code, *b"B0001").is_empty());
-        assert_eq!(list.all_ids(), vec![id_a]);
+        assert_eq!(list.all_ids(), vec![0]);
+        assert_eq!(
+            list.get(0)
+                .unwrap()
+                .get_field_string_trimmed(TestRecordField::Name)
+                .unwrap(),
+            "Alice"
+        );
     }
     #[test]
-    fn test_list_get_returns_only_active_record_by_id() {
+    fn test_list_get_and_remove_by_current_index() {
         let mut list = TestRecordList::new();
 
         let id = list.insert(
@@ -771,7 +781,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_list_update_rejects_missing_or_deleted_id() {
+    fn test_list_update_rejects_missing_id() {
         let mut list = TestRecordList::new();
 
         let id = list.insert(

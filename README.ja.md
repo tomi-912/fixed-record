@@ -94,7 +94,9 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 
 ## List 検索
 
-`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを boxed entry の vector として保持し、メモリ上のレコード集合に対して lookup、prefix search、range search、sort、物理削除を使いたい場合に向いています。
+`{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Record>` に直接保持し、メモリ上のレコード集合に対して lookup、prefix search、range search、sort、物理削除を使いたい場合に向いています。
+
+List の ID は現在の vector index です。補助機能としては素直ですが、`remove`、`sort`、`sort_by` の後は index が変わる可能性があります。
 
 record parsing、field access、`Reader`、`Writer` だけでよい場合は default feature を外すと、List 型は生成されません。
 

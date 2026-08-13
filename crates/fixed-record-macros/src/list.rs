@@ -13,7 +13,6 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
     let struct_name = &input.ident;
     let struct_vis = &input.vis;
     let field_enum_name = format_ident!("{}Field", struct_name);
-    let entry_name = format_ident!("{}Entry", struct_name);
     let list_name = format_ident!("{}List", struct_name);
 
     let try_find_by_arms = metas.iter().map(|m| {
@@ -31,8 +30,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
 
                 Ok(self.records
                     .iter()
-                    .filter_map(|entry| {
-                        let bytes = entry.record.field_bytes(field);
+                    .filter_map(|record| {
+                        let bytes = record.field_bytes(field);
                         let is_match = if raw_value.len() == #size {
                             bytes == raw_value
                         } else {
@@ -43,7 +42,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                         };
 
                         if is_match {
-                            Some(&entry.record)
+                            Some(record)
                         } else {
                             None
                         }
@@ -67,9 +66,9 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
 
                 Ok(self.records
                     .iter()
-                    .filter_map(|entry| {
-                        if entry.record.field_bytes(field).starts_with(raw_value) {
-                            Some(&entry.record)
+                    .filter_map(|record| {
+                        if record.field_bytes(field).starts_with(raw_value) {
+                            Some(record)
                         } else {
                             None
                         }
@@ -85,11 +84,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 self.records
                     .iter()
                     .min_by(|left, right| {
-                        left.record
-                            .field_bytes(field)
-                            .cmp(right.record.field_bytes(field))
+                        left.field_bytes(field).cmp(right.field_bytes(field))
                     })
-                    .map(|entry| &entry.record)
             }
         }
     });
@@ -108,8 +104,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
 
                 Ok(self.records
                     .iter()
-                    .filter(|entry| {
-                        let bytes = entry.record.field_bytes(field);
+                    .filter(|record| {
+                        let bytes = record.field_bytes(field);
                         if raw_value.len() == #size {
                             bytes == raw_value
                         } else {
@@ -120,11 +116,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                         }
                     })
                     .min_by(|left, right| {
-                        left.record
-                            .field_bytes(field)
-                            .cmp(right.record.field_bytes(field))
-                    })
-                    .map(|entry| &entry.record))
+                        left.field_bytes(field).cmp(right.field_bytes(field))
+                    }))
             }
         }
     });
@@ -143,28 +136,21 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
 
                 Ok(self.records
                     .iter()
-                    .filter(|entry| entry.record.field_bytes(field).starts_with(raw_value))
+                    .filter(|record| record.field_bytes(field).starts_with(raw_value))
                     .min_by(|left, right| {
-                        left.record
-                            .field_bytes(field)
-                            .cmp(right.record.field_bytes(field))
-                    })
-                    .map(|entry| &entry.record))
+                        left.field_bytes(field).cmp(right.field_bytes(field))
+                    }))
             }
         }
     });
 
     quote! {
-        struct #entry_name {
-            id: usize,
-            record: #struct_name,
-        }
-
-        #[doc = "Stores records in a vector and provides collection helpers for search, removal, and sorting."]
-        #[doc = "レコードを vector に保持し、検索・削除・ソート用の補助 API を提供します。"]
+        #[doc = "Stores records directly in a vector and provides collection helpers for search, removal, and sorting."]
+        #[doc = "レコードを vector に直接保持し、検索・削除・ソート用の補助 API を提供します。"]
+        #[doc = "Record IDs are the current vector indexes, so IDs can change after removal or sorting."]
+        #[doc = "レコード ID は現在の vector index です。そのため削除やソート後に ID は変わる可能性があります。"]
         #struct_vis struct #list_name {
-            records: Vec<Box<#entry_name>>,
-            next_id: usize,
+            records: Vec<#struct_name>,
         }
 
         impl #list_name {
@@ -173,7 +159,6 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             pub fn new() -> Self {
                 Self {
                     records: Vec::new(),
-                    next_id: 0,
                 }
             }
 
@@ -192,46 +177,42 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             #[doc = "Returns an iterator over records in the current order."]
             #[doc = "現在の順序でレコードを返すイテレータです。"]
             pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a #struct_name> + 'a {
-                self.records.iter().map(|entry| &entry.record)
+                self.records.iter()
             }
 
-            #[doc = "Inserts a record and returns its assigned ID."]
-            #[doc = "レコードを追加し、採番された ID を返します。"]
+            #[doc = "Inserts a record and returns its current index as the ID."]
+            #[doc = "レコードを追加し、現在の index を ID として返します。"]
             pub fn insert(&mut self, record: #struct_name) -> usize {
-                let id = self.next_id;
-                self.next_id += 1;
-                self.records.push(Box::new(#entry_name { id, record }));
+                let id = self.records.len();
+                self.records.push(record);
                 id
             }
 
-            #[doc = "Returns the record with the specified ID."]
-            #[doc = "指定 ID のレコードを返します。"]
+            #[doc = "Returns the record at the specified current index."]
+            #[doc = "指定された現在の index にあるレコードを返します。"]
             pub fn get(&self, id: usize) -> Option<&#struct_name> {
-                self.records
-                    .iter()
-                    .find(|entry| entry.id == id)
-                    .map(|entry| &entry.record)
+                self.records.get(id)
             }
 
-            #[doc = "Replaces the record with the specified ID."]
-            #[doc = "指定 ID のレコードを置き換えます。"]
+            #[doc = "Replaces the record at the specified current index."]
+            #[doc = "指定された現在の index にあるレコードを置き換えます。"]
             pub fn update(&mut self, id: usize, record: #struct_name) -> bool {
-                let Some(entry) = self.records.iter_mut().find(|entry| entry.id == id) else {
+                let Some(slot) = self.records.get_mut(id) else {
                     return false;
                 };
 
-                entry.record = record;
+                *slot = record;
                 true
             }
 
-            #[doc = "Removes the record with the specified ID."]
-            #[doc = "指定 ID のレコードを削除します。"]
+            #[doc = "Removes the record at the specified current index."]
+            #[doc = "指定された現在の index にあるレコードを削除します。"]
             pub fn remove(&mut self, id: usize) -> bool {
-                let Some(position) = self.records.iter().position(|entry| entry.id == id) else {
+                if id >= self.records.len() {
                     return false;
-                };
+                }
 
-                self.records.remove(position);
+                self.records.remove(id);
                 true
             }
 
@@ -245,9 +226,9 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 let value = value.into();
                 self.records
                     .iter()
-                    .filter_map(|entry| {
-                        if entry.record.field_bytes(field) == value.as_bytes() {
-                            Some(&entry.record)
+                    .filter_map(|record| {
+                        if record.field_bytes(field) == value.as_bytes() {
+                            Some(record)
                         } else {
                             None
                         }
@@ -301,10 +282,10 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             {
                 self.records
                     .iter()
-                    .filter_map(|entry| {
-                        let value = ::fixed_record::Fixed::<N>::from_slice(entry.record.field_bytes(field)).ok()?;
+                    .filter_map(|record| {
+                        let value = ::fixed_record::Fixed::<N>::from_slice(record.field_bytes(field)).ok()?;
                         if range.contains(&value) {
-                            Some(&entry.record)
+                            Some(record)
                         } else {
                             None
                         }
@@ -318,20 +299,18 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 &'a self,
                 field: #field_enum_name,
             ) -> impl Iterator<Item = &'a #struct_name> + 'a {
-                let mut entries: Vec<&#entry_name> = self.records.iter().map(|entry| entry.as_ref()).collect();
-                entries.sort_by(|left, right| {
-                    left.record
-                        .field_bytes(field)
-                        .cmp(right.record.field_bytes(field))
+                let mut records: Vec<&#struct_name> = self.records.iter().collect();
+                records.sort_by(|left, right| {
+                    left.field_bytes(field).cmp(right.field_bytes(field))
                 });
-                entries.into_iter().map(|entry| &entry.record)
+                records.into_iter()
             }
 
             #[doc = "Sorts records by comparing all fields in declaration order."]
             #[doc = "レコードを定義順の全フィールド比較でソートします。"]
             pub fn sort(&mut self) {
                 self.records.sort_by(|left, right| {
-                    left.record.compare_all_fields(&right.record)
+                    left.compare_all_fields(right)
                 });
             }
 
@@ -339,14 +318,14 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             #[doc = "指定したフィールド優先順でレコードをソートします。"]
             pub fn sort_by(&mut self, fields: &[#field_enum_name]) {
                 self.records.sort_by(|left, right| {
-                    left.record.compare_by_fields(&right.record, fields)
+                    left.compare_by_fields(right, fields)
                 });
             }
 
             #[doc = "Returns the first record in the current order."]
             #[doc = "現在の順序で最初のレコードを返します。"]
             pub fn first(&self) -> Option<&#struct_name> {
-                self.records.first().map(|entry| &entry.record)
+                self.records.first()
             }
 
             #[doc = "Returns the first record in ascending order by the specified field."]
@@ -397,10 +376,10 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 }
             }
 
-            #[doc = "Returns all record IDs in the current order."]
-            #[doc = "現在の順序で全レコード ID を返します。"]
+            #[doc = "Returns all current record IDs."]
+            #[doc = "現在の全レコード ID を返します。"]
             pub fn all_ids(&self) -> Vec<usize> {
-                self.records.iter().map(|entry| entry.id).collect()
+                (0..self.records.len()).collect()
             }
         }
 
