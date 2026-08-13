@@ -187,6 +187,21 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 }
             }
 
+            #[doc = "Creates a list from records in their current order and builds all field indexes."]
+            #[doc = "レコードの現在順からリストを作成し、全フィールド索引を構築します。"]
+            pub fn from_records(records: Vec<#struct_name>) -> Self {
+                let mut indices = #indices_name::default();
+                let records = records
+                    .into_iter()
+                    .enumerate()
+                    .map(|(id, record)| {
+                        Self::index_record(&mut indices, id, &record);
+                        Box::new(record)
+                    })
+                    .collect();
+                Self { records, indices }
+            }
+
             #[doc = "Returns the number of records."]
             #[doc = "レコード数を返します。"]
             pub fn len(&self) -> usize {

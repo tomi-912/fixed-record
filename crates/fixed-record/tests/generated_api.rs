@@ -718,6 +718,60 @@ mod tests {
             "Alice"
         );
     }
+
+    #[test]
+    fn test_list_from_records_preserves_order_and_builds_field_indices() {
+        let records = vec![
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .with_amount_int(10)
+                .build(),
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("B0001")
+                .with_amount_int(20)
+                .build(),
+            TestRecord::builder()
+                .with_name("Carol")
+                .with_code("A0001")
+                .with_amount_int(30)
+                .build(),
+        ];
+
+        let list = TestRecordList::from_records(records);
+
+        assert_eq!(list.len(), 3);
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Bob", "Carol"]
+        );
+        assert_eq!(
+            list.indices.code.get(&Fixed::from(*b"A0001")),
+            Some(&vec![0, 2])
+        );
+        assert_eq!(
+            list.indices.code.get(&Fixed::from(*b"B0001")),
+            Some(&vec![1])
+        );
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Carol"]
+        );
+
+        let empty = TestRecordList::from_records(Vec::new());
+        assert!(empty.is_empty());
+        assert!(empty.indices.name.is_empty());
+        assert!(empty.indices.code.is_empty());
+        assert!(empty.indices.amount.is_empty());
+    }
+
     #[test]
     fn test_list_get_and_remove_by_current_index() {
         let mut list = TestRecordList::new();

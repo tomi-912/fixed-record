@@ -309,9 +309,10 @@
 //! # Searchable Lists / 検索可能な List
 //!
 //! With the default `list` feature, the macro generates the optional helper `{StructName}List`. It
-//! stores boxed records in a vector and maintains ordered field-byte indexes for appending,
-//! position-based insertion, lookup, update, physical removal, popping the last record, sorting,
-//! exact searches, padded searches, prefix searches, range searches, and index-aware callback edits.
+//! stores boxed records in a vector and maintains ordered field-byte indexes for construction from
+//! a record vector, appending, position-based insertion, lookup, update, physical removal, popping
+//! the last record, sorting, exact searches, padded searches, prefix searches, range searches, and
+//! index-aware callback edits.
 //! Exact searches use the index directly instead of scanning every record.
 //! Search-based edits select private current indexes internally and repair affected index entries
 //! after the callback, without returning indexes or mutable references to the caller.
@@ -320,8 +321,9 @@
 //!
 //! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
 //! これは Box 化したレコードを vector に保持し、フィールドの実バイト列による順序付き索引を管理して、
-//! 末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの pop、sort、完全一致検索、
-//! padding を考慮した検索、prefix 検索、range 検索、索引対応の callback 変更を提供します。
+//! レコード vector からの構築、末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの
+//! pop、sort、完全一致検索、padding を考慮した検索、prefix 検索、range 検索、索引対応の
+//! callback 変更を提供します。
 //! 完全一致検索は全レコードを走査せず、索引を直接参照します。
 //! 検索条件付き変更は非公開の現在 index を内部で選択し、index や mutable 参照を呼び出し側へ返さず、
 //! callback 後に影響する索引項目を修復します。
@@ -338,17 +340,20 @@
 //!     amount: Fixed<8>,
 //! }
 //!
-//! let mut list = OrderList::new();
-//! let id_first = list.push(Order::builder()
-//!     .with_customer_id("C001")
-//!     .with_order_no("A00002")
-//!     .with_amount_int(200)
-//!     .build());
-//! let id_second = list.push(Order::builder()
-//!     .with_customer_id("C001")
-//!     .with_order_no("A00001")
-//!     .with_amount_int(100)
-//!     .build());
+//! let mut list = OrderList::from_records(vec![
+//!     Order::builder()
+//!         .with_customer_id("C001")
+//!         .with_order_no("A00002")
+//!         .with_amount_int(200)
+//!         .build(),
+//!     Order::builder()
+//!         .with_customer_id("C001")
+//!         .with_order_no("A00001")
+//!         .with_amount_int(100)
+//!         .build(),
+//! ]);
+//! let id_first = 0;
+//! let id_second = 1;
 //!
 //! assert_eq!(list.len(), 2);
 //! assert_eq!(list.get(id_first).unwrap().amount(), b"00000200");
