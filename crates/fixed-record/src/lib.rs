@@ -311,16 +311,20 @@
 //! With the default `list` feature, the macro generates the optional helper `{StructName}List`. It
 //! stores boxed records in a vector and maintains ordered field-byte indexes for appending,
 //! position-based insertion, lookup, update, physical removal, popping the last record, sorting,
-//! exact searches, padded searches, prefix searches, and range searches.
+//! exact searches, padded searches, prefix searches, range searches, and index-aware callback edits.
 //! Exact searches use the index directly instead of scanning every record.
+//! Search-based edits select private current indexes internally and repair affected index entries
+//! after the callback, without returning indexes or mutable references to the caller.
 //! Sorting moves boxes in the vector, not the record values allocated behind them.
 //! List IDs are the current vector indexes, so IDs can change after removal or sorting.
 //!
 //! default feature の `list` が有効な場合、macro は補助機能として `{StructName}List` を生成します。
 //! これは Box 化したレコードを vector に保持し、フィールドの実バイト列による順序付き索引を管理して、
 //! 末尾追加、位置指定挿入、lookup、update、物理削除、末尾レコードの pop、sort、完全一致検索、
-//! padding を考慮した検索、prefix 検索、range 検索を提供します。
+//! padding を考慮した検索、prefix 検索、range 検索、索引対応の callback 変更を提供します。
 //! 完全一致検索は全レコードを走査せず、索引を直接参照します。
+//! 検索条件付き変更は非公開の現在 index を内部で選択し、index や mutable 参照を呼び出し側へ返さず、
+//! callback 後に影響する索引項目を修復します。
 //! ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 //! List ID は現在の vector index なので、削除やソート後に変わる可能性があります。
 //!
@@ -364,12 +368,20 @@
 //! let first_by_order_no = list.first_sorted_by(OrderField::OrderNo).unwrap();
 //! assert_eq!(first_by_order_no.order_no(), b"A00001");
 //!
+//! assert!(list.try_edit_first_by(OrderField::OrderNo, b"A00001", |order| {
+//!     order.set_field_str(OrderField::Amount, "00000150");
+//! }).unwrap());
+//! assert_eq!(list.try_find_by(OrderField::Amount, b"00000150").unwrap().len(), 1);
+//!
 //! list.update(id_first, Order::builder()
 //!     .with_customer_id("C002")
 //!     .with_order_no("B00001")
 //!     .with_amount_int(300)
 //!     .build());
 //! assert!(list.try_find_by_padded(OrderField::CustomerId, b"C001").unwrap().len() == 1);
+//!
+//! list.for_each_mut(|order| order.set_field_str(OrderField::CustomerId, "C003"));
+//! assert_eq!(list.try_find_by(OrderField::CustomerId, b"C003").unwrap().len(), 2);
 //!
 //! assert!(list.remove(id_second));
 //! assert_eq!(list.len(), 1);

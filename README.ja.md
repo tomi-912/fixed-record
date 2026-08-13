@@ -89,14 +89,16 @@ assert_eq!(user.get_field_trimmed(UserField::Name).unwrap(), "Tanaka");
 - `apply_*` 系の一括流し込み
 - `FixedRecord` trait 実装
 - `Reader` / `Writer` との連携
-- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による末尾追加、位置指定挿入、検索、範囲検索、削除、`pop`、ソート
+- `list` feature が有効な場合、レコード struct と同じ可視性の `{StructName}List` による末尾追加、位置指定挿入、検索、範囲検索、索引対応の変更、削除、`pop`、ソート
 - `compare_all_fields` / `compare_by_fields` / `to_dump_string`
 
-## List 検索
+## List 検索と変更
 
 `{StructName}List` は default feature の `list` で生成される補助機能です。レコードを `Vec<Box<Record>>` として保持します。マクロは、`BTreeMap<Fixed<8>, Vec<usize>>` や `BTreeMap<Fixed<16>, Vec<usize>>` のような型付き索引をフィールドごとに持つ、非公開の `{StructName}ListIndices` 型も生成します。この内部型は定義モジュールの外から名前を指定できません。キーはレコードのフィールドから直接コピーされ、`Vec<u8>` の割り当ては行いません。値には一致する全レコードの現在の index が入ります。ソート時は vector 内の Box が移動し、Box の先にあるレコード本体は移動しません。
 
 失敗する可能性がある検索メソッドには一貫して `try_` prefix を付け、付かない検索メソッドは `Option`、`Vec`、または iterator を直接返します。完全一致検索は全レコードを走査せず、フィールド索引を直接参照します。`try_find_by` は選択フィールドと同じ幅の入力だけを受け付け、短い場合は `Error::TooShort`、長い場合は `Error::FieldOverflow` を返します。prefix、padding を考慮した検索、range、ソート済み参照には順序付き索引の範囲を使います。`try_find_range_by` は境界が `AsRef<[u8]>` を実装する標準 Rust range を受け取ります。短い開始境界は末尾を `0x00`、短い終了境界は末尾を `0xFF` で補うため、後続バイトは任意になります。いずれかの境界が長すぎる場合は `FieldOverflow`、開始が終了より大きい場合は `InvalidRange` を返します。`push(record)` は末尾へ1件追加して索引登録します。`insert(index, record)` は指定位置へ挿入し、その位置以降の既存索引IDを1つ繰り上げます。`index > len()` の場合は変更せず `false` を返します。`update` は対象項目だけを変更します。`remove` は削除対象を索引から外し、後ろのIDを1つ繰り下げます。全体の順序が変わる `sort` と `sort_by` だけが索引を再構築します。`pop` は他の index が変化しないため、末尾レコードの索引項目だけを削除します。フィールドキーのコピーとレコード index を保持する追加メモリと引き換えに、繰り返し検索を高速化する設計です。
+
+通常の `iter_mut` で mutable なレコード参照を公開すると、任意の変更によってフィールド索引が古くなるため生成しません。`for_each_mut` は mutable 参照を callback 内に限定し、終了後に全索引を再構築します。`try_edit_by*`、`try_edit_range_by`、`try_edit_first_by*` は、対応する `try_find*` と同じ検索処理から非公開の現在 index を取得し、一致レコードだけを変更して影響する索引項目を修復します。index は公開せず、変更件数または変更有無を返します。callback が unwind した場合も drop guard が索引を修復します。
 
 List の ID は現在の vector index です。補助機能としては素直ですが、`remove`、`sort`、`sort_by` の後は index が変わる可能性があります。
 
@@ -104,19 +106,26 @@ record parsing、field access、`Reader`、`Writer` だけでよい場合は def
 
 ```rust
 let mut list = UserList::new();
-let id = list.push(user);
+list.push(user);
 
 let exact = list.try_find_by(UserField::Id, b"00000001")?;
 let first_exact = list.try_first_by(UserField::Id, b"00000001")?;
 let padded = list.try_find_by_padded(UserField::Id, b"00000001")?;
 let ages_in_20s_and_30s = list.try_find_range_by(UserField::Age, b"02"..=b"03")?;
 let first_padded = list.try_first_by_padded(UserField::Id, b"00000001")?;
-let by_id = list.get(id);
+
+let edited = list.try_edit_by(UserField::Id, b"00000001", |user| {
+    user.set_field_str(UserField::Name, "Sato");
+})?;
+
+list.for_each_mut(|user| user.set_field_str(UserField::Age, "026"));
 ```
 
 `try_find_by` / `try_first_by` はフィールドと同じ幅を要求します。`try_find_by_padded` / `try_first_by_padded` は、残りのフィールドバイトがスペースまたは `0x00` なら短い入力を受け付けます。`Result` を使わず索引上で最小のフィールド値を取得する場合は `first_sorted_by(field)` を使います。
 
 短い先頭一致で検索したい場合は `try_find_by_prefix` / `try_first_by_prefix` を使います。
+
+変更用には `try_edit_by`、`try_edit_by_padded`、`try_edit_by_prefix`、`try_edit_range_by`、`try_edit_first_by`、`try_edit_first_by_padded`、`try_edit_first_by_prefix` があります。複数件用は変更件数、先頭1件用は変更できたかを返します。
 
 ## Reader / Writer
 

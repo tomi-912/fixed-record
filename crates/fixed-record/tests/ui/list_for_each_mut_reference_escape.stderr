@@ -1,0 +1,9 @@
+error[E0521]: borrowed data escapes outside of closure
+  --> tests/ui/list_for_each_mut_reference_escape.rs:15:32
+   |
+14 |     let mut retained = None;
+   |         ------------ `retained` declared here, outside of the closure body
+15 |     list.for_each_mut(|record| retained = Some(record));
+   |                        ------  ^^^^^^^^^^^^^^^^^^^^^^^ `record` escapes the closure body here
+   |                        |
+   |                        `record` is a reference that is only valid in the closure body

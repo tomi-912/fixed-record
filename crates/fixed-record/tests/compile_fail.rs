@@ -12,7 +12,9 @@ fn fixed_record_reports_friendly_input_errors() {
     t.compile_fail("tests/ui/invalid_clear_byte_name.rs");
     t.compile_fail("tests/ui/immutable_list_remove.rs");
     t.compile_fail("tests/ui/immutable_list_update.rs");
+    t.compile_fail("tests/ui/list_for_each_mut_reference_escape.rs");
     t.compile_fail("tests/ui/list_iter_across_sort.rs");
+    t.compile_fail("tests/ui/list_search_ids_are_private.rs");
     t.compile_fail("tests/ui/private_record_generated_types_are_private.rs");
     t.compile_fail("tests/ui/list_indices_are_private.rs");
     t.compile_fail("tests/ui/sequence_check_wrong_field.rs");

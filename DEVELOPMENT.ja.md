@@ -67,12 +67,12 @@ cargo run -p fixed-record-no-list-example
 テスト配置:
 
 - `crates/fixed-record/tests/generated_api.rs`: builder / parse / to_bytes / Reader / Writer / List / zerocopy
-- `crates/fixed-record/tests/compile_fail.rs`: proc macro の不正入力、List immutable API、iterator を保持したままの mutable sort、sequence check の compile-fail
+- `crates/fixed-record/tests/compile_fail.rs`: proc macro の不正入力、List immutable API、非公開の検索 index、mutable 参照の外部保持、iterator を保持したままの mutable sort、sequence check の compile-fail
 - `examples/no-list/tests/compile_fail.rs`: `default-features = false` 時に `{StructName}List` が生成されないことを確認
 
 確認済み:
 
-- `fixed-record` の generated API integration test: 通常 feature で 71 件成功
+- `fixed-record` の generated API integration test: 通常 feature で 75 件成功
 - `fixed-record` の doctest: 25 件成功
 
 ## うまくできている点
@@ -111,6 +111,7 @@ cargo run -p fixed-record-no-list-example
 
 - default では List API を生成します。
 - 生成される List は `Vec<Box<Record>>` としてレコードを保持します。非公開の `{StructName}ListIndices` struct がレコードの各フィールドに1つずつ `BTreeMap<Fixed<N>, Vec<usize>>` を持つため、異なる幅の `Fixed<N>` キーは静的に型付けされ、`Vec<u8>` キーの割り当ても不要です。動的フィールドAPIは生成された `match` で各型付きMapへ振り分けます。索引型は公開レコードの場合も常に非公開です。失敗する可能性がある検索は `try_` で統一し、付かないメソッドは `Option`、`Vec`、または iterator を直接返します。完全一致の `try_find_by` / `try_first_by` は選択フィールドと同じ幅を要求し、`Error::TooShort` と `Error::FieldOverflow` を区別します。`try_find_by_padded` / `try_first_by_padded` は残りが padding の短い値を受け付け、prefix variant は任意の後続バイトを許可します。`try_find_range_by` は `ByteRangeBounds` により `AsRef<[u8]>` 値の標準rangeを受け取り、短い開始・終了境界を `0x00`・`0xFF` で補います。長すぎる境界は `FieldOverflow`、逆転した境界は `InvalidRange` になります。prefix、paddingを考慮した検索、ソート済み参照には各フィールドの順序付き索引の範囲を使います。`push` は末尾へ1件追加して索引登録します。位置指定 `insert` は挿入位置以降の既存索引IDを1つ繰り上げ、フィールドキーを再構築せずに新レコードを索引登録します。`update` は対象項目を更新します。`remove` は1件を索引から外して後ろのIDを繰り下げ、フィールドキーは再構築しません。全体の順序が変わる `sort` と `sort_by` は索引を再構築します。`pop` は残る ID が変わらないため、削除した末尾レコードだけを索引から除外します。ソートと途中挿入では Box が移動し、レコード本体は移動しません。
+- 読み取り API と変更 API は非公開の `Vec<usize>` / `Option<usize>` 検索 helper を共有するため、`try_edit_by*`、`try_edit_range_by`、`try_edit_first_by*` は現在 index を外部へ公開しません。条件付き変更は一致レコードだけを退避し、drop guard で影響する索引項目を修復します。`for_each_mut` は mutable 参照を callback 内に限定し、全レコードが変更され得るため rebuild guard を使います。どちらの guard も unwind 中の索引整合性を維持します。
 - 選択フィールドの異なる値が `u` 件、一致件数が `k` 件の場合、完全一致検索は全 `n` レコードの走査ではなく `O(log u + k)` です。prefix・range 検索は `O(log u + m + k log k)` で、`m` は走査した異なる索引キー数、`k log k` は現在の List 順序を維持するための ID ソートです。代わりに、フィールドバイト列のコピーと、レコードごと・フィールドごとに1つの `usize` を索引用メモリとして使います。
 - `fixed-record` を `default-features = false` で依存すると、レコード本体とフィールド操作だけを生成します。
 

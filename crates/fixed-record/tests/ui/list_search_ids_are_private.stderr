@@ -1,0 +1,8 @@
+error[E0624]: method `try_find_ids_by` is private
+  --> tests/ui/list_search_ids_are_private.rs:15:18
+   |
+ 4 |     #[fixed_record]
+   |     --------------- private method defined here
+...
+15 |     let _ = list.try_find_ids_by(model::UserField::Id, b"0001");
+   |                  ^^^^^^^^^^^^^^^ private method

@@ -1047,6 +1047,237 @@ mod tests {
     }
 
     #[test]
+    fn test_list_for_each_mut_rebuilds_field_indices() {
+        let mut list = TestRecordList::new();
+        for (name, code) in [("Alice", "A0001"), ("Bob", "B0001"), ("Carol", "C0001")] {
+            list.push(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code(code)
+                    .build(),
+            );
+        }
+
+        list.for_each_mut(|record| record.set_field_str(TestRecordField::Code, "Z0001"));
+
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"Z0001")
+                .unwrap()
+                .len(),
+            3
+        );
+        for old_code in [b"A0001", b"B0001", b"C0001"] {
+            assert!(
+                list.try_find_by(TestRecordField::Code, old_code)
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn test_list_search_edits_use_private_ids_and_update_indices() {
+        let mut list = TestRecordList::new();
+        for (name, code, amount) in [
+            ("Carol", "B0001", 30),
+            ("Bob", "A0001", 20),
+            ("Alice", "A0001", 10),
+        ] {
+            list.push(
+                TestRecord::builder()
+                    .with_name(name)
+                    .with_code(code)
+                    .with_amount_int(amount)
+                    .build(),
+            );
+        }
+        list.sort_by(&[TestRecordField::Name]);
+
+        assert!(
+            list.try_edit_first_by(TestRecordField::Code, b"A0001", |record| {
+                record.set_field_str(TestRecordField::Name, "First");
+            })
+            .unwrap()
+        );
+        assert_eq!(
+            list.try_find_by(TestRecordField::Name, b"First     ")
+                .unwrap()
+                .len(),
+            1
+        );
+
+        let edited = list
+            .try_edit_by(TestRecordField::Code, b"A0001", |record| {
+                record.set_field_str(TestRecordField::Code, "C0001");
+            })
+            .unwrap();
+        assert_eq!(edited, 2);
+        assert!(
+            list.try_find_by(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"C0001")
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let range_edited = list
+            .try_edit_range_by(
+                TestRecordField::Amount,
+                b"00000015"..=b"00000030",
+                |record| record.set_field_str(TestRecordField::Code, "R0001"),
+            )
+            .unwrap();
+        assert_eq!(range_edited, 2);
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"R0001")
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let mut called = false;
+        assert!(
+            !list
+                .try_edit_first_by(TestRecordField::Code, b"X0001", |_| called = true)
+                .unwrap()
+        );
+        assert!(!called);
+    }
+
+    #[test]
+    fn test_list_padded_and_prefix_edits_update_indices() {
+        let mut list = TestRecordList::new();
+        list.push(
+            TestRecord::spaced()
+                .with_name("Space")
+                .with_code("A00")
+                .build(),
+        );
+        list.push(
+            TestRecord::zeroed()
+                .with_name("Zero")
+                .with_code("A00")
+                .build(),
+        );
+        list.push(
+            TestRecord::spaced()
+                .with_name("Suffix")
+                .with_code("A00XX")
+                .build(),
+        );
+
+        assert!(
+            list.try_edit_first_by_padded(TestRecordField::Code, b"A00", |record| {
+                record.set_field_str(TestRecordField::Code, "P0001");
+            })
+            .unwrap()
+        );
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"P0001")
+                .unwrap()
+                .len(),
+            1
+        );
+
+        let padded = list
+            .try_edit_by_padded(TestRecordField::Code, b"A00", |record| {
+                record.set_field_str(TestRecordField::Code, "P0002");
+            })
+            .unwrap();
+        assert_eq!(padded, 1);
+
+        assert!(
+            list.try_edit_first_by_prefix(TestRecordField::Code, b"A00", |record| {
+                record.set_field_str(TestRecordField::Code, "P0003");
+            })
+            .unwrap()
+        );
+        assert!(
+            list.try_find_by_prefix(TestRecordField::Code, b"A00")
+                .unwrap()
+                .is_empty()
+        );
+
+        let prefixed = list
+            .try_edit_by_prefix(TestRecordField::Code, b"P000", |record| {
+                record.set_field_str(TestRecordField::Code, "Q0001");
+            })
+            .unwrap();
+        assert_eq!(prefixed, 3);
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"Q0001")
+                .unwrap()
+                .len(),
+            3
+        );
+    }
+
+    #[test]
+    fn test_list_mutation_guards_repair_indices_after_panic() {
+        let mut list = TestRecordList::new();
+        list.push(
+            TestRecord::builder()
+                .with_name("Alice")
+                .with_code("A0001")
+                .build(),
+        );
+        list.push(
+            TestRecord::builder()
+                .with_name("Bob")
+                .with_code("B0001")
+                .build(),
+        );
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            list.for_each_mut(|record| {
+                record.set_field_str(TestRecordField::Code, "C0001");
+                panic!("stop for_each_mut");
+            });
+        }));
+        assert!(result.is_err());
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"C0001")
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(
+            list.try_find_by(TestRecordField::Code, b"A0001")
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"B0001")
+                .unwrap()
+                .len(),
+            1
+        );
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = list.try_edit_by(TestRecordField::Code, b"B0001", |record| {
+                record.set_field_str(TestRecordField::Code, "D0001");
+                panic!("stop try_edit_by");
+            });
+        }));
+        assert!(result.is_err());
+        assert_eq!(
+            list.try_find_by(TestRecordField::Code, b"D0001")
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(
+            list.try_find_by(TestRecordField::Code, b"B0001")
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
     fn test_list_field_indices_follow_push_update_sort_and_remove() {
         let mut list = TestRecordList::new();
 
@@ -1347,7 +1578,7 @@ mod tests {
 
     #[test]
     fn test_list_search_names_match_return_types() {
-        let list = TestRecordList::new();
+        let mut list = TestRecordList::new();
 
         let _: Result<Vec<&TestRecord>, Error> = list.try_find_by(TestRecordField::Code, b"A0001");
         let _: Result<Vec<&TestRecord>, Error> =
@@ -1362,6 +1593,19 @@ mod tests {
             list.try_first_by_padded(TestRecordField::Code, b"A00");
         let _: Result<Option<&TestRecord>, Error> =
             list.try_first_by_prefix(TestRecordField::Code, b"A00");
+        let _: Result<usize, Error> = list.try_edit_by(TestRecordField::Code, b"A0001", |_| {});
+        let _: Result<usize, Error> =
+            list.try_edit_by_padded(TestRecordField::Code, b"A00", |_| {});
+        let _: Result<usize, Error> =
+            list.try_edit_by_prefix(TestRecordField::Code, b"A00", |_| {});
+        let _: Result<usize, Error> =
+            list.try_edit_range_by(TestRecordField::Code, b"A"..=b"Z", |_| {});
+        let _: Result<bool, Error> =
+            list.try_edit_first_by(TestRecordField::Code, b"A0001", |_| {});
+        let _: Result<bool, Error> =
+            list.try_edit_first_by_padded(TestRecordField::Code, b"A00", |_| {});
+        let _: Result<bool, Error> =
+            list.try_edit_first_by_prefix(TestRecordField::Code, b"A00", |_| {});
 
         let _: Option<&TestRecord> = list.first();
         let _: Option<&TestRecord> = list.first_sorted_by(TestRecordField::Code);

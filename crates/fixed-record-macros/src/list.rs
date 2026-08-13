@@ -15,6 +15,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
     let field_enum_name = format_ident!("{}Field", struct_name);
     let list_name = format_ident!("{}List", struct_name);
     let indices_name = format_ident!("{}ListIndices", struct_name);
+    let rebuild_guard_name = format_ident!("{}ListRebuildGuard", struct_name);
+    let edit_guard_name = format_ident!("{}ListEditGuard", struct_name);
 
     let index_fields = metas.iter().map(|meta| {
         let name = meta.name;
@@ -93,7 +95,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
         let variant = &meta.variant;
         quote! {
             #field_enum_name::#variant => {
-                Self::range_ids_for::<#size, R>(&self.indices.#name, &range, field_name)?
+                Self::range_ids_for::<#size, R>(&self.indices.#name, range, field_name)?
             }
         }
     });
@@ -142,6 +144,39 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             indices: #indices_name,
         }
 
+        #[doc(hidden)]
+        struct #rebuild_guard_name<'a> {
+            list: &'a mut #list_name,
+        }
+
+        impl Drop for #rebuild_guard_name<'_> {
+            fn drop(&mut self) {
+                self.list.rebuild_indices();
+            }
+        }
+
+        #[doc(hidden)]
+        struct #edit_guard_name<'a> {
+            list: &'a mut #list_name,
+            originals: Vec<(usize, #struct_name)>,
+        }
+
+        impl Drop for #edit_guard_name<'_> {
+            fn drop(&mut self) {
+                for (id, record) in &self.originals {
+                    #list_name::unindex_record(&mut self.list.indices, *id, record);
+                }
+
+                let records = &self.list.records;
+                let indices = &mut self.list.indices;
+                for (id, _) in &self.originals {
+                    if let Some(record) = records.get(*id) {
+                        #list_name::index_record(indices, *id, record.as_ref());
+                    }
+                }
+            }
+        }
+
         impl #list_name {
             #[doc = "Creates an empty list."]
             #[doc = "空のリストを作成します。"]
@@ -168,6 +203,19 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             #[doc = "現在の順序でレコードを返すイテレータです。"]
             pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a #struct_name> + 'a {
                 self.records.iter().map(|record| record.as_ref())
+            }
+
+            #[doc = "Mutates every record in the current order and rebuilds all field indexes afterward."]
+            #[doc = "現在の順序で全レコードを変更し、処理後に全フィールド索引を再構築します。"]
+            #[doc = "Mutable record references are confined to the callback and cannot be retained by the caller."]
+            #[doc = "レコードの mutable 参照は callback 内に限定され、呼び出し側では保持できません。"]
+            #[doc = "Indexes are rebuilt by a drop guard even if the callback unwinds."]
+            #[doc = "callback が unwind した場合も drop guard により索引を再構築します。"]
+            pub fn for_each_mut(&mut self, mut edit: impl FnMut(&mut #struct_name)) {
+                let mut guard = #rebuild_guard_name { list: self };
+                for record in &mut guard.list.records {
+                    edit(record.as_mut());
+                }
             }
 
             #[doc = "Adds one record to every field index."]
@@ -401,6 +449,58 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 ids.into_iter().filter_map(|id| self.get(id)).collect()
             }
 
+            #[doc = "Mutates records selected by private current indexes and repairs affected field indexes afterward."]
+            #[doc = "非公開の現在 index で選択したレコードを変更し、処理後に影響するフィールド索引を修復します。"]
+            fn edit_records_by_ids(
+                &mut self,
+                mut ids: Vec<usize>,
+                mut edit: impl FnMut(&mut #struct_name),
+            ) -> usize {
+                ids.sort_unstable();
+                ids.dedup();
+
+                let originals: Vec<_> = ids
+                    .into_iter()
+                    .filter_map(|id| self.records.get(id).map(|record| (id, **record)))
+                    .collect();
+                let edited = originals.len();
+                if originals.is_empty() {
+                    return 0;
+                }
+
+                let mut guard = #edit_guard_name {
+                    list: self,
+                    originals,
+                };
+                for index in 0..guard.originals.len() {
+                    let id = guard.originals[index].0;
+                    edit(guard.list.records[id].as_mut());
+                }
+                edited
+            }
+
+            #[doc = "Mutates one record selected by a private current index and repairs its field indexes afterward."]
+            #[doc = "非公開の現在 index で選択した1件を変更し、処理後にそのフィールド索引を修復します。"]
+            fn edit_record_by_id(
+                &mut self,
+                id: Option<usize>,
+                edit: impl FnOnce(&mut #struct_name),
+            ) -> bool {
+                let Some(id) = id else {
+                    return false;
+                };
+                let Some(record) = self.records.get(id) else {
+                    return false;
+                };
+
+                let mut guard = #edit_guard_name {
+                    originals: vec![(id, **record)],
+                    list: self,
+                };
+                edit(guard.list.records[id].as_mut());
+                true
+            }
+
             #[doc = "Validates a search value against the selected field width."]
             #[doc = "検索値が選択フィールドの幅に収まることを検証します。"]
             fn validate_search_width(
@@ -429,6 +529,96 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                     return Err(::fixed_record::error::Error::TooShort);
                 }
                 Self::validate_search_width(field, value)
+            }
+
+            #[doc = "Returns private current indexes for an exact field match."]
+            #[doc = "フィールドの完全一致に対応する非公開の現在 index を返します。"]
+            fn try_find_ids_by(
+                &self,
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<Vec<usize>, ::fixed_record::error::Error> {
+                Self::validate_exact_search_width(field, value)?;
+                let raw_value = value;
+                let ids = match field {
+                    #( #find_exact_by_arms ),*
+                };
+                Ok(ids.cloned().unwrap_or_default())
+            }
+
+            #[doc = "Returns private current indexes matching a shortened padded field value."]
+            #[doc = "短縮した padding 付きフィールド値に一致する非公開の現在 index を返します。"]
+            fn try_find_ids_by_padded(
+                &self,
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<Vec<usize>, ::fixed_record::error::Error> {
+                Self::validate_search_width(field, value)?;
+                Ok(self.indexed_prefix_ids(field, value, true))
+            }
+
+            #[doc = "Returns private current indexes matching a field prefix."]
+            #[doc = "フィールド prefix に一致する非公開の現在 index を返します。"]
+            fn try_find_ids_by_prefix(
+                &self,
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<Vec<usize>, ::fixed_record::error::Error> {
+                Self::validate_search_width(field, value)?;
+                Ok(self.indexed_prefix_ids(field, value, false))
+            }
+
+            #[doc = "Returns private current indexes within a field range."]
+            #[doc = "フィールド範囲内にある非公開の現在 index を返します。"]
+            fn try_find_range_ids_by<R>(
+                &self,
+                field: #field_enum_name,
+                range: &R,
+            ) -> Result<Vec<usize>, ::fixed_record::error::Error>
+            where
+                R: ::fixed_record::traits::ByteRangeBounds,
+            {
+                let field_name = #struct_name::name_of(field);
+                let ids = match field {
+                    #( #find_range_by_arms ),*
+                };
+                Ok(ids)
+            }
+
+            #[doc = "Returns the private current index of the first exact field match."]
+            #[doc = "フィールドの完全一致で最初の非公開の現在 index を返します。"]
+            fn try_first_id_by(
+                &self,
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<Option<usize>, ::fixed_record::error::Error> {
+                Self::validate_exact_search_width(field, value)?;
+                let raw_value = value;
+                Ok(match field {
+                    #( #first_exact_by_arms ),*
+                })
+            }
+
+            #[doc = "Returns the private current index of the first shortened padded-value match."]
+            #[doc = "短縮した padding 付き値に一致する最初の非公開の現在 index を返します。"]
+            fn try_first_id_by_padded(
+                &self,
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<Option<usize>, ::fixed_record::error::Error> {
+                Self::validate_search_width(field, value)?;
+                Ok(self.first_indexed_prefix_id(field, value, true))
+            }
+
+            #[doc = "Returns the private current index of the first field-prefix match."]
+            #[doc = "フィールド prefix に一致する最初の非公開の現在 index を返します。"]
+            fn try_first_id_by_prefix(
+                &self,
+                field: #field_enum_name,
+                value: &[u8],
+            ) -> Result<Option<usize>, ::fixed_record::error::Error> {
+                Self::validate_search_width(field, value)?;
+                Ok(self.first_indexed_prefix_id(field, value, false))
             }
 
             #[doc = "Appends a record and returns its current index as the ID."]
@@ -511,16 +701,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
             ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
-                let raw_value = value.as_ref();
-                Self::validate_exact_search_width(field, raw_value)?;
-
-                let ids = match field {
-                    #( #find_exact_by_arms ),*
-                };
-                let Some(ids) = ids else {
-                    return Ok(Vec::new());
-                };
-                Ok(ids.iter().filter_map(|id| self.get(*id)).collect())
+                let ids = self.try_find_ids_by(field, value.as_ref())?;
+                Ok(self.records_for_ids(ids))
             }
 
             #[doc = "Returns records whose specified field matches a possibly shortened padded value."]
@@ -534,9 +716,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
             ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
-                let raw_value = value.as_ref();
-                Self::validate_search_width(field, raw_value)?;
-                let ids = self.indexed_prefix_ids(field, raw_value, true);
+                let ids = self.try_find_ids_by_padded(field, value.as_ref())?;
                 Ok(self.records_for_ids(ids))
             }
 
@@ -551,9 +731,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
             ) -> Result<Vec<&#struct_name>, ::fixed_record::error::Error> {
-                let raw_value = value.as_ref();
-                Self::validate_search_width(field, raw_value)?;
-                let ids = self.indexed_prefix_ids(field, raw_value, false);
+                let ids = self.try_find_ids_by_prefix(field, value.as_ref())?;
                 Ok(self.records_for_ids(ids))
             }
 
@@ -573,10 +751,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
             where
                 R: ::fixed_record::traits::ByteRangeBounds,
             {
-                let field_name = #struct_name::name_of(field);
-                let ids = match field {
-                    #( #find_range_by_arms ),*
-                };
+                let ids = self.try_find_range_ids_by(field, &range)?;
                 Ok(self.records_for_ids(ids))
             }
 
@@ -720,11 +895,7 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
             ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
-                let raw_value = value.as_ref();
-                Self::validate_exact_search_width(field, raw_value)?;
-                let id = match field {
-                    #( #first_exact_by_arms ),*
-                };
+                let id = self.try_first_id_by(field, value.as_ref())?;
                 Ok(id.and_then(|id| self.get(id)))
             }
 
@@ -748,11 +919,8 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
             ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
-                let raw_value = value.as_ref();
-                Self::validate_search_width(field, raw_value)?;
-                Ok(self
-                    .first_indexed_prefix_id(field, raw_value, true)
-                    .and_then(|id| self.get(id)))
+                let id = self.try_first_id_by_padded(field, value.as_ref())?;
+                Ok(id.and_then(|id| self.get(id)))
             }
 
             #[doc = "Returns the first indexed prefix match for the specified field."]
@@ -764,11 +932,109 @@ pub(super) fn gen_list_impl(input: &DeriveInput, metas: &[FieldMeta<'_>]) -> Tok
                 field: #field_enum_name,
                 value: impl AsRef<[u8]>,
             ) -> Result<Option<&#struct_name>, ::fixed_record::error::Error> {
-                let raw_value = value.as_ref();
-                Self::validate_search_width(field, raw_value)?;
-                Ok(self
-                    .first_indexed_prefix_id(field, raw_value, false)
-                    .and_then(|id| self.get(id)))
+                let id = self.try_first_id_by_prefix(field, value.as_ref())?;
+                Ok(id.and_then(|id| self.get(id)))
+            }
+
+            #[doc = "Mutates every record whose specified field exactly matches the value."]
+            #[doc = "指定フィールドが値と完全一致する全レコードを変更します。"]
+            #[doc = "Returns the number of edited records without exposing their internal current indexes."]
+            #[doc = "内部の現在 index を公開せず、変更したレコード数を返します。"]
+            pub fn try_edit_by(
+                &mut self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+                edit: impl FnMut(&mut #struct_name),
+            ) -> Result<usize, ::fixed_record::error::Error> {
+                let ids = self.try_find_ids_by(field, value.as_ref())?;
+                Ok(self.edit_records_by_ids(ids, edit))
+            }
+
+            #[doc = "Mutates every record matching a possibly shortened padded field value."]
+            #[doc = "短縮可能な padding 付きフィールド値に一致する全レコードを変更します。"]
+            #[doc = "Returns the number of edited records without exposing their internal current indexes."]
+            #[doc = "内部の現在 index を公開せず、変更したレコード数を返します。"]
+            pub fn try_edit_by_padded(
+                &mut self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+                edit: impl FnMut(&mut #struct_name),
+            ) -> Result<usize, ::fixed_record::error::Error> {
+                let ids = self.try_find_ids_by_padded(field, value.as_ref())?;
+                Ok(self.edit_records_by_ids(ids, edit))
+            }
+
+            #[doc = "Mutates every record whose specified field starts with the value."]
+            #[doc = "指定フィールドが値で始まる全レコードを変更します。"]
+            #[doc = "Returns the number of edited records without exposing their internal current indexes."]
+            #[doc = "内部の現在 index を公開せず、変更したレコード数を返します。"]
+            pub fn try_edit_by_prefix(
+                &mut self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+                edit: impl FnMut(&mut #struct_name),
+            ) -> Result<usize, ::fixed_record::error::Error> {
+                let ids = self.try_find_ids_by_prefix(field, value.as_ref())?;
+                Ok(self.edit_records_by_ids(ids, edit))
+            }
+
+            #[doc = "Mutates every record whose specified field value is within the indexed range."]
+            #[doc = "指定フィールドの値が索引上の範囲内にある全レコードを変更します。"]
+            #[doc = "Returns the number of edited records without exposing their internal current indexes."]
+            #[doc = "内部の現在 index を公開せず、変更したレコード数を返します。"]
+            pub fn try_edit_range_by<R>(
+                &mut self,
+                field: #field_enum_name,
+                range: R,
+                edit: impl FnMut(&mut #struct_name),
+            ) -> Result<usize, ::fixed_record::error::Error>
+            where
+                R: ::fixed_record::traits::ByteRangeBounds,
+            {
+                let ids = self.try_find_range_ids_by(field, &range)?;
+                Ok(self.edit_records_by_ids(ids, edit))
+            }
+
+            #[doc = "Mutates the first record whose specified field exactly matches the value."]
+            #[doc = "指定フィールドが値と完全一致する最初のレコードを変更します。"]
+            #[doc = "Returns whether a record was edited without exposing its internal current index."]
+            #[doc = "内部の現在 index を公開せず、レコードを変更したかを返します。"]
+            pub fn try_edit_first_by(
+                &mut self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+                edit: impl FnOnce(&mut #struct_name),
+            ) -> Result<bool, ::fixed_record::error::Error> {
+                let id = self.try_first_id_by(field, value.as_ref())?;
+                Ok(self.edit_record_by_id(id, edit))
+            }
+
+            #[doc = "Mutates the first record matching a possibly shortened padded field value."]
+            #[doc = "短縮可能な padding 付きフィールド値に一致する最初のレコードを変更します。"]
+            #[doc = "Returns whether a record was edited without exposing its internal current index."]
+            #[doc = "内部の現在 index を公開せず、レコードを変更したかを返します。"]
+            pub fn try_edit_first_by_padded(
+                &mut self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+                edit: impl FnOnce(&mut #struct_name),
+            ) -> Result<bool, ::fixed_record::error::Error> {
+                let id = self.try_first_id_by_padded(field, value.as_ref())?;
+                Ok(self.edit_record_by_id(id, edit))
+            }
+
+            #[doc = "Mutates the first record whose specified field starts with the value."]
+            #[doc = "指定フィールドが値で始まる最初のレコードを変更します。"]
+            #[doc = "Returns whether a record was edited without exposing its internal current index."]
+            #[doc = "内部の現在 index を公開せず、レコードを変更したかを返します。"]
+            pub fn try_edit_first_by_prefix(
+                &mut self,
+                field: #field_enum_name,
+                value: impl AsRef<[u8]>,
+                edit: impl FnOnce(&mut #struct_name),
+            ) -> Result<bool, ::fixed_record::error::Error> {
+                let id = self.try_first_id_by_prefix(field, value.as_ref())?;
+                Ok(self.edit_record_by_id(id, edit))
             }
 
             #[doc = "Returns all current record IDs."]
