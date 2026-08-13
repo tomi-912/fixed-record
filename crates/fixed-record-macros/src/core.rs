@@ -1227,6 +1227,20 @@ pub fn impl_fixed_record_core(
                 Self::parse(src.as_bytes())
             }
 
+            #[doc = "Reads a string as a zero-copy shared reference when it is exactly one record wide."]
+            #[doc = "文字列を、ちょうど1レコード分の幅である場合にコピーせず共有参照として読み取ります。"]
+            pub fn ref_from_str(src: &str) -> Result<&Self, ::fixed_record::error::Error> {
+                if src.len() < Self::TOTAL_LEN {
+                    return Err(::fixed_record::error::Error::TooShort);
+                }
+                if src.len() > Self::TOTAL_LEN {
+                    return Err(::fixed_record::error::Error::ParseError);
+                }
+
+                <Self as ::fixed_record::zerocopy::FromBytes>::ref_from_bytes(src.as_bytes())
+                    .map_err(|_| ::fixed_record::error::Error::AlignmentError)
+            }
+
             #[doc = "Reads the first record-width bytes as a zero-copy shared reference."]
             #[doc = "先頭の1レコード分のバイト列を、コピーせず共有参照として読み取ります。"]
             #[doc = "Unlike `zerocopy::FromBytes::ref_from_bytes`, extra trailing bytes are accepted."]
@@ -1240,6 +1254,12 @@ pub fn impl_fixed_record_core(
                     &src[..Self::TOTAL_LEN],
                 )
                 .map_err(|_| ::fixed_record::error::Error::AlignmentError)
+            }
+
+            #[doc = "Reads the first record-width bytes of a string as a zero-copy shared reference."]
+            #[doc = "文字列の先頭1レコード分のバイト列を、コピーせず共有参照として読み取ります。"]
+            pub fn ref_from_str_prefix(src: &str) -> Result<&Self, ::fixed_record::error::Error> {
+                Self::ref_from_bytes_prefix(src.as_bytes())
             }
 
             // Dynamic field operations.
@@ -1278,6 +1298,13 @@ pub fn impl_fixed_record_core(
                 self.get_field_trimmed(field)?
                     .parse::<T>()
                     .map_err(|_| ::fixed_record::error::Error::ParseError)
+            }
+
+            #[doc = "Returns the whole record as a UTF-8 string slice."]
+            #[doc = "レコード全体を UTF-8 文字列スライスとして返します。"]
+            pub fn as_str(&self) -> Result<&str, ::fixed_record::error::Error> {
+                std::str::from_utf8(<Self as ::fixed_record::zerocopy::IntoBytes>::as_bytes(self))
+                    .map_err(|_| ::fixed_record::error::Error::Utf8Error)
             }
 
             #[doc = "Fills the specified field with `0x00` bytes."]

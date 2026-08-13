@@ -488,6 +488,7 @@
 //! let order = Order::ref_from_bytes(raw).unwrap();
 //! assert_eq!(order.customer_id(), b"C001");
 //! assert_eq!(order.as_bytes(), raw);
+//! assert_eq!(order.as_str().unwrap(), "C001A0004200001250");
 //! ```
 //!
 //! Use `ref_from_bytes_prefix` when the input may contain trailing bytes after the first record.
@@ -507,6 +508,24 @@
 //! let raw = b"C001A0004200001250rest";
 //! let order = Order::ref_from_bytes_prefix(raw).unwrap();
 //! assert_eq!(order.customer_id(), b"C001");
+//! ```
+//!
+//! String inputs can use `ref_from_str` or `ref_from_str_prefix`.
+//!
+//! 文字列入力では `ref_from_str` または `ref_from_str_prefix` を使えます。
+//!
+//! ```
+//! use fixed_record::prelude::*;
+//!
+//! #[fixed_record]
+//! struct Order {
+//!     customer_id: Fixed<4>,
+//!     order_no: Fixed<6>,
+//!     amount: Fixed<8>,
+//! }
+//!
+//! let order = Order::ref_from_str_prefix("C001A0004200001250rest").unwrap();
+//! assert_eq!(order.order_no_str().unwrap(), "A00042");
 //! ```
 //!
 extern crate self as fixed_record;

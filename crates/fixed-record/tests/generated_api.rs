@@ -1321,6 +1321,44 @@ mod tests {
     }
 
     #[test]
+    fn test_ref_from_str_reads_exact_record_width() {
+        let rec = TestRecord::ref_from_str("HelloWorldABCDE12345678").unwrap();
+
+        assert_eq!(rec.name(), b"HelloWorld");
+        assert_eq!(rec.as_str().unwrap(), "HelloWorldABCDE12345678");
+    }
+
+    #[test]
+    fn test_ref_from_str_reports_size_errors() {
+        let too_short = TestRecord::ref_from_str("short").unwrap_err();
+        let too_long = TestRecord::ref_from_str("HelloWorldABCDE12345678tail").unwrap_err();
+
+        assert_eq!(too_short, fixed_record::Error::TooShort);
+        assert_eq!(too_long, fixed_record::Error::ParseError);
+    }
+
+    #[test]
+    fn test_ref_from_str_prefix_accepts_trailing_text() {
+        let rec = TestRecord::ref_from_str_prefix("HelloWorldABCDE12345678tail").unwrap();
+
+        assert_eq!(rec.name_str().unwrap(), "HelloWorld");
+        assert_eq!(rec.as_str().unwrap(), "HelloWorldABCDE12345678");
+    }
+
+    #[test]
+    fn test_record_as_str_reports_invalid_utf8() {
+        let mut rec = TestRecord::builder()
+            .with_name("HelloWorld")
+            .with_code("ABCDE")
+            .with_amount_int(12345678)
+            .build();
+
+        rec.as_mut_bytes()[0] = 0xFF;
+
+        assert_eq!(rec.as_str().unwrap_err(), fixed_record::Error::Utf8Error);
+    }
+
+    #[test]
     fn test_zerocopy_as_bytes_views_record_memory() {
         let rec = TestRecord::builder()
             .with_name("HelloWorld")

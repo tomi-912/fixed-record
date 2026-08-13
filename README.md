@@ -158,6 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     assert_eq!(user.id(), b"00000001");
     assert_eq!(user.as_bytes(), raw);
+    assert_eq!(user.as_str()?, "00000001Tanaka          025");
     Ok(())
 }
 ```
@@ -175,10 +176,30 @@ struct User {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let raw = b"00000001Tanaka          025rest";
-    let user = User::ref_from_bytes_prefix(raw)?;
+    let raw = "00000001Tanaka          025rest";
+    let user = User::ref_from_str_prefix(raw)?;
 
     assert_eq!(user.id(), b"00000001");
+    Ok(())
+}
+```
+
+Use `ref_from_str` when the input is a UTF-8 string whose byte length is exactly one record.
+
+```rust
+use fixed_record::prelude::*;
+
+#[fixed_record]
+struct User {
+    id: Fixed<8>,
+    name: Fixed<16>,
+    age: Fixed<3>,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let user = User::ref_from_str("00000001Tanaka          025")?;
+
+    assert_eq!(user.name_str()?, "Tanaka          ");
     Ok(())
 }
 ```
