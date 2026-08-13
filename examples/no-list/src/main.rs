@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     assert_eq!(Header::TOTAL_LEN, 12);
     assert_eq!(header.get_field_trimmed(HeaderField::Name)?, "Tanaka");
-    assert_eq!(header.to_bytes(), *b"A001Tanaka\0\0");
+    assert_eq!(header.to_bytes(), *b"A001Tanaka  ");
 
     Ok(())
 }
