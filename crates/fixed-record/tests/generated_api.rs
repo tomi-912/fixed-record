@@ -499,6 +499,47 @@ mod tests {
 
         std::fs::remove_file(path).unwrap();
     }
+
+    #[test]
+    fn test_reader_writer_copy_lf_delimited_file_with_defaults() {
+        use fixed_record::{Reader, Writer};
+        use std::fs::File;
+        use std::io::BufReader;
+
+        let input_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/reader_writer_lf.dat"
+        );
+        let output_path = std::env::temp_dir().join(format!(
+            "fixed-record-lf-copy-{}-generated-api.dat",
+            std::process::id()
+        ));
+
+        let input = std::fs::read(input_path).unwrap();
+        assert!(!input.contains(&b'\r'));
+        assert_eq!(input.iter().filter(|&&byte| byte == b'\n').count(), 2);
+
+        let file = File::open(input_path).unwrap();
+        let reader = Reader::<_, TestRecord>::new(BufReader::new(file));
+        let list = reader.collect_list().unwrap();
+        assert_eq!(
+            list.iter()
+                .map(|record| record.get_field_trimmed(TestRecordField::Name).unwrap())
+                .collect::<Vec<_>>(),
+            vec!["Alice", "Bob"]
+        );
+
+        {
+            let file = File::create(&output_path).unwrap();
+            let mut writer = Writer::new(file);
+            writer.write_all(list.iter()).unwrap();
+            writer.flush().unwrap();
+        }
+
+        assert_eq!(std::fs::read(&output_path).unwrap(), input);
+        std::fs::remove_file(output_path).unwrap();
+    }
+
     #[test]
     fn test_reader_writer_round_trip_file_with_crlf_separator() {
         use fixed_record::{Reader, RecordSeparator, Writer};
