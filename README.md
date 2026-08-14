@@ -4,7 +4,7 @@
 
 Most users only need to depend on `fixed-record`. The `fixed-record-macros` crate is an implementation detail and is re-exported by `fixed-record`.
 
-Japanese documentation is available in [README.ja.md](README.ja.md).
+Japanese documentation is available in [README.ja.md](https://github.com/tomi-912/fixed-record/blob/HEAD/README.ja.md).
 
 API documentation is published at <https://tomi-912.github.io/fixed-record/>.
 

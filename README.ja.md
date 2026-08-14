@@ -4,7 +4,7 @@
 
 利用者は通常、`fixed-record` だけを依存に追加します。`fixed-record-macros` は `fixed-record` から再エクスポートされる内部実装用の proc macro crate です。
 
-英語版は [README.md](README.md) にあります。
+英語版は [README.md](https://github.com/tomi-912/fixed-record/blob/HEAD/README.md) にあります。
 
 API ドキュメントは <https://tomi-912.github.io/fixed-record/> で公開しています。
 
