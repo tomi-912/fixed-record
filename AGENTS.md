@@ -9,6 +9,7 @@ The Japanese translation is [AGENTS.ja.md](AGENTS.ja.md).
 - Keep both files semantically equivalent. English is the canonical wording when resolving an ambiguity.
 - Apply the same rule to `README.md` / `README.ja.md` and `DEVELOPMENT.md` / `DEVELOPMENT.ja.md`.
 - Write public Rust documentation bilingually, with English first and Japanese second.
+- Write public development content, including GitHub Issue titles and bodies, bilingually with English first and Japanese second. Apply the same rule to Pull Request descriptions, release notes, and other public planning or decision records.
 - Keep README files focused on installation and user-facing usage.
 - Keep long-lived repository rules and technical constraints in AGENTS.
 - Keep proposed improvements, design questions, and release planning in DEVELOPMENT or their linked GitHub Issues.
